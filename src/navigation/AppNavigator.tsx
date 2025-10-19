@@ -26,6 +26,7 @@ import PremiumScreen from '../screens/app/PremiumScreen';
 import ScanReceiptScreen from '../screens/app/ScanReceiptScreen';
 import ManageCategoriesScreen from '../screens/app/ManageCategoriesScreen';
 import ExpenseDetailScreen from '../screens/app/ExpenseDetailScreen';
+import AllExpensesScreen from '../screens/app/AllExpensesScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -87,6 +88,7 @@ export default function AppNavigator() {
       <Stack.Screen name="ScanReceipt" component={ScanReceiptScreen} />
       <Stack.Screen name="ManageCategories" component={ManageCategoriesScreen} />
       <Stack.Screen name="ExpenseDetail" component={ExpenseDetailScreen} />
+      <Stack.Screen name="AllExpenses" component={AllExpensesScreen} />
     </Stack.Navigator>
   );
 }

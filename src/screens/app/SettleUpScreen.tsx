@@ -38,12 +38,12 @@ export default function SettleUpScreen({ navigation, route }: any) {
   const balances = calculateBalances(tripExpenses, tripSettlements);
   const simplifiedBalances = simplifyBalances(balances);
   const settlementSuggestions = suggestSettlements(balances);
-  const participantSpending = getParticipantSpending(tripExpenses);
+  const participantSpending = getParticipantSpending(tripExpenses, tripSettlements);
 
   const handleSettleUp = async (from: string, to: string, amount: number) => {
     Alert.alert(
       'Settle Up',
-      `Mark payment of $${amount.toFixed(2)} from ${from} to ${to} as completed?`,
+      `Mark payment of ₹${amount.toFixed(2)} from ${from} to ${to} as completed?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -56,7 +56,7 @@ export default function SettleUpScreen({ navigation, route }: any) {
                 from,
                 to,
                 amount,
-                currency: 'SGD', // Use trip currency
+                currency: trip?.currency || 'INR', // Use trip currency instead of hardcoded SGD
               });
               Alert.alert('Success', 'Payment marked as completed!');
             } catch (error) {
@@ -78,7 +78,7 @@ export default function SettleUpScreen({ navigation, route }: any) {
       <View key={`${balance.from}-${balance.to}-${index}`} style={styles.balanceItem}>
         <View style={styles.balanceInfo}>
           <View style={styles.balanceHeader}>
-            <Text style={styles.balanceAmount}>${balance.amount.toFixed(2)}</Text>
+            <Text style={styles.balanceAmount}>₹{balance.amount.toFixed(2)}</Text>
             <Text style={styles.balanceCurrency}>{balance.currency}</Text>
           </View>
           <Text style={styles.balanceDescription}>
@@ -108,7 +108,7 @@ export default function SettleUpScreen({ navigation, route }: any) {
       <View key={settlement.id} style={styles.settlementItem}>
         <View style={styles.settlementInfo}>
           <View style={styles.settlementHeader}>
-            <Text style={styles.settlementAmount}>${settlement.amount.toFixed(2)}</Text>
+            <Text style={styles.settlementAmount}>₹{settlement.amount.toFixed(2)}</Text>
             <View style={styles.settledBadge}>
               <Ionicons name="checkmark" size={12} color="white" />
               <Text style={styles.settledText}>Settled</Text>
@@ -140,7 +140,7 @@ export default function SettleUpScreen({ navigation, route }: any) {
           <View style={styles.participantDetails}>
             <Text style={styles.participantName}>{participant.participantName}</Text>
             <Text style={styles.participantSummary}>
-              Paid: ${participant.totalPaid.toFixed(2)} | Owed: ${participant.totalOwed.toFixed(2)}
+              Paid: ₹{participant.totalPaid.toFixed(2)} | Owed: ₹{participant.totalOwed.toFixed(2)}
             </Text>
           </View>
         </View>
@@ -155,9 +155,9 @@ export default function SettleUpScreen({ navigation, route }: any) {
             isOwed && styles.owedText,
             isDebtor && styles.debtText,
           ]}>
-            {isOwed ? `+$${participant.netBalance.toFixed(2)}` : 
-             isDebtor ? `-$${Math.abs(participant.netBalance).toFixed(2)}` : 
-             '$0.00'}
+            {isOwed ? `+₹${participant.netBalance.toFixed(2)}` : 
+             isDebtor ? `-₹${Math.abs(participant.netBalance).toFixed(2)}` : 
+             '₹0.00'}
           </Text>
           <Text style={styles.netBalanceLabel}>
             {isOwed ? 'Owed' : isDebtor ? 'Owes' : 'Even'}

@@ -9,7 +9,9 @@ export interface TripSummary {
 }
 
 export const generateTripSummary = (trip: Trip, expenses: Expense[]): TripSummary => {
-  const tripExpenses = expenses.filter(expense => expense.tripId === trip.id);
+  const tripExpenses = expenses
+    .filter(expense => expense.tripId === trip.id)
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); // Latest first
   
   const totalSpent = tripExpenses.reduce((sum, expense) => sum + expense.amount, 0);
   const remainingBudget = trip.budget - totalSpent;

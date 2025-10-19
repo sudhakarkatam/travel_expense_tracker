@@ -97,13 +97,15 @@ export function calculateBalances(expenses: Expense[], settlements: Settlement[]
     });
   });
 
-  // Apply settlements
+  // Apply settlements - CORRECTED VERSION
   (settlements || []).forEach(settlement => {
+    // When someone settles (pays), they owe less
     if (participantBalances[settlement.from]) {
-      participantBalances[settlement.from].totalPaid -= settlement.amount;
+      participantBalances[settlement.from].totalOwed -= settlement.amount;
     }
+    // When someone receives settlement, they are owed less (their totalOwed decreases)
     if (participantBalances[settlement.to]) {
-      participantBalances[settlement.to].totalPaid += settlement.amount;
+      participantBalances[settlement.to].totalOwed -= settlement.amount;
     }
   });
 
@@ -114,17 +116,30 @@ export function calculateBalances(expenses: Expense[], settlements: Settlement[]
     // Negative = owes money FROM this person (they owe more than they paid)
   });
 
-  // Convert to Balance array
+  // Convert to Balance array - create balances for all participants
   const balances: Balance[] = [];
-  Object.values(participantBalances).forEach(balance => {
-    if (balance.netBalance < -0.01) { // Owes money (negative balance)
-      balances.push({
-        from: balance.participantId,
-        to: 'unknown', // Will be determined by settlement suggestions
-        amount: Math.abs(balance.netBalance),
-        currency: 'USD', // Default currency
-      });
-    }
+  const participants = Object.values(participantBalances);
+  
+  // Find debtors and creditors
+  const debtors = participants.filter(p => p.netBalance < -0.01);
+  const creditors = participants.filter(p => p.netBalance > 0.01);
+  
+  // Create balance pairs between debtors and creditors
+  debtors.forEach(debtor => {
+    creditors.forEach(creditor => {
+      const debtorDebt = Math.abs(debtor.netBalance);
+      const creditorCredit = creditor.netBalance;
+      const amount = Math.min(debtorDebt, creditorCredit);
+      
+      if (amount > 0.01) {
+        balances.push({
+          from: debtor.participantId,
+          to: creditor.participantId,
+          amount: amount,
+          currency: 'INR', // Use INR as default
+        });
+      }
+    });
   });
 
   return balances;
@@ -225,10 +240,10 @@ export function suggestSettlements(balances: Balance[]): SettlementSuggestion[] 
   }));
 }
 
-export function getParticipantSpending(expenses: Expense[]): ParticipantBalance[] {
+export function getParticipantSpending(expenses: Expense[], settlements: Settlement[] = []): ParticipantBalance[] {
   const participantBalances: Record<string, ParticipantBalance> = {};
 
-  // Initialize and calculate balances
+  // Initialize and calculate balances from expenses
   (expenses || []).forEach(expense => {
     if (!participantBalances[expense.paidBy]) {
       participantBalances[expense.paidBy] = {
@@ -254,6 +269,16 @@ export function getParticipantSpending(expenses: Expense[]): ParticipantBalance[
       }
       participantBalances[split.userId].totalOwed += split.amount;
     });
+  });
+
+  // Apply settlements (SAME LOGIC AS calculateBalances)
+  (settlements || []).forEach(settlement => {
+    if (participantBalances[settlement.from]) {
+      participantBalances[settlement.from].totalOwed -= settlement.amount;
+    }
+    if (participantBalances[settlement.to]) {
+      participantBalances[settlement.to].totalOwed -= settlement.amount;
+    }
   });
 
   // Calculate net balances

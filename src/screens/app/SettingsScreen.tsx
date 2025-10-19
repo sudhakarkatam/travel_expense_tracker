@@ -6,34 +6,72 @@ import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import { PDFExportService } from '@/services/pdfExport';
 import { CSVService } from '@/services/csvService';
-import { generateAllTripsSummary } from '@/utils/tripSummary';
 import { useApp } from '@/contexts/AppContext';
 
 export default function SettingsScreen({ navigation }: any) {
-  const { trips, expenses, addTrip, addExpense } = useApp();
+  const { trips, expenses, addTrip, addExpense, settlements, getTripBalances } = useApp();
   const [isExporting, setIsExporting] = useState(false);
 
-  const handleExportSummary = async () => {
+
+  const handleExportComprehensiveTrip = async () => {
     if (trips.length === 0) {
       Alert.alert('No Data', 'You don\'t have any trips to export yet.');
       return;
     }
 
+    // Show trip selection dialog
+    const tripOptions = trips.map(trip => trip.name);
+    
+    Alert.alert(
+      'Select Trip',
+      'Choose which trip to export comprehensive details for:',
+      [
+        ...tripOptions.map((tripName, index) => ({
+          text: tripName,
+          onPress: () => exportSelectedTrip(trips[index]),
+        })),
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
+  };
+
+  const exportSelectedTrip = async (selectedTrip: any) => {
     setIsExporting(true);
     try {
-      const summaries = generateAllTripsSummary(trips, expenses);
-      const pdfUri = await PDFExportService.generateAllTripsSummaryPDF(summaries);
+      const tripExpenses = expenses.filter(expense => expense.tripId === selectedTrip.id);
+      const tripSettlements = settlements.filter(settlement => settlement.tripId === selectedTrip.id);
+      const tripBalances = getTripBalances(selectedTrip.id);
+      
+      const totalSpent = tripExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+      const remainingBudget = selectedTrip.budget - totalSpent;
+      
+      const categoryBreakdown = tripExpenses.reduce((breakdown, expense) => {
+        breakdown[expense.category] = (breakdown[expense.category] || 0) + expense.amount;
+        return breakdown;
+      }, {} as Record<string, number>);
+
+      const tripSummary = {
+        trip: selectedTrip,
+        expenses: tripExpenses,
+        totalSpent,
+        remainingBudget,
+        categoryBreakdown,
+        settlements: tripSettlements,
+        balances: tripBalances,
+      };
+
+      const pdfUri = await PDFExportService.generateComprehensiveTripPDF(tripSummary);
       
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(pdfUri, {
           mimeType: 'application/pdf',
-          dialogTitle: 'Share Trip Summary',
+          dialogTitle: `Share ${selectedTrip.name} - Comprehensive Report`,
         });
       } else {
-        Alert.alert('Success', 'PDF generated successfully!');
+        Alert.alert('Success', 'Comprehensive trip PDF generated successfully!');
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to export PDF. Please try again.');
+      Alert.alert('Error', 'Failed to export comprehensive trip PDF. Please try again.');
       console.error('Export error:', error);
     } finally {
       setIsExporting(false);
@@ -195,12 +233,12 @@ export default function SettingsScreen({ navigation }: any) {
           
           <TouchableOpacity 
             style={styles.settingItem} 
-            onPress={handleExportSummary}
+            onPress={handleExportComprehensiveTrip}
             disabled={isExporting}
           >
-            <Ionicons name="document-outline" size={24} color="#333" />
-            <Text style={styles.settingText}>Export Summary</Text>
-            <Ionicons name="chevron-forward" size={20} color="#999" />
+            <Ionicons name="document-attach-outline" size={24} color="#8b5cf6" />
+            <Text style={[styles.settingText, { color: '#8b5cf6' }]}>Export Trip Report</Text>
+            <Ionicons name="chevron-forward" size={20} color="#8b5cf6" />
           </TouchableOpacity>
 
           <TouchableOpacity 

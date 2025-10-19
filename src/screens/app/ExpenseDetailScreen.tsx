@@ -1,13 +1,16 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, Modal, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '@/contexts/AppContext';
+
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 export default function ExpenseDetailScreen({ navigation, route }: any) {
   const { expenses, deleteExpense, categories } = useApp();
   const { expenseId, tripId } = route.params;
   const expense = expenses.find(e => e.id === expenseId);
+  const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
   const category = categories.find(c => c.id === expense?.category);
 
   if (!expense) {
@@ -59,12 +62,19 @@ export default function ExpenseDetailScreen({ navigation, route }: any) {
 
     return (
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Receipt Images</Text>
+        <Text style={styles.sectionTitle}>Receipt Images ({expense.receiptImages.length})</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imageScroll}>
           {expense.receiptImages.map((imageUri: string, index: number) => (
-            <View key={index} style={styles.imageContainer}>
+            <TouchableOpacity 
+              key={index} 
+              style={styles.imageContainer}
+              onPress={() => setSelectedImageIndex(index)}
+            >
               <Image source={{ uri: imageUri }} style={styles.receiptImage} />
-            </View>
+              <View style={styles.imageOverlay}>
+                <Ionicons name="expand" size={24} color="white" />
+              </View>
+            </TouchableOpacity>
           ))}
         </ScrollView>
       </View>
@@ -185,6 +195,56 @@ export default function ExpenseDetailScreen({ navigation, route }: any) {
           <Text style={styles.deleteButtonText}>Delete</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Image Modal */}
+      <Modal
+        visible={selectedImageIndex !== null}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setSelectedImageIndex(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity 
+            style={styles.modalCloseArea}
+            onPress={() => setSelectedImageIndex(null)}
+          />
+          <View style={styles.modalContent}>
+            <TouchableOpacity 
+              style={styles.modalCloseButton}
+              onPress={() => setSelectedImageIndex(null)}
+            >
+              <Ionicons name="close" size={30} color="white" />
+            </TouchableOpacity>
+            {selectedImageIndex !== null && expense.receiptImages && (
+              <ScrollView
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                style={styles.modalImageScroll}
+              >
+                {expense.receiptImages.map((imageUri: string, index: number) => (
+                  <View key={index} style={styles.modalImageContainer}>
+                    <Image 
+                      source={{ uri: imageUri }} 
+                      style={styles.modalImage}
+                      resizeMode="contain"
+                    />
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+            {selectedImageIndex !== null && expense.receiptImages && (
+              <Text style={styles.imageCounter}>
+                {selectedImageIndex + 1} of {expense.receiptImages.length}
+              </Text>
+            )}
+          </View>
+          <TouchableOpacity 
+            style={styles.modalCloseArea}
+            onPress={() => setSelectedImageIndex(null)}
+          />
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -400,5 +460,84 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 18,
     color: '#666',
+  },
+  imageScroll: {
+    marginTop: 8,
+  },
+  imageContainer: {
+    marginRight: 12,
+    position: 'relative',
+  },
+  receiptImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 8,
+  },
+  imageOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalCloseArea: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  modalContent: {
+    width: screenWidth,
+    height: screenHeight,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalCloseButton: {
+    position: 'absolute',
+    top: 60,
+    right: 20,
+    zIndex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 20,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalImageScroll: {
+    flex: 1,
+    width: screenWidth,
+  },
+  modalImageContainer: {
+    width: screenWidth,
+    height: screenHeight,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalImage: {
+    width: screenWidth - 40,
+    height: screenHeight - 200,
+  },
+  imageCounter: {
+    position: 'absolute',
+    bottom: 60,
+    alignSelf: 'center',
+    color: 'white',
+    fontSize: 16,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
   },
 });

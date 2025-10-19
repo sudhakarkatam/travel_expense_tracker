@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert, Image } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert, Image, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '@/contexts/AppContext';
@@ -29,12 +29,30 @@ export default function EditExpenseScreen({ navigation, route }: any) {
     date: '',
     receiptImages: [] as string[],
     splitType: 'equal' as 'equal' | 'percentage' | 'custom',
+    isSplitExpense: false,
+    paidBy: '',
+    splitBetween: [] as string[],
+    customAmounts: {} as Record<string, string>,
+    percentages: {} as Record<string, string>,
   });
 
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (expense) {
+      const hasSplitData = expense.splitBetween && expense.splitBetween.length > 0;
+      const customAmounts: Record<string, string> = {};
+      const percentages: Record<string, string> = {};
+      
+      if (hasSplitData) {
+        expense.splitBetween.forEach(split => {
+          customAmounts[split.userId] = split.amount.toString();
+          if (split.percentage) {
+            percentages[split.userId] = split.percentage.toString();
+          }
+        });
+      }
+
       setFormData({
         amount: expense.amount.toString(),
         description: expense.description,
@@ -43,17 +61,103 @@ export default function EditExpenseScreen({ navigation, route }: any) {
         date: expense.date,
         receiptImages: expense.receiptImages || [],
         splitType: expense.splitType || 'equal',
+        isSplitExpense: hasSplitData,
+        paidBy: expense.paidBy || '',
+        splitBetween: hasSplitData ? expense.splitBetween.map(s => s.userId) : [],
+        customAmounts,
+        percentages,
       });
     }
   }, [expense]);
 
-  const handleInputChange = (field: string, value: string | string[]) => {
+  const handleInputChange = (field: string, value: string | string[] | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  const handleSplitTypeChange = (splitType: 'equal' | 'percentage' | 'custom') => {
+    setFormData(prev => ({
+      ...prev,
+      splitType,
+      customAmounts: {},
+      percentages: {},
+    }));
+  };
+
+  const handleParticipantToggle = (participantId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      splitBetween: prev.splitBetween.includes(participantId)
+        ? prev.splitBetween.filter(id => id !== participantId)
+        : [...prev.splitBetween, participantId],
+    }));
+  };
+
+  const handleCustomAmountChange = (participantId: string, amount: string) => {
+    setFormData(prev => ({
+      ...prev,
+      customAmounts: {
+        ...prev.customAmounts,
+        [participantId]: amount,
+      },
+    }));
+  };
+
+  const handlePercentageChange = (participantId: string, percentage: string) => {
+    setFormData(prev => ({
+      ...prev,
+      percentages: {
+        ...prev.percentages,
+        [participantId]: percentage,
+      },
+    }));
+  };
+
+  const calculateSplitAmounts = () => {
+    if (!formData.amount || formData.splitBetween.length === 0) return [];
+
+    const amount = parseFloat(formData.amount);
+    const participants = formData.splitBetween.map(participantId => {
+      const participant = trip?.participants.find(p => p.id === participantId);
+      return {
+        userId: participantId,
+        userName: participant?.name || 'Unknown',
+        amount: 0,
+        percentage: formData.percentages[participantId] ? parseFloat(formData.percentages[participantId]) : undefined,
+        isPaid: false,
+        settlementStatus: 'pending' as const,
+      };
+    });
+
+    switch (formData.splitType) {
+      case 'equal':
+        const equalAmount = amount / participants.length;
+        return participants.map(p => ({ ...p, amount: equalAmount }));
+      
+      case 'percentage':
+        return participants.map(p => ({
+          ...p,
+          amount: (amount * (p.percentage || 0)) / 100,
+        }));
+      
+      case 'custom':
+        return participants.map(p => ({
+          ...p,
+          amount: parseFloat(formData.customAmounts[p.userId]) || 0,
+        }));
+      
+      default:
+        return participants;
+    }
+  };
+
   const handleSaveExpense = async () => {
-    if (!formData.amount.trim() || !formData.description.trim()) {
-      Alert.alert('Error', 'Please fill in all required fields.');
+    if (!formData.amount.trim()) {
+      Alert.alert('Error', 'Please enter an amount.');
+      return;
+    }
+
+    if (formData.isSplitExpense && (!formData.paidBy || formData.splitBetween.length === 0)) {
+      Alert.alert('Error', 'Please select who paid and who to split between.');
       return;
     }
 
@@ -81,6 +185,8 @@ export default function EditExpenseScreen({ navigation, route }: any) {
         }
       }
 
+      const splitParticipants = formData.isSplitExpense ? calculateSplitAmounts() : [];
+
       await updateExpense(expenseId, {
         amount: parseFloat(formData.amount),
         description: formData.description.trim(),
@@ -88,7 +194,9 @@ export default function EditExpenseScreen({ navigation, route }: any) {
         category: formData.category,
         date: formData.date,
         receiptImages: savedImages,
-        splitType: formData.splitType,
+        paidBy: formData.isSplitExpense ? formData.paidBy : 'current_user',
+        splitBetween: splitParticipants,
+        splitType: formData.isSplitExpense ? formData.splitType : 'equal',
       });
       
       navigation.goBack();
@@ -198,10 +306,10 @@ export default function EditExpenseScreen({ navigation, route }: any) {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Description *</Text>
+            <Text style={styles.label}>Description (optional)</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
-              placeholder="What did you pay for?"
+              placeholder="What did you pay for? (optional)"
               value={formData.description}
               onChangeText={(value) => handleInputChange('description', value)}
               multiline
@@ -256,6 +364,139 @@ export default function EditExpenseScreen({ navigation, route }: any) {
               onChange={(value) => handleInputChange('date', value)}
             />
           </View>
+
+          {/* Split Expense Toggle */}
+          <View style={styles.inputGroup}>
+            <View style={styles.splitToggleContainer}>
+              <View style={styles.splitToggleLabel}>
+                <Ionicons name="people" size={20} color="#8b5cf6" />
+                <Text style={styles.splitToggleText}>Split Expense</Text>
+              </View>
+              <Switch
+                value={formData.isSplitExpense}
+                onValueChange={(value) => handleInputChange('isSplitExpense', value)}
+                trackColor={{ false: '#f3f4f6', true: '#e9d5ff' }}
+                thumbColor={formData.isSplitExpense ? '#8b5cf6' : '#9ca3af'}
+              />
+            </View>
+          </View>
+
+          {/* Split Expense Fields */}
+          {formData.isSplitExpense && (
+            <>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Who Paid? *</Text>
+                <View style={styles.participantGrid}>
+                  {trip.participants.map(participant => (
+                    <TouchableOpacity
+                      key={participant.id}
+                      style={[
+                        styles.participantButton,
+                        { backgroundColor: formData.paidBy === participant.id ? '#8b5cf6' : '#f3f4f6' }
+                      ]}
+                      onPress={() => handleInputChange('paidBy', participant.id)}
+                    >
+                      <Text style={[
+                        styles.participantText,
+                        { color: formData.paidBy === participant.id ? 'white' : '#666' }
+                      ]}>
+                        {participant.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Split Type</Text>
+                <View style={styles.splitTypeContainer}>
+                  {(['equal', 'percentage', 'custom'] as const).map(type => (
+                    <TouchableOpacity
+                      key={type}
+                      style={[
+                        styles.splitTypeButton,
+                        { backgroundColor: formData.splitType === type ? '#8b5cf6' : '#f3f4f6' }
+                      ]}
+                      onPress={() => handleSplitTypeChange(type)}
+                    >
+                      <Text style={[
+                        styles.splitTypeText,
+                        { color: formData.splitType === type ? 'white' : '#666' }
+                      ]}>
+                        {type.charAt(0).toUpperCase() + type.slice(1)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Split Between *</Text>
+                <View style={styles.participantGrid}>
+                  {trip.participants.map(participant => (
+                    <TouchableOpacity
+                      key={participant.id}
+                      style={[
+                        styles.participantButton,
+                        { backgroundColor: formData.splitBetween.includes(participant.id) ? '#8b5cf6' : '#f3f4f6' }
+                      ]}
+                      onPress={() => handleParticipantToggle(participant.id)}
+                    >
+                      <Text style={[
+                        styles.participantText,
+                        { color: formData.splitBetween.includes(participant.id) ? 'white' : '#666' }
+                      ]}>
+                        {participant.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {formData.splitType === 'custom' && (
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Custom Amounts</Text>
+                  {formData.splitBetween.map(participantId => {
+                    const participant = trip.participants.find(p => p.id === participantId);
+                    return (
+                      <View key={participantId} style={styles.customAmountRow}>
+                        <Text style={styles.customAmountLabel}>{participant?.name}</Text>
+                        <TextInput
+                          style={styles.customAmountInput}
+                          placeholder="0.00"
+                          value={formData.customAmounts[participantId] || ''}
+                          onChangeText={(value) => handleCustomAmountChange(participantId, value)}
+                          keyboardType="numeric"
+                        />
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
+
+              {formData.splitType === 'percentage' && (
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Percentages</Text>
+                  {formData.splitBetween.map(participantId => {
+                    const participant = trip.participants.find(p => p.id === participantId);
+                    return (
+                      <View key={participantId} style={styles.customAmountRow}>
+                        <Text style={styles.customAmountLabel}>{participant?.name}</Text>
+                        <TextInput
+                          style={styles.customAmountInput}
+                          placeholder="0"
+                          value={formData.percentages[participantId] || ''}
+                          onChangeText={(value) => handlePercentageChange(participantId, value)}
+                          keyboardType="numeric"
+                        />
+                        <Text style={styles.percentageSymbol}>%</Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
+            </>
+          )}
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Receipt Images</Text>
@@ -467,5 +708,88 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 18,
     color: '#666',
+  },
+  splitToggleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#f9fafb',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  splitToggleLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  splitToggleText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#333',
+  },
+  participantGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  participantButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  participantText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  splitTypeContainer: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  splitTypeButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  splitTypeText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  customAmountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  customAmountLabel: {
+    fontSize: 14,
+    color: '#666',
+    flex: 1,
+  },
+  customAmountInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    fontSize: 14,
+    textAlign: 'right',
+    marginLeft: 8,
+  },
+  percentageSymbol: {
+    fontSize: 14,
+    color: '#666',
+    marginLeft: 4,
   },
 });

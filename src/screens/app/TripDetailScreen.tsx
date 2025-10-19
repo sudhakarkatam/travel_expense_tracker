@@ -4,13 +4,60 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '@/contexts/AppContext';
 import { generateTripSummary } from '@/utils/tripSummary';
+import { PDFExportService } from '@/services/pdfExport';
+import * as Sharing from 'expo-sharing';
 
 export default function TripDetailScreen({ navigation, route }: any) {
-  const { trips, expenses, deleteExpense } = useApp();
+  const { trips, expenses, deleteExpense, settlements, getTripBalances } = useApp();
   const { tripId } = route.params;
   const trip = trips.find(t => t.id === tripId);
   const summary = trip ? generateTripSummary(trip, expenses) : null;
-  const [showAllExpenses, setShowAllExpenses] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportTrip = async () => {
+    if (!trip || !summary) return;
+    
+    setIsExporting(true);
+    try {
+      const tripExpenses = expenses.filter(expense => expense.tripId === trip.id);
+      const tripSettlements = settlements.filter(settlement => settlement.tripId === trip.id);
+      const tripBalances = getTripBalances(trip.id);
+      
+      const totalSpent = tripExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+      const remainingBudget = trip.budget - totalSpent;
+      
+      const categoryBreakdown = tripExpenses.reduce((breakdown, expense) => {
+        breakdown[expense.category] = (breakdown[expense.category] || 0) + expense.amount;
+        return breakdown;
+      }, {} as Record<string, number>);
+
+      const tripSummary = {
+        trip: trip,
+        expenses: tripExpenses,
+        totalSpent,
+        remainingBudget,
+        categoryBreakdown,
+        settlements: tripSettlements,
+        balances: tripBalances,
+      };
+
+      const pdfUri = await PDFExportService.generateComprehensiveTripPDF(tripSummary);
+      
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(pdfUri, {
+          mimeType: 'application/pdf',
+          dialogTitle: `Share ${trip.name} - Comprehensive Report`,
+        });
+      } else {
+        Alert.alert('Success', 'Comprehensive trip PDF generated successfully!');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to export trip PDF. Please try again.');
+      console.error('Export error:', error);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   if (!trip || !summary) {
     return (
@@ -82,7 +129,7 @@ export default function TripDetailScreen({ navigation, route }: any) {
           <Text style={styles.expenseCategory}>{expense.category}</Text>
           <Text style={styles.expenseDate}>{new Date(expense.date).toLocaleDateString()}</Text>
         </View>
-        <Text style={styles.expenseAmount}>${expense.amount.toFixed(2)}</Text>
+        <Text style={styles.expenseAmount}>₹{expense.amount.toFixed(2)}</Text>
       </TouchableOpacity>
     );
   };
@@ -94,9 +141,22 @@ export default function TripDetailScreen({ navigation, route }: any) {
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.title}>{trip.name}</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('EditTrip', { tripId: trip.id })}>
-          <Ionicons name="pencil-outline" size={24} color="#8b5cf6" />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity 
+            onPress={handleExportTrip}
+            disabled={isExporting}
+            style={styles.headerActionButton}
+          >
+            <Ionicons 
+              name={isExporting ? "hourglass-outline" : "document-attach-outline"} 
+              size={24} 
+              color={isExporting ? "#999" : "#8b5cf6"} 
+            />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate('EditTrip', { tripId: trip.id })}>
+            <Ionicons name="pencil-outline" size={24} color="#8b5cf6" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView style={styles.content}>
@@ -122,11 +182,11 @@ export default function TripDetailScreen({ navigation, route }: any) {
         <View style={styles.budgetCard}>
           <View style={styles.budgetSection}>
             <Text style={styles.budgetLabel}>Spent</Text>
-            <Text style={styles.budgetAmount}>${summary.totalSpent.toFixed(2)}</Text>
+            <Text style={styles.budgetAmount}>₹{summary.totalSpent.toFixed(2)}</Text>
           </View>
           <View style={styles.budgetSection}>
             <Text style={styles.budgetLabel}>Remaining</Text>
-            <Text style={styles.budgetAmount}>${summary.remainingBudget.toFixed(2)}</Text>
+            <Text style={styles.budgetAmount}>₹{summary.remainingBudget.toFixed(2)}</Text>
           </View>
         </View>
 
@@ -135,7 +195,7 @@ export default function TripDetailScreen({ navigation, route }: any) {
             <View style={[styles.progressFill, { width: `${Math.min((summary.totalSpent / trip.budget) * 100, 100)}%` }]} />
           </View>
           <Text style={styles.progressText}>
-            {((summary.totalSpent / trip.budget) * 100).toFixed(0)}% of ${trip.budget.toFixed(2)} budget used
+            {((summary.totalSpent / trip.budget) * 100).toFixed(0)}% of ₹{trip.budget.toFixed(2)} budget used
           </Text>
         </View>
 
@@ -155,8 +215,36 @@ export default function TripDetailScreen({ navigation, route }: any) {
           </TouchableOpacity>
         </View>
 
+        {/* Expense Summary Card */}
+        <View style={styles.expenseSummaryCard}>
+          <View style={styles.summaryRow}>
+            <View style={styles.summaryItem}>
+              <Ionicons name="receipt-outline" size={20} color="#8b5cf6" />
+              <Text style={styles.summaryValue}>{summary.expenses.length}</Text>
+              <Text style={styles.summaryLabel}>Total Expenses</Text>
+            </View>
+            <View style={styles.summaryDivider} />
+            <View style={styles.summaryItem}>
+              <Ionicons name="wallet-outline" size={20} color="#22c55e" />
+              <Text style={styles.summaryValue}>₹{summary.totalSpent.toFixed(2)}</Text>
+              <Text style={styles.summaryLabel}>Total Amount</Text>
+            </View>
+          </View>
+        </View>
+
         <View style={styles.expensesSection}>
-          <Text style={styles.sectionTitle}>Expenses ({summary.expenses.length})</Text>
+          <View style={styles.expensesHeader}>
+            <Text style={styles.sectionTitle}>Expenses ({summary.expenses.length})</Text>
+            {summary.expenses.length > 0 && (
+              <TouchableOpacity 
+                style={styles.showAllHeaderButton}
+                onPress={() => navigation.navigate('AllExpenses', { tripId: trip.id })}
+              >
+                <Text style={styles.showAllHeaderText}>Show All</Text>
+                <Ionicons name="chevron-forward" size={16} color="#8b5cf6" />
+              </TouchableOpacity>
+            )}
+          </View>
           {summary.expenses.length === 0 ? (
             <View style={styles.emptyExpenses}>
               <Ionicons name="trending-up-outline" size={48} color="#d1d5db" />
@@ -165,27 +253,7 @@ export default function TripDetailScreen({ navigation, route }: any) {
             </View>
           ) : (
             <>
-              {(showAllExpenses ? summary.expenses : summary.expenses.slice(0, 5)).map(renderExpenseItem)}
-              {summary.expenses.length > 5 && !showAllExpenses && (
-                <TouchableOpacity 
-                  style={styles.showAllButton}
-                  onPress={() => setShowAllExpenses(true)}
-                >
-                  <Text style={styles.showAllText}>
-                    Show All ({summary.expenses.length} expenses)
-                  </Text>
-                  <Ionicons name="chevron-down" size={16} color="#8b5cf6" />
-                </TouchableOpacity>
-              )}
-              {showAllExpenses && summary.expenses.length > 5 && (
-                <TouchableOpacity 
-                  style={styles.showLessButton}
-                  onPress={() => setShowAllExpenses(false)}
-                >
-                  <Text style={styles.showLessText}>Show Less</Text>
-                  <Ionicons name="chevron-up" size={16} color="#8b5cf6" />
-                </TouchableOpacity>
-              )}
+              {summary.expenses.slice(0, 5).map(renderExpenseItem)}
             </>
           )}
         </View>
@@ -231,6 +299,14 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  headerActionButton: {
+    padding: 4,
   },
   title: {
     fontSize: 18,
@@ -329,6 +405,22 @@ const styles = StyleSheet.create({
   },
   expensesSection: {
     marginBottom: 24,
+  },
+  expensesHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  showAllHeaderButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  showAllHeaderText: {
+    fontSize: 14,
+    color: '#8b5cf6',
+    fontWeight: '500',
   },
   emptyExpenses: {
     alignItems: 'center',
@@ -462,34 +554,35 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: 'rgba(255, 255, 255, 0.8)',
   },
-  showAllButton: {
+  expenseSummaryCard: {
+    backgroundColor: '#f9fafb',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
+  },
+  summaryRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    backgroundColor: '#f3f4f6',
-    borderRadius: 8,
-    marginTop: 8,
-    gap: 4,
+    justifyContent: 'space-around',
   },
-  showAllText: {
-    fontSize: 14,
-    color: '#8b5cf6',
-    fontWeight: '500',
-  },
-  showLessButton: {
-    flexDirection: 'row',
+  summaryItem: {
+    flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    backgroundColor: '#f3f4f6',
-    borderRadius: 8,
-    marginTop: 8,
-    gap: 4,
   },
-  showLessText: {
-    fontSize: 14,
-    color: '#8b5cf6',
-    fontWeight: '500',
+  summaryDivider: {
+    width: 1,
+    height: 60,
+    backgroundColor: '#e5e7eb',
+  },
+  summaryValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    marginTop: 8,
+  },
+  summaryLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
   },
 });
