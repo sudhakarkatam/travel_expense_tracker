@@ -175,9 +175,11 @@ export default function SettingsScreen({ navigation }: any) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.content}>
-        <Text style={styles.title}>Settings</Text>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Settings</Text>
+        </View>
         
         <View style={styles.settingsGroup}>
           <TouchableOpacity style={styles.settingItem}>
@@ -299,7 +301,15 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: 16,
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 32,
+  },
+  header: {
+    paddingTop: 8,
+    paddingBottom: 16,
   },
   title: {
     fontSize: 28,

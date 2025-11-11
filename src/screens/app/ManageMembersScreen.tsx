@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '@/contexts/AppContext';
@@ -12,6 +12,7 @@ export default function ManageMembersScreen({ navigation, route }: any) {
   const [isAddingMember, setIsAddingMember] = useState(false);
   const [newMemberName, setNewMemberName] = useState('');
   const [newMemberEmail, setNewMemberEmail] = useState('');
+  const [isCurrentUser, setIsCurrentUser] = useState(false);
 
   if (!trip) {
     return (
@@ -29,20 +30,29 @@ export default function ManageMembersScreen({ navigation, route }: any) {
       return;
     }
 
+    // If marking as current user, unset isCurrentUser for all other members
+    let updatedParticipants = [...(trip.participants || [])];
+    if (isCurrentUser) {
+      updatedParticipants = updatedParticipants.map(p => ({ ...p, isCurrentUser: false }));
+    }
+
     const newMember = {
       id: `member_${Date.now()}`,
       name: newMemberName.trim(),
       email: newMemberEmail.trim() || undefined,
       avatar: undefined,
       isActive: true,
+      isOwner: false,
+      isCurrentUser: isCurrentUser,
       joinedAt: new Date().toISOString(),
     };
 
-    const updatedParticipants = [...(trip.participants || []), newMember];
+    updatedParticipants.push(newMember);
     await updateTrip(tripId, { participants: updatedParticipants });
     
     setNewMemberName('');
     setNewMemberEmail('');
+    setIsCurrentUser(false);
     setIsAddingMember(false);
   };
 
@@ -95,13 +105,19 @@ export default function ManageMembersScreen({ navigation, route }: any) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity 
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+        >
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.title}>Manage Members</Text>
-        <TouchableOpacity onPress={handleShareInvite}>
+        <TouchableOpacity 
+          onPress={handleShareInvite}
+          style={styles.shareButton}
+        >
           <Ionicons name="share-outline" size={24} color="#8b5cf6" />
         </TouchableOpacity>
       </View>
@@ -146,7 +162,14 @@ export default function ManageMembersScreen({ navigation, route }: any) {
                   </Text>
                 </View>
                 <View style={styles.memberDetails}>
-                  <Text style={styles.memberName}>{member.name}</Text>
+                  <View style={styles.memberNameRow}>
+                    <Text style={styles.memberName}>{member.name}</Text>
+                    {member.isCurrentUser && (
+                      <View style={styles.currentUserBadge}>
+                        <Text style={styles.currentUserText}>You</Text>
+                      </View>
+                    )}
+                  </View>
                   {member.email && (
                     <Text style={styles.memberEmail}>{member.email}</Text>
                   )}
@@ -191,6 +214,21 @@ export default function ManageMembersScreen({ navigation, route }: any) {
                 />
               </View>
               
+              <View style={styles.inputGroup}>
+                <View style={styles.switchContainer}>
+                  <Text style={styles.label}>This is me (Current User)</Text>
+                  <Switch
+                    value={isCurrentUser}
+                    onValueChange={setIsCurrentUser}
+                    trackColor={{ false: '#e5e7eb', true: '#8b5cf6' }}
+                    thumbColor={isCurrentUser ? '#fff' : '#f4f3f4'}
+                  />
+                </View>
+                <Text style={styles.switchDescription}>
+                  Mark this member as yourself for easier expense tracking
+                </Text>
+              </View>
+              
               <View style={styles.formActions}>
                 <TouchableOpacity 
                   style={styles.cancelButton}
@@ -198,6 +236,7 @@ export default function ManageMembersScreen({ navigation, route }: any) {
                     setIsAddingMember(false);
                     setNewMemberName('');
                     setNewMemberEmail('');
+                    setIsCurrentUser(false);
                   }}
                 >
                   <Text style={styles.cancelText}>Cancel</Text>
@@ -228,9 +267,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    paddingTop: 8,
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E5E5EA',
+    backgroundColor: '#FFFFFF',
+  },
+  backButton: {
+    padding: 8,
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  shareButton: {
+    padding: 8,
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   title: {
     fontSize: 18,
@@ -417,5 +472,33 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 18,
     color: '#666',
+  },
+  memberNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  currentUserBadge: {
+    backgroundColor: '#8b5cf6',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    marginLeft: 8,
+  },
+  currentUserText: {
+    fontSize: 12,
+    color: 'white',
+    fontWeight: '600',
+  },
+  switchContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  switchDescription: {
+    fontSize: 14,
+    color: '#666',
+    fontStyle: 'italic',
   },
 });

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, Mod
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '@/contexts/AppContext';
+import { formatDateTime } from '@/utils/dateFormatter';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -145,12 +146,7 @@ export default function ExpenseDetailScreen({ navigation, route }: any) {
           <View style={styles.dateContainer}>
             <Ionicons name="calendar-outline" size={16} color="#666" />
             <Text style={styles.dateText}>
-              {new Date(expense.date).toLocaleDateString('en-US', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-              })}
+              {formatDateTime(expense.createdAt || expense.date, { dateFormat: 'long' })}
             </Text>
           </View>
         </View>

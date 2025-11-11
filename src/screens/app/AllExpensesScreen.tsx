@@ -1,52 +1,80 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image } from 'react-native';
+import React, { useState, useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, TextInput, Platform } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
+import EmptyState from '@/components/EmptyState';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '@/contexts/AppContext';
 import { generateTripSummary } from '@/utils/tripSummary';
+import { formatCurrency } from '@/utils/currencyFormatter';
+import { formatDateTime } from '@/utils/dateFormatter';
 
 export default function AllExpensesScreen({ navigation, route }: any) {
   const { trips, expenses, deleteExpense, categories } = useApp();
-  const { tripId } = route.params;
-  const trip = trips.find(t => t.id === tripId);
-  const summary = trip ? generateTripSummary(trip, expenses) : null;
-  const [sortBy, setSortBy] = useState<'date' | 'amount' | 'category'>('date');
+  const { tripId } = route.params || {};
+  const trip = tripId ? trips.find(t => t.id === tripId) : null;
+  const showAllTrips = !tripId || tripId === null;
+  
+  const [sortBy, setSortBy] = useState<'date' | 'amount' | 'category' | 'trip'>('date');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string | 'all'>('all');
 
-  if (!trip || !summary) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="#333" />
-          </TouchableOpacity>
-          <Text style={styles.title}>All Expenses</Text>
-          <View style={{ width: 24 }} />
-        </View>
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Trip not found</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
 
-  const handleSort = (type: 'date' | 'amount' | 'category') => {
-    setSortBy(type);
-  };
+  // Get all expenses (from single trip or all trips)
+  const allExpenses = useMemo(() => {
+    if (showAllTrips) {
+      return expenses;
+    } else if (trip) {
+      const summary = generateTripSummary(trip, expenses);
+      return summary?.expenses || [];
+    }
+    return [];
+  }, [expenses, trip, showAllTrips]);
 
-  const getSortedExpenses = () => {
-    const sortedExpenses = [...summary.expenses];
+  const filteredAndSortedExpenses = useMemo(() => {
+    let filtered = [...allExpenses];
     
+    // Filter by category
+    if (selectedCategoryFilter !== 'all') {
+      filtered = filtered.filter(expense => expense.category === selectedCategoryFilter);
+    }
+    
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(expense => {
+        const tripName = trips.find(t => t.id === expense.tripId)?.name || '';
+        return expense.description.toLowerCase().includes(query) ||
+               expense.category.toLowerCase().includes(query) ||
+               expense.amount.toString().includes(query) ||
+               tripName.toLowerCase().includes(query);
+      });
+    }
+    
+    // Apply sorting
     switch (sortBy) {
       case 'date':
-        return sortedExpenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        return filtered.sort((a, b) => new Date(b.createdAt || b.date).getTime() - new Date(a.createdAt || a.date).getTime());
       case 'amount':
-        return sortedExpenses.sort((a, b) => b.amount - a.amount);
+        return filtered.sort((a, b) => b.amount - a.amount);
       case 'category':
-        return sortedExpenses.sort((a, b) => a.category.localeCompare(b.category));
+        return filtered.sort((a, b) => a.category.localeCompare(b.category));
+      case 'trip':
+        return filtered.sort((a, b) => {
+          const tripA = trips.find(t => t.id === a.tripId)?.name || '';
+          const tripB = trips.find(t => t.id === b.tripId)?.name || '';
+          return tripA.localeCompare(tripB);
+        });
       default:
-        return sortedExpenses;
+        return filtered;
     }
-  };
+  }, [allExpenses, searchQuery, sortBy, selectedCategoryFilter, trips, showAllTrips]);
+
+  // Get unique categories for filter
+  const uniqueCategories = useMemo(() => {
+    const cats = new Set(allExpenses.map(e => e.category));
+    return Array.from(cats).sort();
+  }, [allExpenses]);
 
   const getCategoryIcon = (categoryId: string) => {
     const category = categories.find(c => c.id === categoryId);
@@ -58,7 +86,12 @@ export default function AllExpensesScreen({ navigation, route }: any) {
     return category?.color || '#6b7280';
   };
 
+  const getExpenseTrip = (expense: any) => {
+    return trips.find(t => t.id === expense.tripId);
+  };
+
   const renderExpenseItem = (expense: any) => {
+    const expenseTrip = getExpenseTrip(expense);
     const handleLongPress = () => {
       Alert.alert(
         'Expense Options',
@@ -100,7 +133,7 @@ export default function AllExpensesScreen({ navigation, route }: any) {
         style={styles.expenseItem}
         onPress={() => navigation.navigate('ExpenseDetail', { 
           expenseId: expense.id, 
-          tripId: trip.id 
+          tripId: expense.tripId 
         })}
         onLongPress={handleLongPress}
       >
@@ -111,10 +144,15 @@ export default function AllExpensesScreen({ navigation, route }: any) {
         </View>
         
         <View style={styles.expenseInfo}>
-          <Text style={styles.expenseDescription}>{expense.description}</Text>
+          <Text style={styles.expenseDescription}>{expense.description || 'No description'}</Text>
           <View style={styles.expenseMeta}>
-            <Text style={styles.expenseCategory}>{expense.category}</Text>
-            <Text style={styles.expenseDate}>{new Date(expense.date).toLocaleDateString()}</Text>
+            <Text style={styles.expenseCategory}>{expense.category || 'Uncategorized'}</Text>
+            {showAllTrips && expenseTrip ? (
+              <Text style={styles.expenseTripName}>{expenseTrip.name || ''}</Text>
+            ) : null}
+            <Text style={styles.expenseDate}>
+              {formatDateTime(expense.createdAt || expense.date)}
+            </Text>
           </View>
           {expense.receiptImages && expense.receiptImages.length > 0 && (
             <View style={styles.receiptIndicator}>
@@ -125,7 +163,9 @@ export default function AllExpensesScreen({ navigation, route }: any) {
         </View>
         
         <View style={styles.expenseAmount}>
-          <Text style={styles.amountText}>₹{expense.amount.toFixed(2)}</Text>
+          <Text style={styles.amountText}>
+            {formatCurrency(expense.amount, { currency: expense.currency || expenseTrip?.currency || 'INR' })}
+          </Text>
           {expense.splitBetween && expense.splitBetween.length > 0 && (
             <View style={styles.splitIndicator}>
               <Ionicons name="people" size={12} color="#666" />
@@ -137,67 +177,151 @@ export default function AllExpensesScreen({ navigation, route }: any) {
     );
   };
 
-  const sortedExpenses = getSortedExpenses();
-
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity 
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+        >
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.title}>All Expenses</Text>
         <View style={{ width: 24 }} />
       </View>
 
-      {/* Trip Info */}
-      <View style={styles.tripInfo}>
-        <Text style={styles.tripName}>{trip.name}</Text>
-        <Text style={styles.tripDestination}>{trip.destination}</Text>
-        <Text style={styles.expenseCount}>{summary.expenses.length} expenses</Text>
+      {/* Trip Selector Dropdown */}
+      <View style={styles.tripSelectorContainer}>
+        <Text style={styles.tripSelectorLabel}>Select Trip</Text>
+        <View style={styles.pickerContainer}>
+          <Picker
+            selectedValue={showAllTrips ? 'all' : (tripId || 'all')}
+            onValueChange={(value) => {
+              if (value === 'all') {
+                navigation.navigate('AllExpenses', { tripId: null });
+              } else {
+                navigation.navigate('AllExpenses', { tripId: value });
+              }
+            }}
+            style={styles.picker}
+            dropdownIconColor="#8b5cf6"
+          >
+            <Picker.Item 
+              label={`All Trips (${allExpenses.length} expenses)`} 
+              value="all" 
+            />
+            {trips.map((t) => {
+              const tripExpenses = expenses.filter(e => e.tripId === t.id);
+              return (
+                <Picker.Item
+                  key={t.id}
+                  label={`${t.name} (${tripExpenses.length} expenses)`}
+                  value={t.id}
+                />
+              );
+            })}
+          </Picker>
+        </View>
       </View>
 
-      {/* Sort Options */}
-      <View style={styles.sortContainer}>
-        <Text style={styles.sortLabel}>Sort by:</Text>
-        <View style={styles.sortButtons}>
-          <TouchableOpacity 
-            style={[styles.sortButton, sortBy === 'date' && styles.activeSortButton]}
-            onPress={() => handleSort('date')}
-          >
-            <Text style={[styles.sortButtonText, sortBy === 'date' && styles.activeSortButtonText]}>
-              Date
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.sortButton, sortBy === 'amount' && styles.activeSortButton]}
-            onPress={() => handleSort('amount')}
-          >
-            <Text style={[styles.sortButtonText, sortBy === 'amount' && styles.activeSortButtonText]}>
-              Amount
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.sortButton, sortBy === 'category' && styles.activeSortButton]}
-            onPress={() => handleSort('category')}
-          >
-            <Text style={[styles.sortButtonText, sortBy === 'category' && styles.activeSortButtonText]}>
-              Category
-            </Text>
-          </TouchableOpacity>
+      {/* Search Bar */}
+      <View style={styles.searchContainer}>
+        <View style={styles.searchBar}>
+          <Ionicons name="search-outline" size={20} color="#8E8E93" style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search expenses..."
+            placeholderTextColor="#8E8E93"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            returnKeyType="search"
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity 
+              onPress={() => setSearchQuery('')}
+              style={styles.clearButton}
+            >
+              <Ionicons name="close-circle" size={20} color="#8E8E93" />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+
+      {/* Filters & Sort */}
+      <View style={styles.filtersContainer}>
+        <View style={styles.filtersHeader}>
+          <Ionicons name="filter-outline" size={18} color="#8E8E93" />
+          <Text style={styles.filtersHeaderText}>Filters & Sort</Text>
+        </View>
+        
+        <View style={styles.filtersContent}>
+          {uniqueCategories.length > 0 && (
+            <View style={styles.filterSection}>
+              <Text style={styles.filterSectionLabel}>Category</Text>
+              <View style={styles.pickerContainer}>
+                <Picker
+                  selectedValue={selectedCategoryFilter}
+                  onValueChange={(value) => setSelectedCategoryFilter(value)}
+                  style={styles.filterPicker}
+                  dropdownIconColor="#8b5cf6"
+                >
+                  <Picker.Item label="All Categories" value="all" />
+                  {uniqueCategories.map((cat) => (
+                    <Picker.Item key={cat} label={cat} value={cat} />
+                  ))}
+                </Picker>
+              </View>
+            </View>
+          )}
+
+          <View style={styles.filterSection}>
+            <Text style={styles.filterSectionLabel}>Sort By</Text>
+            <View style={styles.pickerContainer}>
+              <Picker
+                selectedValue={sortBy}
+                onValueChange={(value) => setSortBy(value)}
+                style={styles.filterPicker}
+                dropdownIconColor="#8b5cf6"
+              >
+                <Picker.Item label="Date (Newest First)" value="date" />
+                <Picker.Item label="Amount (Highest First)" value="amount" />
+                <Picker.Item label="Category (A-Z)" value="category" />
+                {showAllTrips && (
+                  <Picker.Item label="Trip (A-Z)" value="trip" />
+                )}
+              </Picker>
+            </View>
+          </View>
         </View>
       </View>
 
       {/* Expenses List */}
-      <ScrollView style={styles.content}>
-        {sortedExpenses.length === 0 ? (
+      <ScrollView 
+        style={styles.content}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {filteredAndSortedExpenses.length === 0 ? (
           <View style={styles.emptyState}>
-            <Ionicons name="receipt-outline" size={64} color="#d1d5db" />
-            <Text style={styles.emptyTitle}>No Expenses Yet</Text>
-            <Text style={styles.emptySubtitle}>Start tracking your expenses for this trip</Text>
+            <Ionicons 
+              name={searchQuery || selectedCategoryFilter !== 'all' ? "search-outline" : "receipt-outline"} 
+              size={64} 
+              color="#d1d5db" 
+            />
+            <Text style={styles.emptyTitle}>
+              {searchQuery || selectedCategoryFilter !== 'all' ? "No Results Found" : "No Expenses Yet"}
+            </Text>
+            <Text style={styles.emptySubtitle}>
+              {searchQuery || selectedCategoryFilter !== 'all'
+                ? "Try adjusting your filters or search query" 
+                : showAllTrips 
+                  ? "Start tracking expenses in your trips"
+                  : "Start tracking your expenses for this trip"}
+            </Text>
           </View>
         ) : (
           <View style={styles.expensesList}>
-            {sortedExpenses.map(renderExpenseItem)}
+            {filteredAndSortedExpenses.map(renderExpenseItem)}
           </View>
         )}
       </ScrollView>
@@ -208,77 +332,148 @@ export default function AllExpensesScreen({ navigation, route }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#F2F2F7',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    paddingTop: 8,
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E5E5EA',
+    backgroundColor: '#FFFFFF',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 0.5 },
+        shadowOpacity: 0.05,
+        shadowRadius: 1,
+      },
+      android: {
+        elevation: 1,
+      },
+    }),
+  },
+  backButton: {
+    padding: 8,
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   title: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#000000',
     flex: 1,
     textAlign: 'center',
   },
-  tripInfo: {
-    padding: 16,
-    backgroundColor: '#f9fafb',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+  tripSelectorContainer: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#F2F2F7',
   },
-  tripName: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 4,
-  },
-  tripDestination: {
-    fontSize: 14,
-    color: '#666',
+  tripSelectorLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#8E8E93',
     marginBottom: 8,
+    letterSpacing: 0.5,
   },
-  expenseCount: {
-    fontSize: 12,
-    color: '#8b5cf6',
-    fontWeight: '500',
+  pickerContainer: {
+    backgroundColor: '#F2F2F7',
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#E5E5EA',
+    overflow: 'hidden',
+  },
+  picker: {
+    height: 50,
+    color: '#000000',
+  },
+  filterPicker: {
+    height: 50,
+    color: '#000000',
+  },
+  searchContainer: {
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 44,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#E5E5EA',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 1,
+      },
+    }),
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#000000',
+    paddingVertical: 0,
+  },
+  clearButton: {
+    padding: 4,
+    marginLeft: 8,
   },
   sortContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#F2F2F7',
   },
   sortLabel: {
     fontSize: 14,
-    color: '#666',
+    fontWeight: '600',
+    color: '#8E8E93',
     marginRight: 12,
   },
   sortButtons: {
     flexDirection: 'row',
     gap: 8,
+    flex: 1,
   },
   sortButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: '#f3f4f6',
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#F2F2F7',
+    gap: 6,
   },
   activeSortButton: {
     backgroundColor: '#8b5cf6',
   },
   sortButtonText: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#666',
-    fontWeight: '500',
+    fontWeight: '600',
   },
   activeSortButtonText: {
     color: 'white',
@@ -286,38 +481,63 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
+  scrollContent: {
+    paddingBottom: 16,
+  },
   expensesList: {
-    padding: 16,
+    paddingHorizontal: 16,
   },
   expenseItem: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 16,
     paddingHorizontal: 16,
-    backgroundColor: '#fff',
-    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
     marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#f3f4f6',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#E5E5EA',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
   },
   expenseIcon: {
     marginRight: 12,
   },
   categoryIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.2,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   expenseInfo: {
     flex: 1,
   },
   expenseDescription: {
     fontSize: 16,
-    fontWeight: '500',
-    color: '#333',
-    marginBottom: 4,
+    fontWeight: '600',
+    color: '#000000',
+    marginBottom: 6,
   },
   expenseMeta: {
     flexDirection: 'row',
@@ -332,11 +552,53 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 4,
-    textTransform: 'capitalize',
   },
   expenseDate: {
     fontSize: 12,
     color: '#999',
+  },
+  expenseTripName: {
+    fontSize: 12,
+    color: '#8b5cf6',
+    marginLeft: 8,
+    fontWeight: '600',
+  },
+  filtersContainer: {
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#F2F2F7',
+    paddingBottom: 16,
+  },
+  filtersHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 8,
+    gap: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#F2F2F7',
+  },
+  filtersHeaderText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#000000',
+  },
+  filtersContent: {
+    paddingTop: 12,
+  },
+  filterSection: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#F2F2F7',
+  },
+  filterSectionLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#8E8E93',
+    marginBottom: 10,
+    letterSpacing: 0.5,
   },
   receiptIndicator: {
     flexDirection: 'row',
@@ -351,9 +613,9 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   amountText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#8b5cf6',
     marginBottom: 4,
   },
   splitIndicator: {

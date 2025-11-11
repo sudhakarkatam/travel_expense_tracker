@@ -32,7 +32,7 @@ export default function ManageCategoriesScreen({ navigation }: any) {
       
       setShowAddModal(false);
       setFormData({ name: '', color: AVAILABLE_COLORS[0], icon: AVAILABLE_ICONS[0] });
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to add category. Please try again.');
     }
   };
@@ -52,7 +52,7 @@ export default function ManageCategoriesScreen({ navigation }: any) {
       
       setEditingCategory(null);
       setFormData({ name: '', color: AVAILABLE_COLORS[0], icon: AVAILABLE_ICONS[0] });
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to update category. Please try again.');
     }
   };
@@ -74,7 +74,7 @@ export default function ManageCategoriesScreen({ navigation }: any) {
           onPress: async () => {
             try {
               await deleteCategory(category.id);
-            } catch (error) {
+            } catch {
               Alert.alert('Error', 'Failed to delete category. Please try again.');
             }
           },
@@ -221,9 +221,12 @@ export default function ManageCategoriesScreen({ navigation }: any) {
   const customCategories = categories.filter(c => !c.isDefault);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+        >
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.title}>Manage Categories</Text>
@@ -232,7 +235,7 @@ export default function ManageCategoriesScreen({ navigation }: any) {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content}>
+      <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Default Categories</Text>
           {defaultCategories.map(renderCategoryItem)}
@@ -270,6 +273,17 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
+    backgroundColor: '#fff',
+  },
+  backButton: {
+    padding: 8,
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  scrollContent: {
+    flexGrow: 1,
   },
   title: {
     fontSize: 18,
@@ -278,10 +292,11 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: 16,
   },
   section: {
     marginBottom: 24,
+    paddingHorizontal: 16,
+    paddingTop: 16,
   },
   sectionTitle: {
     fontSize: 16,

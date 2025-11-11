@@ -52,24 +52,32 @@ export const pickImage = async (type: 'cover' | 'receipt'): Promise<string | nul
     // Request permissions
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Please grant permission to access your photo library');
+      Alert.alert(
+        'Permission needed',
+        'Please grant permission to access your photo library to select images.',
+        [{ text: 'OK' }]
+      );
       return null;
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaType.Images,
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: type === 'cover',
       aspect: type === 'cover' ? [16, 9] : undefined,
       quality: 0.8,
     });
 
-    if (!result.canceled && result.assets[0]) {
+    if (!result.canceled && result.assets && result.assets.length > 0 && result.assets[0]) {
       return result.assets[0].uri;
     }
     return null;
   } catch (error) {
     console.error('Error picking image:', error);
-    Alert.alert('Error', 'Failed to pick image');
+    Alert.alert(
+      'Error',
+      'Failed to pick image. Please make sure you have granted photo library permissions.',
+      [{ text: 'OK' }]
+    );
     return null;
   }
 };
@@ -79,23 +87,31 @@ export const takePhoto = async (): Promise<string | null> => {
     // Request permissions
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Please grant permission to access your camera');
+      Alert.alert(
+        'Permission needed',
+        'Please grant permission to access your camera to take photos.',
+        [{ text: 'OK' }]
+      );
       return null;
     }
 
     const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaType.Images,
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       quality: 0.8,
     });
 
-    if (!result.canceled && result.assets[0]) {
+    if (!result.canceled && result.assets && result.assets.length > 0 && result.assets[0]) {
       return result.assets[0].uri;
     }
     return null;
   } catch (error) {
     console.error('Error taking photo:', error);
-    Alert.alert('Error', 'Failed to take photo');
+    Alert.alert(
+      'Error',
+      'Failed to take photo. Please make sure you have granted camera permissions.',
+      [{ text: 'OK' }]
+    );
     return null;
   }
 };
@@ -104,23 +120,31 @@ export const pickMultipleImages = async (): Promise<string[]> => {
   try {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Please grant permission to access your photo library');
+      Alert.alert(
+        'Permission needed',
+        'Please grant permission to access your photo library to select images.',
+        [{ text: 'OK' }]
+      );
       return [];
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaType.Images,
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsMultipleSelection: true,
       quality: 0.8,
     });
 
-    if (!result.canceled && result.assets) {
-      return result.assets.map(asset => asset.uri);
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      return result.assets.map(asset => asset.uri).filter(uri => uri != null);
     }
     return [];
   } catch (error) {
     console.error('Error picking images:', error);
-    Alert.alert('Error', 'Failed to pick images');
+    Alert.alert(
+      'Error',
+      'Failed to pick images. Please make sure you have granted photo library permissions.',
+      [{ text: 'OK' }]
+    );
     return [];
   }
 };

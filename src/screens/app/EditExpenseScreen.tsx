@@ -53,6 +53,10 @@ export default function EditExpenseScreen({ navigation, route }: any) {
         });
       }
 
+      // Find current user first, fallback to existing paidBy
+      const currentUser = trip?.participants?.find(p => p.isCurrentUser);
+      const defaultPaidBy = currentUser?.id || expense.paidBy || '';
+
       setFormData({
         amount: expense.amount.toString(),
         description: expense.description,
@@ -62,13 +66,13 @@ export default function EditExpenseScreen({ navigation, route }: any) {
         receiptImages: expense.receiptImages || [],
         splitType: expense.splitType || 'equal',
         isSplitExpense: hasSplitData,
-        paidBy: expense.paidBy || '',
+        paidBy: defaultPaidBy,
         splitBetween: hasSplitData ? expense.splitBetween.map(s => s.userId) : [],
         customAmounts,
         percentages,
       });
     }
-  }, [expense]);
+  }, [expense, trip]);
 
   const handleInputChange = (field: string, value: string | string[] | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -130,20 +134,32 @@ export default function EditExpenseScreen({ navigation, route }: any) {
 
     switch (formData.splitType) {
       case 'equal':
-        const equalAmount = amount / participants.length;
-        return participants.map(p => ({ ...p, amount: equalAmount }));
+        // Round to 2 decimals and distribute remainder to ensure exact total
+        const n = participants.length;
+        const base = Math.round((amount / n) * 100) / 100;
+        const amounts = new Array(n).fill(base);
+        let diffCents = Math.round(amount * 100) - Math.round(base * 100) * n;
+        for (let i = 0; i < n && diffCents > 0; i++) {
+          amounts[i] = Math.round((amounts[i] + 0.01) * 100) / 100;
+          diffCents--;
+        }
+        return participants.map((p, idx) => ({ ...p, amount: amounts[idx] }));
       
       case 'percentage':
-        return participants.map(p => ({
-          ...p,
-          amount: (amount * (p.percentage || 0)) / 100,
-        }));
+        {
+          const raw = participants.map(p => Math.round(((amount * (p.percentage || 0)) / 100) * 100) / 100);
+          let sum = raw.reduce((a, b) => a + b, 0);
+          let diff = Math.round((amount - sum) * 100);
+          for (let i = 0; i < raw.length && diff !== 0; i++) {
+            const delta = diff > 0 ? 0.01 : -0.01;
+            raw[i] = Math.round((raw[i] + delta) * 100) / 100;
+            diff += diff > 0 ? -1 : 1;
+          }
+          return participants.map((p, idx) => ({ ...p, amount: raw[idx] }));
+        }
       
       case 'custom':
-        return participants.map(p => ({
-          ...p,
-          amount: parseFloat(formData.customAmounts[p.userId]) || 0,
-        }));
+        return participants.map(p => ({ ...p, amount: parseFloat(formData.customAmounts[p.userId]) || 0 }));
       
       default:
         return participants;
@@ -159,6 +175,25 @@ export default function EditExpenseScreen({ navigation, route }: any) {
     if (formData.isSplitExpense && (!formData.paidBy || formData.splitBetween.length === 0)) {
       Alert.alert('Error', 'Please select who paid and who to split between.');
       return;
+    }
+
+    // Check if current user is identified for group trips
+    if (formData.isSplitExpense && trip?.isGroup) {
+      const hasCurrentUser = trip.participants?.some(p => p.isCurrentUser);
+      if (!hasCurrentUser) {
+        Alert.alert(
+          'Identify Yourself',
+          'Please identify yourself as one of the trip members to track expenses properly. Go to Manage Members to mark yourself.',
+          [
+            { text: 'OK', style: 'default' },
+            { 
+              text: 'Go to Members', 
+              onPress: () => navigation.navigate('ManageMembers', { tripId: tripId })
+            }
+          ]
+        );
+        return;
+      }
     }
 
     setIsLoading(true);
@@ -396,12 +431,19 @@ export default function EditExpenseScreen({ navigation, route }: any) {
                       ]}
                       onPress={() => handleInputChange('paidBy', participant.id)}
                     >
-                      <Text style={[
-                        styles.participantText,
-                        { color: formData.paidBy === participant.id ? 'white' : '#666' }
-                      ]}>
-                        {participant.name}
-                      </Text>
+                      <View style={styles.participantContent}>
+                        <Text style={[
+                          styles.participantText,
+                          { color: formData.paidBy === participant.id ? 'white' : '#666' }
+                        ]}>
+                          {participant.name}
+                        </Text>
+                        {participant.isCurrentUser && (
+                          <View style={styles.currentUserBadge}>
+                            <Text style={styles.currentUserText}>You</Text>
+                          </View>
+                        )}
+                      </View>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -442,12 +484,19 @@ export default function EditExpenseScreen({ navigation, route }: any) {
                       ]}
                       onPress={() => handleParticipantToggle(participant.id)}
                     >
-                      <Text style={[
-                        styles.participantText,
-                        { color: formData.splitBetween.includes(participant.id) ? 'white' : '#666' }
-                      ]}>
-                        {participant.name}
-                      </Text>
+                      <View style={styles.participantContent}>
+                        <Text style={[
+                          styles.participantText,
+                          { color: formData.splitBetween.includes(participant.id) ? 'white' : '#666' }
+                        ]}>
+                          {participant.name}
+                        </Text>
+                        {participant.isCurrentUser && (
+                          <View style={styles.currentUserBadge}>
+                            <Text style={styles.currentUserText}>You</Text>
+                          </View>
+                        )}
+                      </View>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -791,5 +840,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     marginLeft: 4,
+  },
+  participantContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  currentUserBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 6,
+  },
+  currentUserText: {
+    fontSize: 10,
+    color: 'white',
+    fontWeight: '600',
   },
 });

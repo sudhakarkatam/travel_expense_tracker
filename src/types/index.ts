@@ -1,11 +1,11 @@
-export type ExpenseCategory = 
-  | 'food'
-  | 'transport'
-  | 'accommodation'
-  | 'entertainment'
-  | 'shopping'
-  | 'health'
-  | 'other';
+export type ExpenseCategory =
+  | "food"
+  | "transport"
+  | "accommodation"
+  | "entertainment"
+  | "shopping"
+  | "health"
+  | "other";
 
 export interface Expense {
   id: string;
@@ -19,7 +19,7 @@ export interface Expense {
   receiptImages: string[];
   paidBy: string;
   splitBetween: SplitParticipant[];
-  splitType: 'equal' | 'percentage' | 'custom';
+  splitType: "equal" | "percentage" | "custom";
   createdAt: string;
   updatedAt: string;
 }
@@ -30,7 +30,7 @@ export interface SplitParticipant {
   amount: number;
   percentage?: number;
   isPaid: boolean;
-  settlementStatus: 'pending' | 'settled';
+  settlementStatus: "pending" | "settled";
 }
 
 export interface Trip {
@@ -56,6 +56,7 @@ export interface Participant {
   email?: string;
   avatar?: string;
   isOwner: boolean;
+  isCurrentUser: boolean;
 }
 
 export interface Balance {
@@ -73,6 +74,7 @@ export interface Settlement {
   amount: number;
   currency: string;
   settledAt: string;
+  notes?: string;
 }
 
 export interface User {
@@ -94,9 +96,14 @@ export interface ProUsage {
 
 export interface AuditLog {
   id: string;
-  entityType: 'trip' | 'expense' | 'settlement';
+  entityType:
+    | "trip"
+    | "expense"
+    | "settlement"
+    | "packingItem"
+    | "activityItem";
   entityId: string;
-  action: 'created' | 'updated' | 'deleted';
+  action: "created" | "updated" | "deleted";
   changes: Record<string, any>;
   timestamp: string;
   userId: string;
@@ -113,7 +120,7 @@ export interface SubscriptionPlan {
   name: string;
   price: number;
   currency: string;
-  interval: 'monthly' | 'yearly' | 'lifetime';
+  interval: "monthly" | "yearly" | "lifetime";
   features: string[];
 }
 
@@ -124,4 +131,20 @@ export interface CustomCategory {
   icon: string;
   isDefault: boolean; // true for built-in, false for custom
   createdAt: string;
+}
+
+export interface PackingItem {
+  id: string;
+  tripId: string;
+  name: string;
+  category: string;
+  packed: boolean;
+}
+
+export interface ActivityItem {
+  id: string;
+  tripId: string;
+  description: string;
+  date: string; // YYYY-MM-DD
+  completed: boolean;
 }

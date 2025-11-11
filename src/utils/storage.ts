@@ -1,14 +1,25 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Trip, Expense, User, Settlement, AuditLog, CustomCategory } from '@/types';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  Trip,
+  Expense,
+  User,
+  Settlement,
+  AuditLog,
+  CustomCategory,
+  PackingItem,
+  ActivityItem,
+} from "@/types";
 
 const KEYS = {
-  TRIPS: '@tripwallet_trips',
-  EXPENSES: '@tripwallet_expenses',
-  USER: '@tripwallet_user',
-  SETTLEMENTS: '@tripwallet_settlements',
-  AUDIT_LOGS: '@tripwallet_audit_logs',
-  CURRENCY_RATES: '@tripwallet_currency_rates',
-  CATEGORIES: '@tripwallet_categories',
+  TRIPS: "@tripwallet_trips",
+  EXPENSES: "@tripwallet_expenses",
+  USER: "@tripwallet_user",
+  SETTLEMENTS: "@tripwallet_settlements",
+  AUDIT_LOGS: "@tripwallet_audit_logs",
+  CURRENCY_RATES: "@tripwallet_currency_rates",
+  CATEGORIES: "@tripwallet_categories",
+  PACKING_ITEMS: "@tripwallet_packing_items", // New key for packing items
+  ACTIVITY_ITEMS: "@tripwallet_activity_items", // New key for activity items
 } as const;
 
 export const storage = {
@@ -17,7 +28,7 @@ export const storage = {
       const data = await AsyncStorage.getItem(KEYS.TRIPS);
       return data ? JSON.parse(data) : [];
     } catch (error) {
-      console.error('Error loading trips:', error);
+      console.error("Error loading trips:", error);
       return [];
     }
   },
@@ -26,7 +37,7 @@ export const storage = {
     try {
       await AsyncStorage.setItem(KEYS.TRIPS, JSON.stringify(trips));
     } catch (error) {
-      console.error('Error saving trips:', error);
+      console.error("Error saving trips:", error);
     }
   },
 
@@ -35,7 +46,7 @@ export const storage = {
       const data = await AsyncStorage.getItem(KEYS.EXPENSES);
       return data ? JSON.parse(data) : [];
     } catch (error) {
-      console.error('Error loading expenses:', error);
+      console.error("Error loading expenses:", error);
       return [];
     }
   },
@@ -44,7 +55,7 @@ export const storage = {
     try {
       await AsyncStorage.setItem(KEYS.EXPENSES, JSON.stringify(expenses));
     } catch (error) {
-      console.error('Error saving expenses:', error);
+      console.error("Error saving expenses:", error);
     }
   },
 
@@ -53,7 +64,7 @@ export const storage = {
       const data = await AsyncStorage.getItem(KEYS.USER);
       return data ? JSON.parse(data) : null;
     } catch (error) {
-      console.error('Error loading user:', error);
+      console.error("Error loading user:", error);
       return null;
     }
   },
@@ -62,7 +73,7 @@ export const storage = {
     try {
       await AsyncStorage.setItem(KEYS.USER, JSON.stringify(user));
     } catch (error) {
-      console.error('Error saving user:', error);
+      console.error("Error saving user:", error);
     }
   },
 
@@ -71,7 +82,7 @@ export const storage = {
       const data = await AsyncStorage.getItem(KEYS.SETTLEMENTS);
       return data ? JSON.parse(data) : [];
     } catch (error) {
-      console.error('Error loading settlements:', error);
+      console.error("Error loading settlements:", error);
       return [];
     }
   },
@@ -80,7 +91,7 @@ export const storage = {
     try {
       await AsyncStorage.setItem(KEYS.SETTLEMENTS, JSON.stringify(settlements));
     } catch (error) {
-      console.error('Error saving settlements:', error);
+      console.error("Error saving settlements:", error);
     }
   },
 
@@ -89,7 +100,7 @@ export const storage = {
       const data = await AsyncStorage.getItem(KEYS.CURRENCY_RATES);
       return data ? JSON.parse(data) : null;
     } catch (error) {
-      console.error('Error loading currency rates:', error);
+      console.error("Error loading currency rates:", error);
       return null;
     }
   },
@@ -98,7 +109,7 @@ export const storage = {
     try {
       await AsyncStorage.setItem(KEYS.CURRENCY_RATES, JSON.stringify(rates));
     } catch (error) {
-      console.error('Error saving currency rates:', error);
+      console.error("Error saving currency rates:", error);
     }
   },
 
@@ -107,7 +118,7 @@ export const storage = {
       const data = await AsyncStorage.getItem(KEYS.AUDIT_LOGS);
       return data ? JSON.parse(data) : [];
     } catch (error) {
-      console.error('Error loading audit logs:', error);
+      console.error("Error loading audit logs:", error);
       return [];
     }
   },
@@ -116,7 +127,7 @@ export const storage = {
     try {
       await AsyncStorage.setItem(KEYS.AUDIT_LOGS, JSON.stringify(auditLogs));
     } catch (error) {
-      console.error('Error saving audit logs:', error);
+      console.error("Error saving audit logs:", error);
     }
   },
 
@@ -125,7 +136,7 @@ export const storage = {
       const data = await AsyncStorage.getItem(KEYS.CATEGORIES);
       return data ? JSON.parse(data) : [];
     } catch (error) {
-      console.error('Error loading categories:', error);
+      console.error("Error loading categories:", error);
       return [];
     }
   },
@@ -134,7 +145,51 @@ export const storage = {
     try {
       await AsyncStorage.setItem(KEYS.CATEGORIES, JSON.stringify(categories));
     } catch (error) {
-      console.error('Error saving categories:', error);
+      console.error("Error saving categories:", error);
+    }
+  },
+
+  // Packing Items
+  async getPackingItems(): Promise<PackingItem[]> {
+    try {
+      const data = await AsyncStorage.getItem(KEYS.PACKING_ITEMS);
+      return data ? JSON.parse(data) : [];
+    } catch (error) {
+      console.error("Error loading packing items:", error);
+      return [];
+    }
+  },
+
+  async savePackingItems(packingItems: PackingItem[]): Promise<void> {
+    try {
+      await AsyncStorage.setItem(
+        KEYS.PACKING_ITEMS,
+        JSON.stringify(packingItems),
+      );
+    } catch (error) {
+      console.error("Error saving packing items:", error);
+    }
+  },
+
+  // Activity Items
+  async getActivityItems(): Promise<ActivityItem[]> {
+    try {
+      const data = await AsyncStorage.getItem(KEYS.ACTIVITY_ITEMS);
+      return data ? JSON.parse(data) : [];
+    } catch (error) {
+      console.error("Error loading activity items:", error);
+      return [];
+    }
+  },
+
+  async saveActivityItems(activityItems: ActivityItem[]): Promise<void> {
+    try {
+      await AsyncStorage.setItem(
+        KEYS.ACTIVITY_ITEMS,
+        JSON.stringify(activityItems),
+      );
+    } catch (error) {
+      console.error("Error saving activity items:", error);
     }
   },
 
@@ -142,7 +197,7 @@ export const storage = {
     try {
       await AsyncStorage.multiRemove(Object.values(KEYS));
     } catch (error) {
-      console.error('Error clearing storage:', error);
+      console.error("Error clearing storage:", error);
     }
   },
 };

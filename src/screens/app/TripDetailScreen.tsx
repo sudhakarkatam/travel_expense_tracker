@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '@/contexts/AppContext';
 import { generateTripSummary } from '@/utils/tripSummary';
 import { PDFExportService } from '@/services/pdfExport';
+import { formatDateTime } from '@/utils/dateFormatter';
 import * as Sharing from 'expo-sharing';
 
 export default function TripDetailScreen({ navigation, route }: any) {
@@ -127,7 +128,9 @@ export default function TripDetailScreen({ navigation, route }: any) {
         <View style={styles.expenseInfo}>
           <Text style={styles.expenseDescription}>{expense.description}</Text>
           <Text style={styles.expenseCategory}>{expense.category}</Text>
-          <Text style={styles.expenseDate}>{new Date(expense.date).toLocaleDateString()}</Text>
+            <Text style={styles.expenseDate}>
+              {formatDateTime(expense.createdAt || expense.date)}
+            </Text>
         </View>
         <Text style={styles.expenseAmount}>₹{expense.amount.toFixed(2)}</Text>
       </TouchableOpacity>
@@ -135,9 +138,12 @@ export default function TripDetailScreen({ navigation, route }: any) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity 
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+        >
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.title}>{trip.name}</Text>
@@ -159,7 +165,7 @@ export default function TripDetailScreen({ navigation, route }: any) {
         </View>
       </View>
 
-      <ScrollView style={styles.content}>
+      <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
         {/* Cover Image Hero Section */}
         {trip.coverImage ? (
           <View style={styles.coverImageContainer}>
@@ -296,9 +302,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
+    paddingTop: 8,
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#e5e7eb',
+    backgroundColor: '#fff',
+  },
+  backButton: {
+    padding: 8,
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerActions: {
     flexDirection: 'row',
@@ -317,14 +332,18 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: 16,
+  },
+  scrollContent: {
+    paddingBottom: 16,
+    paddingTop: 0,
   },
   budgetCard: {
     flexDirection: 'row',
-    backgroundColor: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
+    backgroundColor: '#8b5cf6',
     borderRadius: 12,
     padding: 20,
     marginBottom: 16,
+    marginHorizontal: 16,
   },
   budgetSection: {
     flex: 1,
@@ -342,6 +361,7 @@ const styles = StyleSheet.create({
   },
   progressContainer: {
     marginBottom: 24,
+    marginHorizontal: 16,
   },
   progressBar: {
     height: 4,
@@ -361,6 +381,7 @@ const styles = StyleSheet.create({
   },
   inviteSection: {
     marginBottom: 24,
+    marginHorizontal: 16,
   },
   sectionTitle: {
     fontSize: 18,
@@ -405,6 +426,7 @@ const styles = StyleSheet.create({
   },
   expensesSection: {
     marginBottom: 24,
+    marginHorizontal: 16,
   },
   expensesHeader: {
     flexDirection: 'row',
@@ -508,6 +530,8 @@ const styles = StyleSheet.create({
   coverImageContainer: {
     position: 'relative',
     marginBottom: 16,
+    marginTop: 0,
+    width: '100%',
   },
   coverImage: {
     width: '100%',
@@ -539,6 +563,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
+    marginTop: 0,
   },
   placeholderContent: {
     alignItems: 'center',
@@ -559,6 +584,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginBottom: 24,
+    marginHorizontal: 16,
   },
   summaryRow: {
     flexDirection: 'row',

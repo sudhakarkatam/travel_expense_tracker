@@ -1,8 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, FlatList } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, FlatList, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '@/contexts/AppContext';
+import { formatDateTime } from '@/utils/dateFormatter';
+import { formatCurrency } from '@/utils/currencyFormatter';
 
 interface TimelineItem {
   id: string;
@@ -142,8 +144,31 @@ export default function HistoryScreen({ navigation }: any) {
     }
   };
 
+  const handleTimelineItemPress = (item: TimelineItem) => {
+    if (item.type === 'expense') {
+      const expense = expenses.find(e => e.id === item.id);
+      if (expense) {
+        navigation.navigate('ExpenseDetail', {
+          expenseId: item.id,
+          tripId: expense.tripId,
+        });
+      }
+    } else if (item.type === 'trip') {
+      navigation.navigate('TripDetail', { tripId: item.id });
+    } else if (item.type === 'settlement') {
+      const settlement = settlements.find(s => s.id === item.id);
+      if (settlement) {
+        navigation.navigate('SettleUp', { tripId: settlement.tripId });
+      }
+    }
+  };
+
   const renderTimelineItem = ({ item }: { item: TimelineItem }) => (
-    <View style={styles.timelineItem}>
+    <TouchableOpacity
+      style={styles.timelineItem}
+      onPress={() => handleTimelineItemPress(item)}
+      activeOpacity={0.7}
+    >
       <View style={[styles.timelineIcon, { backgroundColor: item.color }]}>
         <Ionicons name={item.icon as any} size={20} color="white" />
       </View>
@@ -152,7 +177,9 @@ export default function HistoryScreen({ navigation }: any) {
         <View style={styles.timelineHeader}>
           <Text style={styles.timelineTitle}>{item.title}</Text>
           {item.amount && (
-            <Text style={styles.timelineAmount}>${item.amount.toFixed(2)}</Text>
+            <Text style={styles.timelineAmount}>
+              {formatCurrency(item.amount, { currency: 'USD' })}
+            </Text>
           )}
         </View>
         
@@ -160,7 +187,7 @@ export default function HistoryScreen({ navigation }: any) {
         
         <View style={styles.timelineFooter}>
           <Text style={styles.timelineDate}>
-            {new Date(item.date).toLocaleDateString()} at {new Date(item.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            {formatDateTime(item.date)}
           </Text>
           {item.tripName && (
             <View style={styles.tripTag}>
@@ -169,7 +196,8 @@ export default function HistoryScreen({ navigation }: any) {
           )}
         </View>
       </View>
-    </View>
+      <Ionicons name="chevron-forward" size={20} color="#8E8E93" />
+    </TouchableOpacity>
   );
 
   const renderAuditLogSection = (date: string, logs: any[]) => (
@@ -195,24 +223,42 @@ export default function HistoryScreen({ navigation }: any) {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity 
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+        >
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.title}>History</Text>
-        <View style={{ width: 24 }} />
+        <TouchableOpacity
+          onPress={() => navigation.navigate('AllExpenses', { tripId: null })}
+          style={styles.showAllButton}
+        >
+          <Text style={styles.showAllButtonText}>Show All</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.searchContainer}>
-        <View style={styles.searchInputContainer}>
-          <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
+        <View style={styles.searchBar}>
+          <Ionicons name="search-outline" size={20} color="#8E8E93" style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search history..."
+            placeholderTextColor="#8E8E93"
             value={searchQuery}
             onChangeText={setSearchQuery}
+            returnKeyType="search"
           />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity 
+              onPress={() => setSearchQuery('')}
+              style={styles.clearButton}
+            >
+              <Ionicons name="close-circle" size={20} color="#8E8E93" />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -275,6 +321,7 @@ export default function HistoryScreen({ navigation }: any) {
               renderItem={renderTimelineItem}
               keyExtractor={(item) => item.id}
               showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.timelineListContent}
             />
           )
         ) : (
@@ -285,7 +332,10 @@ export default function HistoryScreen({ navigation }: any) {
               <Text style={styles.emptySubtitle}>Activity logs will appear here</Text>
             </View>
           ) : (
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView 
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.auditLogContent}
+            >
               {Object.entries(groupedAuditLogs).map(([date, logs]) => 
                 renderAuditLogSection(date, logs)
               )}
@@ -307,9 +357,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    paddingTop: 8,
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E5E5EA',
+    backgroundColor: '#FFFFFF',
+  },
+  backButton: {
+    padding: 8,
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  showAllButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#F2F2F7',
+  },
+  showAllButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#8b5cf6',
   },
   title: {
     fontSize: 18,
@@ -319,22 +389,43 @@ const styles = StyleSheet.create({
   searchContainer: {
     paddingHorizontal: 16,
     paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E5E5EA',
   },
-  searchInputContainer: {
+  searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f3f4f6',
-    borderRadius: 8,
+    backgroundColor: '#F2F2F7',
+    borderRadius: 12,
     paddingHorizontal: 12,
+    height: 44,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#E5E5EA',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 1,
+      },
+    }),
   },
   searchIcon: {
     marginRight: 8,
   },
   searchInput: {
     flex: 1,
-    paddingVertical: 12,
     fontSize: 16,
-    color: '#333',
+    color: '#000000',
+    paddingVertical: 0,
+  },
+  clearButton: {
+    padding: 4,
+    marginLeft: 8,
   },
   tabContainer: {
     flexDirection: 'row',
@@ -392,13 +483,40 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+    paddingHorizontal: 0,
+  },
+  timelineListContent: {
     paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 16,
+  },
+  auditLogContent: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 16,
   },
   timelineItem: {
     flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#F2F2F7',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    marginBottom: 8,
+    borderRadius: 12,
+    marginHorizontal: 0,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 1,
+      },
+    }),
   },
   timelineIcon: {
     width: 40,

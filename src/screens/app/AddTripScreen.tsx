@@ -18,6 +18,8 @@ export default function AddTripScreen({ navigation }: any) {
     isGroupTrip: false,
     coverImage: '',
   });
+  const [addSelfAsMember, setAddSelfAsMember] = useState(false);
+  const [selfMemberName, setSelfMemberName] = useState('');
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -29,10 +31,30 @@ export default function AddTripScreen({ navigation }: any) {
       return;
     }
 
+    if (formData.isGroupTrip && addSelfAsMember && !selfMemberName.trim()) {
+      Alert.alert('Error', 'Please enter your name to add yourself as a member.');
+      return;
+    }
+
     try {
       let coverImagePath = '';
       if (formData.coverImage) {
         coverImagePath = await saveImage(formData.coverImage, 'cover');
+      }
+
+      // Create participants array
+      const participants = [];
+      if (formData.isGroupTrip && addSelfAsMember) {
+        participants.push({
+          id: `member_${Date.now()}`,
+          name: selfMemberName.trim(),
+          email: undefined,
+          avatar: undefined,
+          isActive: true,
+          isOwner: true,
+          isCurrentUser: true,
+          joinedAt: new Date().toISOString(),
+        });
       }
 
       await addTrip({
@@ -44,7 +66,7 @@ export default function AddTripScreen({ navigation }: any) {
         currency: formData.currency,
         isGroupTrip: formData.isGroupTrip,
         coverImage: coverImagePath,
-        participants: [],
+        participants: participants,
         createdBy: 'current_user',
         inviteCode: `TRIP${Date.now().toString().slice(-6)}`,
       });
@@ -159,11 +181,46 @@ export default function AddTripScreen({ navigation }: any) {
             <Text style={styles.label}>Share expenses with friends</Text>
             <Switch
               value={formData.isGroupTrip}
-              onValueChange={(value) => handleInputChange('isGroupTrip', value)}
+              onValueChange={(value) => {
+                handleInputChange('isGroupTrip', value);
+                if (!value) {
+                  setAddSelfAsMember(false);
+                  setSelfMemberName('');
+                }
+              }}
               trackColor={{ false: '#e5e7eb', true: '#8b5cf6' }}
               thumbColor={formData.isGroupTrip ? '#fff' : '#f4f3f4'}
             />
           </View>
+
+          {formData.isGroupTrip && (
+            <>
+              <View style={styles.switchGroup}>
+                <Text style={styles.label}>Add yourself as first member</Text>
+                <Switch
+                  value={addSelfAsMember}
+                  onValueChange={setAddSelfAsMember}
+                  trackColor={{ false: '#e5e7eb', true: '#8b5cf6' }}
+                  thumbColor={addSelfAsMember ? '#fff' : '#f4f3f4'}
+                />
+              </View>
+              
+              {addSelfAsMember && (
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Your Name *</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter your name"
+                    value={selfMemberName}
+                    onChangeText={setSelfMemberName}
+                  />
+                  <Text style={styles.helperText}>
+                    This will help identify you in expense tracking and settlements
+                  </Text>
+                </View>
+              )}
+            </>
+          )}
         </View>
 
         <View style={styles.actions}>
@@ -314,5 +371,11 @@ const styles = StyleSheet.create({
     right: 8,
     backgroundColor: 'white',
     borderRadius: 12,
+  },
+  helperText: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
+    fontStyle: 'italic',
   },
 });
