@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, FlatList, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, FlatList, Platform, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useApp } from '@/contexts/AppContext';
 import { formatDateTime } from '@/utils/dateFormatter';
 import { formatCurrency } from '@/utils/currencyFormatter';
@@ -18,11 +19,22 @@ interface TimelineItem {
   color: string;
 }
 
+type ViewMode = 'timeline' | 'calendar';
+type PresetFilter = 'all' | 'today' | 'week' | 'month' | 'year' | 'custom';
+
 export default function HistoryScreen({ navigation }: any) {
   const { trips = [], expenses = [], settlements = [], auditLogs = [] } = useApp();
   const [activeTab, setActiveTab] = useState<'timeline' | 'audit'>('timeline');
+  const [viewMode, setViewMode] = useState<ViewMode>('timeline');
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterType, setFilterType] = useState<'all' | 'expense' | 'trip' | 'settlement'>('all');
+  const [selectedTypes, setSelectedTypes] = useState<Set<'expense' | 'trip' | 'settlement'>>(new Set(['expense', 'trip', 'settlement']));
+  const [presetFilter, setPresetFilter] = useState<PresetFilter>('all');
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
+  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState(new Date());
 
   const timelineItems = useMemo(() => {
     const items: TimelineItem[] = [];
@@ -77,12 +89,54 @@ export default function HistoryScreen({ navigation }: any) {
     return items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [trips, expenses, settlements]);
 
+  const applyPresetFilter = (preset: PresetFilter) => {
+    const now = new Date();
+    setPresetFilter(preset);
+
+    switch (preset) {
+      case 'today':
+        setStartDate(new Date(now.getFullYear(), now.getMonth(), now.getDate()));
+        setEndDate(new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59));
+        break;
+      case 'week':
+        const weekStart = new Date(now);
+        weekStart.setDate(now.getDate() - now.getDay());
+        weekStart.setHours(0, 0, 0, 0);
+        setStartDate(weekStart);
+        setEndDate(now);
+        break;
+      case 'month':
+        setStartDate(new Date(now.getFullYear(), now.getMonth(), 1));
+        setEndDate(now);
+        break;
+      case 'year':
+        setStartDate(new Date(now.getFullYear(), 0, 1));
+        setEndDate(now);
+        break;
+      case 'all':
+      default:
+        setStartDate(null);
+        setEndDate(null);
+        break;
+    }
+  };
+
   const filteredTimelineItems = useMemo(() => {
     let filtered = timelineItems;
 
-    // Filter by type
-    if (filterType !== 'all') {
-      filtered = filtered.filter(item => item.type === filterType);
+    // Filter by selected types
+    if (selectedTypes.size > 0 && selectedTypes.size < 3) {
+      filtered = filtered.filter(item => selectedTypes.has(item.type));
+    }
+
+    // Filter by date range
+    if (startDate || endDate) {
+      filtered = filtered.filter(item => {
+        const itemDate = new Date(item.date);
+        if (startDate && itemDate < startDate) return false;
+        if (endDate && itemDate > endDate) return false;
+        return true;
+      });
     }
 
     // Filter by search query
@@ -96,7 +150,56 @@ export default function HistoryScreen({ navigation }: any) {
     }
 
     return filtered;
-  }, [timelineItems, filterType, searchQuery]);
+  }, [timelineItems, selectedTypes, startDate, endDate, searchQuery]);
+
+  // Group items by date for calendar view
+  const itemsByDate = useMemo(() => {
+    const grouped: Record<string, TimelineItem[]> = {};
+    filteredTimelineItems.forEach(item => {
+      const dateKey = new Date(item.date).toDateString();
+      if (!grouped[dateKey]) {
+        grouped[dateKey] = [];
+      }
+      grouped[dateKey].push(item);
+    });
+    return grouped;
+  }, [filteredTimelineItems]);
+
+  // Calendar helpers
+  const getDaysInMonth = (date: Date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startingDayOfWeek = firstDay.getDay();
+
+    const days: (Date | null)[] = [];
+    // Add empty cells for days before the first day of the month
+    for (let i = 0; i < startingDayOfWeek; i++) {
+      days.push(null);
+    }
+    // Add all days of the month
+    for (let day = 1; day <= daysInMonth; day++) {
+      days.push(new Date(year, month, day));
+    }
+    return days;
+  };
+
+  const getItemsForDate = (date: Date) => {
+    const dateKey = date.toDateString();
+    return itemsByDate[dateKey] || [];
+  };
+
+  const toggleTypeFilter = (type: 'expense' | 'trip' | 'settlement') => {
+    const newSelected = new Set(selectedTypes);
+    if (newSelected.has(type)) {
+      newSelected.delete(type);
+    } else {
+      newSelected.add(type);
+    }
+    setSelectedTypes(newSelected);
+  };
 
   const groupedAuditLogs = useMemo(() => {
     const grouped: Record<string, any[]> = {};
@@ -200,6 +303,89 @@ export default function HistoryScreen({ navigation }: any) {
     </TouchableOpacity>
   );
 
+  const renderCalendarView = () => {
+    const days = getDaysInMonth(selectedMonth);
+    const monthName = selectedMonth.toLocaleString('default', { month: 'long', year: 'numeric' });
+
+    return (
+      <ScrollView style={styles.calendarContainer}>
+        <View style={styles.calendarHeader}>
+          <TouchableOpacity
+            onPress={() => {
+              const prevMonth = new Date(selectedMonth);
+              prevMonth.setMonth(prevMonth.getMonth() - 1);
+              setSelectedMonth(prevMonth);
+            }}
+          >
+            <Ionicons name="chevron-back" size={24} color="#8b5cf6" />
+          </TouchableOpacity>
+          <Text style={styles.calendarMonthName}>{monthName}</Text>
+          <TouchableOpacity
+            onPress={() => {
+              const nextMonth = new Date(selectedMonth);
+              nextMonth.setMonth(nextMonth.getMonth() + 1);
+              setSelectedMonth(nextMonth);
+            }}
+          >
+            <Ionicons name="chevron-forward" size={24} color="#8b5cf6" />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.calendarGrid}>
+          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+            <View key={day} style={styles.calendarDayHeader}>
+              <Text style={styles.calendarDayHeaderText}>{day}</Text>
+            </View>
+          ))}
+
+          {days.map((date, index) => {
+            if (!date) {
+              return <View key={`empty-${index}`} style={styles.calendarDay} />;
+            }
+
+            const itemsForDate = getItemsForDate(date);
+            const isToday = date.toDateString() === new Date().toDateString();
+
+            return (
+              <TouchableOpacity
+                key={date.toISOString()}
+                style={[styles.calendarDay, isToday && styles.calendarDayToday]}
+                onPress={() => {
+                  if (itemsForDate.length > 0) {
+                    setViewMode('timeline');
+                    setStartDate(new Date(date.getFullYear(), date.getMonth(), date.getDate()));
+                    setEndDate(new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59));
+                    setPresetFilter('custom');
+                  }
+                }}
+              >
+                <Text style={[styles.calendarDayNumber, isToday && styles.calendarDayNumberToday]}>
+                  {date.getDate()}
+                </Text>
+                {itemsForDate.length > 0 && (
+                  <View style={styles.calendarDayIndicator}>
+                    <View style={[styles.calendarDot, { backgroundColor: itemsForDate[0].color }]} />
+                    {itemsForDate.length > 1 && (
+                      <Text style={styles.calendarDayCount}>+{itemsForDate.length - 1}</Text>
+                    )}
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {Object.keys(itemsByDate).length === 0 && (
+          <View style={styles.emptyState}>
+            <Ionicons name="calendar-outline" size={48} color="#d1d5db" />
+            <Text style={styles.emptyTitle}>No Activity This Month</Text>
+            <Text style={styles.emptySubtitle}>Try selecting a different month or adjusting filters</Text>
+          </View>
+        )}
+      </ScrollView>
+    );
+  };
+
   const renderAuditLogSection = (date: string, logs: any[]) => (
     <View key={date} style={styles.auditSection}>
       <Text style={styles.auditDateHeader}>{date}</Text>
@@ -282,37 +468,101 @@ export default function HistoryScreen({ navigation }: any) {
       </View>
 
       {activeTab === 'timeline' && (
-        <View style={styles.filterContainer}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {(['all', 'expense', 'trip', 'settlement'] as const).map(type => (
-              <TouchableOpacity
-                key={type}
-                style={[
-                  styles.filterButton,
-                  filterType === type && styles.activeFilterButton,
-                ]}
-                onPress={() => setFilterType(type)}
-              >
-                <Text style={[
-                  styles.filterButtonText,
-                  filterType === type && styles.activeFilterButtonText,
-                ]}>
-                  {type.charAt(0).toUpperCase() + type.slice(1)}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
+        <>
+          {/* Preset Filters */}
+          <View style={styles.presetFilterContainer}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {(['all', 'today', 'week', 'month', 'year', 'custom'] as PresetFilter[]).map(preset => (
+                <TouchableOpacity
+                  key={preset}
+                  style={[
+                    styles.presetFilterButton,
+                    presetFilter === preset && styles.activePresetFilterButton,
+                  ]}
+                  onPress={() => {
+                    if (preset === 'custom') {
+                      setShowFilterModal(true);
+                    } else {
+                      applyPresetFilter(preset);
+                    }
+                  }}
+                >
+                  <Text style={[
+                    styles.presetFilterText,
+                    presetFilter === preset && styles.activePresetFilterText,
+                  ]}>
+                    {preset === 'all' ? 'All Time' :
+                     preset === 'today' ? 'Today' :
+                     preset === 'week' ? 'This Week' :
+                     preset === 'month' ? 'This Month' :
+                     preset === 'year' ? 'This Year' : 'Custom'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+
+          {/* View Mode Toggle */}
+          <View style={styles.viewModeContainer}>
+            <TouchableOpacity
+              style={[styles.viewModeButton, viewMode === 'timeline' && styles.activeViewModeButton]}
+              onPress={() => setViewMode('timeline')}
+            >
+              <Ionicons name="list" size={18} color={viewMode === 'timeline' ? '#fff' : '#8b5cf6'} />
+              <Text style={[styles.viewModeText, viewMode === 'timeline' && styles.activeViewModeText]}>
+                List
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.viewModeButton, viewMode === 'calendar' && styles.activeViewModeButton]}
+              onPress={() => setViewMode('calendar')}
+            >
+              <Ionicons name="calendar" size={18} color={viewMode === 'calendar' ? '#fff' : '#8b5cf6'} />
+              <Text style={[styles.viewModeText, viewMode === 'calendar' && styles.activeViewModeText]}>
+                Calendar
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Multi-select Type Filters */}
+          <View style={styles.filterContainer}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {(['expense', 'trip', 'settlement'] as const).map(type => {
+                const isSelected = selectedTypes.has(type);
+                return (
+                  <TouchableOpacity
+                    key={type}
+                    style={[
+                      styles.multiSelectFilterButton,
+                      isSelected && styles.activeMultiSelectFilterButton,
+                    ]}
+                    onPress={() => toggleTypeFilter(type)}
+                  >
+                    {isSelected && <Ionicons name="checkmark-circle" size={16} color="#fff" style={{ marginRight: 4 }} />}
+                    <Text style={[
+                      styles.multiSelectFilterText,
+                      isSelected && styles.activeMultiSelectFilterText,
+                    ]}>
+                      {type.charAt(0).toUpperCase() + type.slice(1)}s
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </>
       )}
 
       <View style={styles.content}>
         {activeTab === 'timeline' ? (
-          filteredTimelineItems.length === 0 ? (
+          viewMode === 'calendar' ? (
+            renderCalendarView()
+          ) : filteredTimelineItems.length === 0 ? (
             <View style={styles.emptyState}>
               <Ionicons name="time-outline" size={48} color="#d1d5db" />
               <Text style={styles.emptyTitle}>No History Found</Text>
               <Text style={styles.emptySubtitle}>
-                {searchQuery ? 'Try adjusting your search or filters' : 'Your activity history will appear here'}
+                {searchQuery || presetFilter !== 'all' ? 'Try adjusting your search or filters' : 'Your activity history will appear here'}
               </Text>
             </View>
           ) : (
@@ -343,6 +593,98 @@ export default function HistoryScreen({ navigation }: any) {
           )
         )}
       </View>
+
+      {/* Date Range Filter Modal */}
+      <Modal
+        visible={showFilterModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowFilterModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Custom Date Range</Text>
+              <TouchableOpacity onPress={() => setShowFilterModal(false)}>
+                <Ionicons name="close" size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.datePickerContainer}>
+              <Text style={styles.datePickerLabel}>Start Date</Text>
+              <TouchableOpacity
+                style={styles.datePickerButton}
+                onPress={() => setShowStartDatePicker(true)}
+              >
+                <Text style={styles.datePickerText}>
+                  {startDate ? startDate.toLocaleDateString() : 'Select start date'}
+                </Text>
+                <Ionicons name="calendar-outline" size={20} color="#8b5cf6" />
+              </TouchableOpacity>
+              {showStartDatePicker && (
+                <DateTimePicker
+                  value={startDate || new Date()}
+                  mode="date"
+                  display="default"
+                  onChange={(event, selectedDate) => {
+                    setShowStartDatePicker(Platform.OS === 'ios');
+                    if (selectedDate) {
+                      setStartDate(selectedDate);
+                      setPresetFilter('custom');
+                    }
+                  }}
+                />
+              )}
+            </View>
+
+            <View style={styles.datePickerContainer}>
+              <Text style={styles.datePickerLabel}>End Date</Text>
+              <TouchableOpacity
+                style={styles.datePickerButton}
+                onPress={() => setShowEndDatePicker(true)}
+              >
+                <Text style={styles.datePickerText}>
+                  {endDate ? endDate.toLocaleDateString() : 'Select end date'}
+                </Text>
+                <Ionicons name="calendar-outline" size={20} color="#8b5cf6" />
+              </TouchableOpacity>
+              {showEndDatePicker && (
+                <DateTimePicker
+                  value={endDate || new Date()}
+                  mode="date"
+                  display="default"
+                  onChange={(event, selectedDate) => {
+                    setShowEndDatePicker(Platform.OS === 'ios');
+                    if (selectedDate) {
+                      setEndDate(selectedDate);
+                      setPresetFilter('custom');
+                    }
+                  }}
+                />
+              )}
+            </View>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.clearDateButton}
+                onPress={() => {
+                  setStartDate(null);
+                  setEndDate(null);
+                  setPresetFilter('all');
+                }}
+              >
+                <Text style={styles.clearDateText}>Clear</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.applyDateButton}
+                onPress={() => setShowFilterModal(false)}
+              >
+                <Text style={styles.applyDateText}>Apply</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -431,7 +773,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: '#f3f4f6',
     marginHorizontal: 16,
-    marginBottom: 16,
+    marginBottom: 12,
     borderRadius: 8,
     padding: 4,
   },
@@ -457,28 +799,84 @@ const styles = StyleSheet.create({
   activeTabText: {
     color: '#8b5cf6',
   },
-  filterContainer: {
+  presetFilterContainer: {
     paddingHorizontal: 16,
-    marginBottom: 16,
+    marginBottom: 12,
   },
-  filterButton: {
+  presetFilterButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
     borderColor: '#d1d5db',
     marginRight: 8,
+    backgroundColor: '#fff',
   },
-  activeFilterButton: {
+  activePresetFilterButton: {
     backgroundColor: '#8b5cf6',
     borderColor: '#8b5cf6',
   },
-  filterButtonText: {
+  presetFilterText: {
     fontSize: 14,
     color: '#666',
     fontWeight: '500',
   },
-  activeFilterButtonText: {
+  activePresetFilterText: {
+    color: 'white',
+  },
+  viewModeContainer: {
+    flexDirection: 'row',
+    marginHorizontal: 16,
+    marginBottom: 12,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 8,
+    padding: 4,
+  },
+  viewModeButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    borderRadius: 6,
+    gap: 6,
+  },
+  activeViewModeButton: {
+    backgroundColor: '#8b5cf6',
+  },
+  viewModeText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#8b5cf6',
+  },
+  activeViewModeText: {
+    color: '#fff',
+  },
+  filterContainer: {
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  multiSelectFilterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    marginRight: 8,
+    backgroundColor: '#fff',
+  },
+  activeMultiSelectFilterButton: {
+    backgroundColor: '#8b5cf6',
+    borderColor: '#8b5cf6',
+  },
+  multiSelectFilterText: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  activeMultiSelectFilterText: {
     color: 'white',
   },
   content: {
@@ -571,6 +969,72 @@ const styles = StyleSheet.create({
     color: '#666',
     fontWeight: '500',
   },
+  calendarContainer: {
+    flex: 1,
+    paddingHorizontal: 16,
+  },
+  calendarHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 16,
+  },
+  calendarMonthName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  calendarGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 20,
+  },
+  calendarDayHeader: {
+    width: '14.28%',
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  calendarDayHeaderText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#666',
+  },
+  calendarDay: {
+    width: '14.28%',
+    aspectRatio: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 4,
+  },
+  calendarDayToday: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
+  },
+  calendarDayNumber: {
+    fontSize: 14,
+    color: '#333',
+  },
+  calendarDayNumberToday: {
+    fontWeight: 'bold',
+    color: '#8b5cf6',
+  },
+  calendarDayIndicator: {
+    position: 'absolute',
+    bottom: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  calendarDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  calendarDayCount: {
+    fontSize: 8,
+    color: '#666',
+    fontWeight: '600',
+  },
   auditSection: {
     marginBottom: 24,
   },
@@ -625,5 +1089,81 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
     paddingHorizontal: 32,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  datePickerContainer: {
+    marginBottom: 20,
+  },
+  datePickerLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  datePickerButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 12,
+    backgroundColor: '#f9fafb',
+  },
+  datePickerText: {
+    fontSize: 16,
+    color: '#333',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  clearDateButton: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  clearDateText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#666',
+  },
+  applyDateButton: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: '#8b5cf6',
+    alignItems: 'center',
+  },
+  applyDateText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
   },
 });

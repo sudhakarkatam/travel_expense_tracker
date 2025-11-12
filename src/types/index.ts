@@ -48,6 +48,13 @@ export interface Trip {
   inviteCode?: string;
   createdAt: string;
   updatedAt: string;
+  notificationsEnabled?: boolean;
+  notificationPreferences?: {
+    budgetAlerts?: boolean;
+    dailySummaries?: boolean;
+    settlementReminders?: boolean;
+    activityReminders?: boolean;
+  };
 }
 
 export interface Participant {

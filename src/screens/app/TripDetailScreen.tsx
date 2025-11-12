@@ -1,14 +1,24 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert, Platform, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTheme, Surface, ProgressBar, Divider, List, ActivityIndicator } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
+import { MotiView } from 'moti';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
+import { Image } from 'expo-image';
 import { useApp } from '@/contexts/AppContext';
 import { generateTripSummary } from '@/utils/tripSummary';
 import { PDFExportService } from '@/services/pdfExport';
 import { formatDateTime } from '@/utils/dateFormatter';
+import { formatCurrency } from '@/utils/currencyFormatter';
 import * as Sharing from 'expo-sharing';
+import { AnimatedButton } from '@/components/ui/AnimatedButton';
+import { AnimatedCard } from '@/components/ui/AnimatedCard';
+import { Chip } from '@/components/ui/Chip';
 
 export default function TripDetailScreen({ navigation, route }: any) {
+  const theme = useTheme();
   const { trips, expenses, deleteExpense, settlements, getTripBalances } = useApp();
   const { tripId } = route.params;
   const trip = trips.find(t => t.id === tripId);
@@ -49,6 +59,9 @@ export default function TripDetailScreen({ navigation, route }: any) {
           mimeType: 'application/pdf',
           dialogTitle: `Share ${trip.name} - Comprehensive Report`,
         });
+        if (Platform.OS !== 'web') {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
       } else {
         Alert.alert('Success', 'Comprehensive trip PDF generated successfully!');
       }
@@ -62,232 +75,337 @@ export default function TripDetailScreen({ navigation, route }: any) {
 
   if (!trip || !summary) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Trip not found</Text>
+          <Ionicons name="alert-circle-outline" size={64} color={theme.colors.error} />
+          <Text style={[styles.errorText, { color: theme.colors.error }]}>Trip not found</Text>
         </View>
       </SafeAreaView>
     );
   }
 
-  const handleShareInvite = () => {
-    const inviteCode = `TRIP${trip.id.slice(-6).toUpperCase()}`;
-    Alert.alert(
-      'Share Invite',
-      `Invite Code: ${inviteCode}\n\nShare this code with friends to let them join your trip!`,
-      [{ text: 'Copy Code', onPress: () => console.log('Code copied') }]
-    );
-  };
+  const progressPercentage = Math.min((summary.totalSpent / trip.budget) * 100, 100);
+  const isOverBudget = summary.totalSpent > trip.budget;
+  const isNearBudget = progressPercentage > 80;
 
-  const renderExpenseItem = (expense: any) => {
-    const handleLongPress = () => {
-      Alert.alert(
-        'Expense Options',
-        `What would you like to do with "${expense.description}"?`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Edit',
-            onPress: () => navigation.navigate('EditExpense', { 
+  const renderExpenseItem = (expense: any, index: number) => {
+    return (
+      <MotiView
+        key={expense.id}
+        from={{ opacity: 0, translateX: -20 }}
+        animate={{ opacity: 1, translateX: 0 }}
+        transition={{ type: 'timing', duration: 300, delay: index * 50 }}
+      >
+        <AnimatedCard
+          variant="elevated"
+          elevation={1}
+          onPress={() => {
+            navigation.navigate('ExpenseDetail', { 
               expenseId: expense.id, 
               tripId: trip.id 
-            }),
-          },
-          {
-            text: 'Delete',
-            style: 'destructive',
-            onPress: () => {
-              Alert.alert(
-                'Delete Expense',
-                `Are you sure you want to delete "${expense.description}"?`,
-                [
-                  { text: 'Cancel', style: 'cancel' },
-                  {
-                    text: 'Delete',
-                    style: 'destructive',
-                    onPress: () => deleteExpense(expense.id),
-                  },
-                ]
-              );
-            },
-          },
-        ]
-      );
-    };
-
-    return (
-      <TouchableOpacity 
-        key={expense.id} 
-        style={styles.expenseItem}
-        onPress={() => navigation.navigate('ExpenseDetail', { 
-          expenseId: expense.id, 
-          tripId: trip.id 
-        })}
-        onLongPress={handleLongPress}
-      >
-        <View style={styles.expenseInfo}>
-          <Text style={styles.expenseDescription}>{expense.description}</Text>
-          <Text style={styles.expenseCategory}>{expense.category}</Text>
-            <Text style={styles.expenseDate}>
-              {formatDateTime(expense.createdAt || expense.date)}
-            </Text>
-        </View>
-        <Text style={styles.expenseAmount}>₹{expense.amount.toFixed(2)}</Text>
-      </TouchableOpacity>
+            });
+            if (Platform.OS !== 'web') {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }
+          }}
+          style={styles.expenseCard}
+        >
+          <List.Item
+            title={expense.description || 'No description'}
+            description={`${expense.category} • ${formatDateTime(expense.createdAt || expense.date)}`}
+            left={(props) => (
+              <List.Icon 
+                {...props} 
+                icon="receipt" 
+                color={theme.colors.primary} 
+              />
+            )}
+            right={() => (
+              <Text style={[styles.expenseAmount, { color: theme.colors.onSurface }]}>
+                {formatCurrency(expense.amount, trip.currency)}
+              </Text>
+            )}
+            titleStyle={{ color: theme.colors.onSurface, fontWeight: '600' }}
+            descriptionStyle={{ color: theme.colors.onSurfaceVariant }}
+          />
+        </AnimatedCard>
+      </MotiView>
     );
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <TouchableOpacity 
-          onPress={() => navigation.goBack()}
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
+      <Surface style={styles.header} elevation={1}>
+        <AnimatedButton
+          mode="text"
+          icon="arrow-back"
+          onPress={() => {
+            const returnSearchQuery = route?.params?.returnSearchQuery;
+            if (returnSearchQuery) {
+              navigation.navigate('Home', { returnSearchQuery });
+            } else {
+              navigation.goBack();
+            }
+            if (Platform.OS !== 'web') {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }
+          }}
+          label=""
           style={styles.backButton}
-        >
-          <Ionicons name="arrow-back" size={24} color="#333" />
-        </TouchableOpacity>
-        <Text style={styles.title}>{trip.name}</Text>
+        />
+        <Text style={[styles.title, { color: theme.colors.onSurface }]} numberOfLines={1}>
+          {trip.name}
+        </Text>
         <View style={styles.headerActions}>
-          <TouchableOpacity 
+          <AnimatedButton
+            mode="text"
+            icon={isExporting ? "hourglass-outline" : "document-attach-outline"}
             onPress={handleExportTrip}
             disabled={isExporting}
+            label=""
             style={styles.headerActionButton}
-          >
-            <Ionicons 
-              name={isExporting ? "hourglass-outline" : "document-attach-outline"} 
-              size={24} 
-              color={isExporting ? "#999" : "#8b5cf6"} 
-            />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('EditTrip', { tripId: trip.id })}>
-            <Ionicons name="pencil-outline" size={24} color="#8b5cf6" />
-          </TouchableOpacity>
+          />
+          <AnimatedButton
+            mode="text"
+            icon="pencil-outline"
+            onPress={() => {
+              navigation.navigate('EditTrip', { tripId: trip.id });
+              if (Platform.OS !== 'web') {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }
+            }}
+            label=""
+            style={styles.headerActionButton}
+          />
         </View>
-      </View>
+      </Surface>
 
-      <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
-        {/* Cover Image Hero Section */}
-        {trip.coverImage ? (
-          <View style={styles.coverImageContainer}>
-            <Image source={{ uri: trip.coverImage }} style={styles.coverImage} />
-            <View style={styles.coverImageOverlay}>
-              <Text style={styles.coverImageTitle}>{trip.name}</Text>
-              <Text style={styles.coverImageSubtitle}>{trip.destination}</Text>
-            </View>
-          </View>
-        ) : (
-          <View style={styles.coverImagePlaceholder}>
-            <View style={styles.placeholderContent}>
-              <Ionicons name="airplane" size={48} color="white" />
-              <Text style={styles.placeholderTitle}>{trip.name}</Text>
-              <Text style={styles.placeholderSubtitle}>{trip.destination}</Text>
-            </View>
-          </View>
-        )}
-
-        <View style={styles.budgetCard}>
-          <View style={styles.budgetSection}>
-            <Text style={styles.budgetLabel}>Spent</Text>
-            <Text style={styles.budgetAmount}>₹{summary.totalSpent.toFixed(2)}</Text>
-          </View>
-          <View style={styles.budgetSection}>
-            <Text style={styles.budgetLabel}>Remaining</Text>
-            <Text style={styles.budgetAmount}>₹{summary.remainingBudget.toFixed(2)}</Text>
-          </View>
-        </View>
-
-        <View style={styles.progressContainer}>
-          <View style={styles.progressBar}>
-            <View style={[styles.progressFill, { width: `${Math.min((summary.totalSpent / trip.budget) * 100, 100)}%` }]} />
-          </View>
-          <Text style={styles.progressText}>
-            {((summary.totalSpent / trip.budget) * 100).toFixed(0)}% of ₹{trip.budget.toFixed(2)} budget used
-          </Text>
-        </View>
-
-        <View style={styles.inviteSection}>
-          <Text style={styles.sectionTitle}>Invite Friends</Text>
-          <View style={styles.participantInfo}>
-            <Text style={styles.participantText}>1 participant</Text>
-          </View>
-          <View style={styles.inviteCodeContainer}>
-            <Text style={styles.inviteCode}>Invite Code TRIP{trip.id.slice(-6).toUpperCase()}</Text>
-            <TouchableOpacity style={styles.copyButton}>
-              <Ionicons name="copy-outline" size={16} color="#8b5cf6" />
-            </TouchableOpacity>
-          </View>
-          <TouchableOpacity style={styles.shareButton} onPress={handleShareInvite}>
-            <Text style={styles.shareButtonText}>Share Invite</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Expense Summary Card */}
-        <View style={styles.expenseSummaryCard}>
-          <View style={styles.summaryRow}>
-            <View style={styles.summaryItem}>
-              <Ionicons name="receipt-outline" size={20} color="#8b5cf6" />
-              <Text style={styles.summaryValue}>{summary.expenses.length}</Text>
-              <Text style={styles.summaryLabel}>Total Expenses</Text>
-            </View>
-            <View style={styles.summaryDivider} />
-            <View style={styles.summaryItem}>
-              <Ionicons name="wallet-outline" size={20} color="#22c55e" />
-              <Text style={styles.summaryValue}>₹{summary.totalSpent.toFixed(2)}</Text>
-              <Text style={styles.summaryLabel}>Total Amount</Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.expensesSection}>
-          <View style={styles.expensesHeader}>
-            <Text style={styles.sectionTitle}>Expenses ({summary.expenses.length})</Text>
-            {summary.expenses.length > 0 && (
-              <TouchableOpacity 
-                style={styles.showAllHeaderButton}
-                onPress={() => navigation.navigate('AllExpenses', { tripId: trip.id })}
+      <ScrollView 
+        style={styles.content} 
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <MotiView
+          from={{ opacity: 0, translateY: 20 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'timing', duration: 300 }}
+        >
+          {/* Cover Image Hero Section */}
+          {trip.coverImage ? (
+            <View style={styles.coverImageContainer}>
+              <Image source={{ uri: trip.coverImage }} style={styles.coverImage} contentFit="cover" />
+              <LinearGradient
+                colors={['transparent', 'rgba(0,0,0,0.7)']}
+                style={styles.coverImageOverlay}
               >
-                <Text style={styles.showAllHeaderText}>Show All</Text>
-                <Ionicons name="chevron-forward" size={16} color="#8b5cf6" />
-              </TouchableOpacity>
-            )}
-          </View>
-          {summary.expenses.length === 0 ? (
-            <View style={styles.emptyExpenses}>
-              <Ionicons name="trending-up-outline" size={48} color="#d1d5db" />
-              <Text style={styles.emptyText}>No expenses yet</Text>
-              <Text style={styles.emptySubtext}>Start tracking by adding your first expense</Text>
+                <Text style={styles.coverImageTitle}>{trip.name}</Text>
+                <View style={styles.locationRow}>
+                  <Ionicons name="location" size={16} color="#FFFFFF" />
+                  <Text style={styles.coverImageSubtitle}>{trip.destination}</Text>
+                </View>
+              </LinearGradient>
             </View>
           ) : (
-            <>
-              {summary.expenses.slice(0, 5).map(renderExpenseItem)}
-            </>
+            <LinearGradient
+              colors={[theme.colors.primary, theme.colors.secondary]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.coverImagePlaceholder}
+            >
+              <Ionicons name="airplane" size={48} color="#FFFFFF" />
+              <Text style={styles.placeholderTitle}>{trip.name}</Text>
+              <View style={styles.locationRow}>
+                <Ionicons name="location" size={16} color="#FFFFFF" />
+                <Text style={styles.placeholderSubtitle}>{trip.destination}</Text>
+              </View>
+            </LinearGradient>
           )}
-        </View>
+
+          {/* Budget Card */}
+          <AnimatedCard variant="elevated" elevation={2} style={styles.budgetCard}>
+            <LinearGradient
+              colors={[theme.colors.primary, theme.colors.secondary]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.budgetGradient}
+            >
+              <View style={styles.budgetSection}>
+                <Text style={styles.budgetLabel}>Spent</Text>
+                <Text style={styles.budgetAmount}>
+                  {formatCurrency(summary.totalSpent, trip.currency)}
+                </Text>
+              </View>
+              <View style={styles.budgetDivider} />
+              <View style={styles.budgetSection}>
+                <Text style={styles.budgetLabel}>Remaining</Text>
+                <Text style={[
+                  styles.budgetAmount,
+                  summary.remainingBudget < 0 && { color: theme.colors.error }
+                ]}>
+                  {formatCurrency(summary.remainingBudget, trip.currency)}
+                </Text>
+              </View>
+            </LinearGradient>
+          </AnimatedCard>
+
+          {/* Progress Section */}
+          <AnimatedCard variant="elevated" elevation={2} style={styles.progressCard}>
+            <View style={styles.progressHeader}>
+              <Text style={[styles.progressTitle, { color: theme.colors.onSurface }]}>
+                Budget Progress
+              </Text>
+              <Text style={[
+                styles.progressPercentage,
+                { 
+                  color: isOverBudget 
+                    ? theme.colors.error 
+                    : isNearBudget 
+                    ? '#FF9500' 
+                    : theme.colors.primary 
+                }
+              ]}>
+                {progressPercentage.toFixed(0)}%
+              </Text>
+            </View>
+            <ProgressBar
+              progress={progressPercentage / 100}
+              color={
+                isOverBudget 
+                  ? theme.colors.error 
+                  : isNearBudget 
+                  ? '#FF9500' 
+                  : theme.colors.primary
+              }
+              style={styles.progressBar}
+            />
+            <Text style={[styles.progressText, { color: theme.colors.onSurfaceVariant }]}>
+              {formatCurrency(trip.budget, trip.currency)} total budget
+            </Text>
+          </AnimatedCard>
+
+          {/* Summary Stats */}
+          <AnimatedCard variant="elevated" elevation={2} style={styles.summaryCard}>
+            <View style={styles.summaryRow}>
+              <View style={styles.summaryItem}>
+                <Ionicons name="receipt-outline" size={24} color={theme.colors.primary} />
+                <Text style={[styles.summaryValue, { color: theme.colors.onSurface }]}>
+                  {summary.expenses.length}
+                </Text>
+                <Text style={[styles.summaryLabel, { color: theme.colors.onSurfaceVariant }]}>
+                  Expenses
+                </Text>
+              </View>
+              <Divider style={styles.summaryDivider} />
+              <View style={styles.summaryItem}>
+                <Ionicons name="wallet-outline" size={24} color={theme.colors.secondary} />
+                <Text style={[styles.summaryValue, { color: theme.colors.onSurface }]}>
+                  {formatCurrency(summary.totalSpent, trip.currency)}
+                </Text>
+                <Text style={[styles.summaryLabel, { color: theme.colors.onSurfaceVariant }]}>
+                  Total Spent
+                </Text>
+              </View>
+            </View>
+          </AnimatedCard>
+
+          {/* Expenses Section */}
+          <View style={styles.expensesSection}>
+            <View style={styles.expensesHeader}>
+              <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
+                Expenses ({summary.expenses.length})
+              </Text>
+              {summary.expenses.length > 0 && (
+                <AnimatedButton
+                  mode="text"
+                  label="Show All"
+                  icon="chevron-forward"
+                  onPress={() => {
+                    navigation.navigate('AllExpenses', { tripId: trip.id });
+                    if (Platform.OS !== 'web') {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }
+                  }}
+                  variant="primary"
+                />
+              )}
+            </View>
+
+            {summary.expenses.length === 0 ? (
+              <AnimatedCard variant="outlined" style={styles.emptyCard}>
+                <View style={styles.emptyExpenses}>
+                  <Ionicons name="trending-up-outline" size={64} color={theme.colors.onSurfaceVariant} />
+                  <Text style={[styles.emptyText, { color: theme.colors.onSurface }]}>
+                    No expenses yet
+                  </Text>
+                  <Text style={[styles.emptySubtext, { color: theme.colors.onSurfaceVariant }]}>
+                    Start tracking by adding your first expense
+                  </Text>
+                  <AnimatedButton
+                    mode="contained"
+                    label="Add Expense"
+                    icon="add"
+                    onPress={() => {
+                      navigation.navigate('AddExpense', { tripId: trip.id });
+                      if (Platform.OS !== 'web') {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                      }
+                    }}
+                    variant="primary"
+                    style={styles.emptyButton}
+                  />
+                </View>
+              </AnimatedCard>
+            ) : (
+              <View style={styles.expensesList}>
+                {summary.expenses.slice(0, 5).map((expense, index) => renderExpenseItem(expense, index))}
+              </View>
+            )}
+          </View>
+        </MotiView>
       </ScrollView>
 
-      <View style={styles.bottomActions}>
-        <TouchableOpacity 
-          style={styles.actionButton}
-          onPress={() => navigation.navigate('ManageMembers', { tripId: trip.id })}
-        >
-          <Ionicons name="people-outline" size={20} color="#8b5cf6" />
-          <Text style={styles.actionText}>Members</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={styles.actionButton}
-          onPress={() => navigation.navigate('SettleUp', { tripId: trip.id })}
-        >
-          <Ionicons name="card-outline" size={20} color="#8b5cf6" />
-          <Text style={styles.actionText}>Settle</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.actionButton, styles.addButton]}
-          onPress={() => navigation.navigate('AddExpense', { tripId: trip.id })}
-        >
-          <Ionicons name="add" size={20} color="white" />
-          <Text style={[styles.actionText, styles.addButtonText]}>Add</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Bottom Actions */}
+      <Surface style={styles.bottomActions} elevation={4}>
+        <AnimatedButton
+          mode="outlined"
+          label="Members"
+          icon="people-outline"
+          onPress={() => {
+            navigation.navigate('ManageMembers', { tripId: trip.id });
+            if (Platform.OS !== 'web') {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }
+          }}
+          variant="secondary"
+          style={styles.bottomActionButton}
+        />
+        <AnimatedButton
+          mode="outlined"
+          label="Settle"
+          icon="card-outline"
+          onPress={() => {
+            navigation.navigate('SettleUp', { tripId: trip.id });
+            if (Platform.OS !== 'web') {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }
+          }}
+          variant="secondary"
+          style={styles.bottomActionButton}
+        />
+        <AnimatedButton
+          mode="contained"
+          label="Add Expense"
+          icon="add"
+          onPress={() => {
+            navigation.navigate('AddExpense', { tripId: trip.id });
+            if (Platform.OS !== 'web') {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            }
+          }}
+          variant="primary"
+          style={styles.addExpenseButton}
+        />
+      </Surface>
     </SafeAreaView>
   );
 }
@@ -295,55 +413,100 @@ export default function TripDetailScreen({ navigation, route }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#e5e7eb',
-    backgroundColor: '#fff',
+    paddingVertical: 12,
   },
   backButton: {
-    padding: 8,
-    minWidth: 44,
-    minHeight: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  headerActionButton: {
-    padding: 4,
+    minWidth: 40,
   },
   title: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: '700',
     flex: 1,
     textAlign: 'center',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  headerActionButton: {
+    minWidth: 40,
   },
   content: {
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 16,
-    paddingTop: 0,
+    paddingBottom: 100,
+  },
+  coverImageContainer: {
+    position: 'relative',
+    height: 250,
+    marginBottom: 16,
+  },
+  coverImage: {
+    width: '100%',
+    height: '100%',
+  },
+  coverImageOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 20,
+  },
+  coverImageTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 8,
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  coverImageSubtitle: {
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.9)',
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  coverImagePlaceholder: {
+    height: 250,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+    borderRadius: 0,
+  },
+  placeholderTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  placeholderSubtitle: {
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.9)',
   },
   budgetCard: {
-    flexDirection: 'row',
-    backgroundColor: '#8b5cf6',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 16,
     marginHorizontal: 16,
+    marginBottom: 16,
+    overflow: 'hidden',
+  },
+  budgetGradient: {
+    flexDirection: 'row',
+    padding: 20,
+    borderRadius: 16,
   },
   budgetSection: {
     flex: 1,
@@ -351,240 +514,52 @@ const styles = StyleSheet.create({
   },
   budgetLabel: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
-    marginBottom: 4,
+    color: 'rgba(255,255,255,0.8)',
+    marginBottom: 8,
+    fontWeight: '500',
   },
   budgetAmount: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: 'white',
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
-  progressContainer: {
-    marginBottom: 24,
+  budgetDivider: {
+    width: 1,
+    backgroundColor: 'rgba(255,255,255,0.3)',
     marginHorizontal: 16,
   },
-  progressBar: {
-    height: 4,
-    backgroundColor: '#e5e7eb',
-    borderRadius: 2,
-    marginBottom: 8,
+  progressCard: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    padding: 16,
   },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#8b5cf6',
-    borderRadius: 2,
+  progressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  progressTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  progressPercentage: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  progressBar: {
+    height: 8,
+    borderRadius: 4,
+    marginBottom: 8,
   },
   progressText: {
     fontSize: 12,
-    color: '#666',
-    textAlign: 'center',
+    fontWeight: '500',
   },
-  inviteSection: {
-    marginBottom: 24,
+  summaryCard: {
     marginHorizontal: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 12,
-  },
-  participantInfo: {
-    marginBottom: 12,
-  },
-  participantText: {
-    fontSize: 14,
-    color: '#666',
-  },
-  inviteCodeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f3f4f6',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 12,
-  },
-  inviteCode: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-  },
-  copyButton: {
-    padding: 4,
-  },
-  shareButton: {
-    backgroundColor: '#8b5cf6',
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  shareButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  expensesSection: {
-    marginBottom: 24,
-    marginHorizontal: 16,
-  },
-  expensesHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  showAllHeaderButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  showAllHeaderText: {
-    fontSize: 14,
-    color: '#8b5cf6',
-    fontWeight: '500',
-  },
-  emptyExpenses: {
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#666',
-    marginTop: 12,
-    marginBottom: 4,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: '#999',
-  },
-  expenseItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-  },
-  expenseInfo: {
-    flex: 1,
-  },
-  expenseDescription: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#333',
-    marginBottom: 2,
-  },
-  expenseCategory: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 2,
-  },
-  expenseDate: {
-    fontSize: 12,
-    color: '#999',
-  },
-  expenseAmount: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  bottomActions: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-    backgroundColor: 'white',
-  },
-  actionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    gap: 6,
-  },
-  actionText: {
-    fontSize: 14,
-    color: '#8b5cf6',
-    fontWeight: '500',
-  },
-  addButton: {
-    backgroundColor: '#8b5cf6',
-    borderRadius: 8,
-    marginLeft: 8,
-  },
-  addButtonText: {
-    color: 'white',
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  errorText: {
-    fontSize: 18,
-    color: '#666',
-  },
-  coverImageContainer: {
-    position: 'relative',
     marginBottom: 16,
-    marginTop: 0,
-    width: '100%',
-  },
-  coverImage: {
-    width: '100%',
-    height: 200,
-    resizeMode: 'cover',
-  },
-  coverImageOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    padding: 20,
-  },
-  coverImageTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: 'white',
-    marginBottom: 4,
-  },
-  coverImageSubtitle: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.8)',
-  },
-  coverImagePlaceholder: {
-    width: '100%',
-    height: 200,
-    backgroundColor: '#8b5cf6',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-    marginTop: 0,
-  },
-  placeholderContent: {
-    alignItems: 'center',
-  },
-  placeholderTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: 'white',
-    marginTop: 12,
-    marginBottom: 4,
-  },
-  placeholderSubtitle: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.8)',
-  },
-  expenseSummaryCard: {
-    backgroundColor: '#f9fafb',
-    borderRadius: 12,
     padding: 16,
-    marginBottom: 24,
-    marginHorizontal: 16,
   },
   summaryRow: {
     flexDirection: 'row',
@@ -594,21 +569,83 @@ const styles = StyleSheet.create({
   summaryItem: {
     flex: 1,
     alignItems: 'center',
+    gap: 8,
   },
   summaryDivider: {
     width: 1,
     height: 60,
-    backgroundColor: '#e5e7eb',
   },
   summaryValue: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    marginTop: 8,
+    fontWeight: '700',
   },
   summaryLabel: {
     fontSize: 12,
-    color: '#666',
-    marginTop: 4,
+    fontWeight: '500',
+  },
+  expensesSection: {
+    marginHorizontal: 16,
+    marginBottom: 24,
+  },
+  expensesHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  expensesList: {
+    gap: 12,
+  },
+  expenseCard: {
+    marginBottom: 0,
+  },
+  expenseAmount: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  emptyCard: {
+    padding: 32,
+  },
+  emptyExpenses: {
+    alignItems: 'center',
+    gap: 12,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  emptySubtext: {
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  emptyButton: {
+    marginTop: 8,
+  },
+  bottomActions: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 8,
+    borderTopWidth: 1,
+  },
+  bottomActionButton: {
+    flex: 1,
+  },
+  addExpenseButton: {
+    flex: 1.5,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 16,
+  },
+  errorText: {
+    fontSize: 18,
+    fontWeight: '600',
   },
 });

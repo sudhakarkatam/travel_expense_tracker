@@ -2,10 +2,11 @@
   "expo": {
     "name": "Travel Expense Tracker",
     "slug": "travel-expense-tracker-74g5pfu",
+    "scheme": "travel-expense-tracker-74g5pfu",
+    "owner": "sudhakar77",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./src/assets/images/icon.png",
-    "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
@@ -15,25 +16,35 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.rork.travel-expense-tracker-74g5pfu",
+      "bundleIdentifier": "com.travel_expense_tracker",
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "Allow $(PRODUCT_NAME) to access your photos",
         "NSCameraUsageDescription": "Allow $(PRODUCT_NAME) to access your camera",
         "NSMicrophoneUsageDescription": "Allow $(PRODUCT_NAME) to access your microphone"
+      },
+      "runtimeVersion": {
+        "policy": "appVersion"
       }
     },
     "android": {
+      "package": "com.travel_expense_tracker",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.INTERNET",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.INTERNET",
+        "android.permission.RECORD_AUDIO"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./src/assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "app.rork.travel_expense_tracker_74g5pfu",
-      "permissions": [
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE",
-        "INTERNET"
-      ]
+      "runtimeVersion": "1.0.0"
     },
     "web": {
       "favicon": "./src/assets/images/favicon.png"
@@ -44,7 +55,17 @@
         {
           "photosPermission": "The app accesses your photos to let you share them with your friends."
         }
-      ]
-    ]
+      ],
+      "expo-web-browser",
+      "@react-native-google-signin/google-signin"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "f2b79d21-cdc5-4840-9911-bacfe2c73483"
+      }
+    },
+    "updates": {
+      "url": "https://u.expo.dev/f2b79d21-cdc5-4840-9911-bacfe2c73483"
+    }
   }
 }

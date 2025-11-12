@@ -1,30 +1,44 @@
-import React, { useState } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
-  Image,
-  Alert,
   RefreshControl,
   Platform,
-  StatusBar,
   Dimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useTheme, Searchbar, Surface, ProgressBar } from "react-native-paper";
 import { Ionicons } from "@expo/vector-icons";
+import { MotiView } from "moti";
+import { LinearGradient } from "expo-linear-gradient";
+import * as Haptics from "expo-haptics";
 import { useApp } from "@/contexts/AppContext";
 import { generateTripSummary } from "@/utils/tripSummary";
+import { getTripStatus, formatCountdown, TripStatus } from "@/utils/tripStatus";
 import { EmptyTripsState } from "@/components/EmptyState";
-import { LinearGradient } from "expo-linear-gradient";
+import { AnimatedCard } from "@/components/ui/AnimatedCard";
+import { AnimatedButton } from "@/components/ui/AnimatedButton";
+import { Chip } from "@/components/ui/Chip";
+import { FloatingActionButton } from "@/components/ui/FloatingActionButton";
+import { Image } from "expo-image";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const CARD_MARGIN = 16;
 
-export default function HomeScreen({ navigation }: any) {
+export default function HomeScreen({ navigation, route }: any) {
+  const theme = useTheme();
   const { trips, expenses, deleteTrip } = useApp();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<TripStatus | "all">("all");
+  const [searchQuery, setSearchQuery] = useState(route?.params?.returnSearchQuery || "");
+
+  useEffect(() => {
+    if (route?.params?.returnSearchQuery !== undefined) {
+      setSearchQuery(route.params.returnSearchQuery);
+      navigation.setParams({ returnSearchQuery: undefined });
+    }
+  }, [route?.params?.returnSearchQuery, navigation]);
 
   const formatCurrency = (amount: number, currency: string = "USD") => {
     const symbols: Record<string, string> = {
@@ -36,408 +50,482 @@ export default function HomeScreen({ navigation }: any) {
     return `${symbols[currency] || "$"}${amount.toFixed(2)}`;
   };
 
-  const renderTripCard = (trip: any) => {
+  const filteredTrips = useMemo(() => {
+    let filtered = [...trips];
+
+    if (statusFilter !== "all") {
+      filtered = filtered.filter((trip) => {
+        const summary = generateTripSummary(trip, expenses);
+        const statusInfo = getTripStatus(trip, summary.totalSpent);
+        return statusInfo.status === statusFilter;
+      });
+    }
+
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (trip) =>
+          trip.name.toLowerCase().includes(query) ||
+          trip.destination.toLowerCase().includes(query)
+      );
+    }
+
+    filtered.sort((a, b) => {
+      return new Date(b.startDate).getTime() - new Date(a.startDate).getTime();
+    });
+
+    return filtered;
+  }, [trips, expenses, statusFilter, searchQuery]);
+
+  const onRefresh = async () => {
+    setIsRefreshing(true);
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    setTimeout(() => setIsRefreshing(false), 1000);
+  };
+
+  const renderTripCard = (trip: any, index: number) => {
     const summary = generateTripSummary(trip, expenses);
     const budget = trip.budget || 0.01;
-    const progressPercentage = Math.min(
-      (summary.totalSpent / budget) * 100,
-      100,
-    );
-    const isOverBudget = summary.totalSpent > trip.budget;
-    const isNearLimit = progressPercentage >= 80 && !isOverBudget;
+    const progressPercentage = Math.min((summary.totalSpent / budget) * 100, 100);
+    const statusInfo = getTripStatus(trip, summary.totalSpent);
+    const isOverBudget = statusInfo.isOverBudget;
+    const isNearLimit = statusInfo.isNearBudget;
 
     const progressColor = isOverBudget
-      ? "#FF3B30"
+      ? theme.colors.error
       : isNearLimit
-        ? "#FF9500"
-        : "#34C759";
-
-    const handleLongPress = () => {
-      if (Platform.OS === "ios") {
-        Alert.alert(
-          trip.name,
-          undefined,
-          [
-            {
-              text: "Edit Trip",
-              onPress: () =>
-                navigation.navigate("EditTrip", { tripId: trip.id }),
-            },
-            {
-              text: "Delete Trip",
-              style: "destructive",
-              onPress: () => confirmDelete(),
-            },
-            { text: "Cancel", style: "cancel" },
-          ],
-          { cancelable: true },
-        );
-      } else {
-        Alert.alert(
-          "Trip Options",
-          `What would you like to do with "${trip.name}"?`,
-          [
-            {
-              text: "Edit",
-              onPress: () =>
-                navigation.navigate("EditTrip", { tripId: trip.id }),
-            },
-            {
-              text: "Delete",
-              style: "destructive",
-              onPress: () => confirmDelete(),
-            },
-            { text: "Cancel", style: "cancel" },
-          ],
-        );
-      }
-    };
-
-    const confirmDelete = () => {
-      Alert.alert(
-        "Delete Trip",
-        `Are you sure you want to delete "${trip.name}"? This will also delete all associated expenses.`,
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Delete",
-            style: "destructive",
-            onPress: () => deleteTrip(trip.id),
-          },
-        ],
-      );
-    };
+      ? "#FF9500"
+      : theme.colors.primary;
 
     return (
-      <TouchableOpacity
+      <MotiView
         key={trip.id}
-        style={styles.tripCard}
-        onPress={() => navigation.navigate("TripDetail", { tripId: trip.id })}
-        onLongPress={handleLongPress}
-        activeOpacity={0.7}
+        from={{ opacity: 0, translateY: 20 }}
+        animate={{ opacity: 1, translateY: 0 }}
+        transition={{
+          type: "timing",
+          duration: 300,
+          delay: index * 50,
+        }}
+        style={styles.cardWrapper}
       >
-        {/* Cover Image with Gradient Overlay */}
-        <View style={styles.coverContainer}>
-          {trip.coverImage ? (
-            <>
+        <AnimatedCard
+          onPress={() => {
+            if (Platform.OS !== "web") {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }
+            navigation.navigate("TripDetail", {
+              tripId: trip.id,
+              returnSearchQuery: searchQuery,
+            });
+          }}
+          variant="elevated"
+          elevation={2}
+          style={styles.tripCard}
+        >
+          {/* Cover Image */}
+          <View style={styles.coverContainer}>
+            {trip.coverImage ? (
               <Image
                 source={{ uri: trip.coverImage }}
                 style={styles.coverImage}
+                contentFit="cover"
+                transition={200}
               />
+            ) : (
               <LinearGradient
-                colors={["transparent", "rgba(0,0,0,0.7)"]}
-                style={styles.imageGradient}
-              />
-            </>
-          ) : (
+                colors={[theme.colors.primary, theme.colors.secondary]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.coverPlaceholder}
+              >
+                <Ionicons name="airplane" size={40} color="#FFFFFF" />
+              </LinearGradient>
+            )}
             <LinearGradient
-              colors={["#667eea", "#764ba2"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.coverPlaceholder}
-            >
-              <Ionicons
-                name="airplane"
-                size={48}
-                color="rgba(255,255,255,0.9)"
-              />
-            </LinearGradient>
-          )}
-
-          {/* Trip Header Overlay */}
-          <View style={styles.headerOverlay}>
-            <View style={styles.tripHeaderContent}>
-              <View style={styles.tripTitleContainer}>
-                <Text style={styles.tripName} numberOfLines={1}>
-                  {trip.name}
-                </Text>
-                <Text style={styles.tripDestination} numberOfLines={1}>
-                  <Ionicons
-                    name="location-sharp"
-                    size={12}
-                    color="rgba(255,255,255,0.9)"
-                  />{" "}
-                  {trip.destination}
-                </Text>
-              </View>
-              {trip.isGroup && (
-                <View style={styles.groupBadge}>
-                  <Ionicons name="people" size={12} color="#fff" />
-                  <Text style={styles.groupBadgeText}>Group</Text>
-                </View>
-              )}
-            </View>
-          </View>
-        </View>
-
-        {/* Trip Details */}
-        <View style={styles.tripDetails}>
-          {/* Date Range */}
-          <View style={styles.dateRow}>
-            <Ionicons name="calendar-outline" size={14} color="#8E8E93" />
-            <Text style={styles.dateText}>
-              {new Date(trip.startDate).toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-              })}{" "}
-              -{" "}
-              {new Date(trip.endDate).toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-                year: "numeric",
-              })}
-            </Text>
-          </View>
-
-          {/* Budget Stats */}
-          <View style={styles.statsContainer}>
-            <View style={styles.statRow}>
-              <View style={styles.statItem}>
-                <Text style={styles.statLabel}>Spent</Text>
-                <Text
-                  style={[
-                    styles.statValue,
-                    isOverBudget && { color: "#FF3B30" },
-                  ]}
-                >
-                  {formatCurrency(summary.totalSpent, trip.currency || "USD")}
-                </Text>
-              </View>
-
-              <View style={styles.statDivider} />
-
-              <View style={styles.statItem}>
-                <Text style={styles.statLabel}>Budget</Text>
-                <Text style={styles.statValue}>
-                  {formatCurrency(trip.budget, trip.currency || "USD")}
-                </Text>
-              </View>
-
-              <View style={styles.statDivider} />
-
-              <View style={styles.statItem}>
-                <Text style={styles.statLabel}>Status</Text>
-                <View
-                  style={[
-                    styles.statusBadge,
-                    { backgroundColor: progressColor + "15" },
-                  ]}
-                >
-                  <View
-                    style={[
-                      styles.statusDot,
-                      { backgroundColor: progressColor },
-                    ]}
-                  />
-                  <Text style={[styles.statusText, { color: progressColor }]}>
-                    {isOverBudget ? "Over" : isNearLimit ? "Near" : "Good"}
-                  </Text>
-                </View>
-              </View>
-            </View>
-          </View>
-
-          {/* Progress Bar */}
-          <View style={styles.progressSection}>
-            <View style={styles.progressBar}>
+              colors={["transparent", "rgba(0,0,0,0.7)"]}
+              style={styles.imageGradient}
+            />
+            
+            {/* Status Badge */}
+            <View style={styles.statusBadge}>
               <View
                 style={[
-                  styles.progressFill,
+                  styles.statusDot,
                   {
-                    width: `${progressPercentage}%`,
-                    backgroundColor: progressColor,
+                    backgroundColor:
+                      statusInfo.status === "active"
+                        ? "#34C759"
+                        : statusInfo.status === "upcoming"
+                        ? "#FF9500"
+                        : "#8E8E93",
                   },
                 ]}
               />
-            </View>
-            <View style={styles.progressInfo}>
-              <Text style={styles.progressText}>
-                {progressPercentage.toFixed(0)}% used
+              <Text style={styles.statusText}>
+                {statusInfo.status === "active"
+                  ? "Active"
+                  : statusInfo.status === "upcoming"
+                  ? statusInfo.daysUntilStart !== undefined
+                    ? formatCountdown(statusInfo.daysUntilStart)
+                    : "Upcoming"
+                  : "Completed"}
               </Text>
-              {isOverBudget && (
-                <Text style={styles.overBudgetText}>
-                  +
-                  {formatCurrency(
-                    summary.totalSpent - trip.budget,
-                    trip.currency || "USD",
-                  )}{" "}
-                  over
+            </View>
+
+            {/* Trip Info Overlay */}
+            <View style={styles.overlayContent}>
+              <Text style={styles.tripName} numberOfLines={1}>
+                {trip.name}
+              </Text>
+              <View style={styles.locationRow}>
+                <Ionicons name="location" size={14} color="#FFFFFF" />
+                <Text style={styles.destination} numberOfLines={1}>
+                  {trip.destination}
                 </Text>
-              )}
+              </View>
             </View>
           </View>
-        </View>
-      </TouchableOpacity>
+
+          {/* Card Content */}
+          <View style={styles.cardContent}>
+            {/* Date Row */}
+            <View style={styles.dateRow}>
+              <Ionicons
+                name="calendar-outline"
+                size={16}
+                color={theme.colors.onSurfaceVariant}
+              />
+              <Text style={[styles.dateText, { color: theme.colors.onSurfaceVariant }]}>
+                {new Date(trip.startDate).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                })}{" "}
+                -{" "}
+                {new Date(trip.endDate).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+              </Text>
+            </View>
+
+            {/* Budget Progress */}
+            <View style={styles.progressSection}>
+              <View style={styles.budgetRow}>
+                <View>
+                  <Text style={[styles.budgetLabel, { color: theme.colors.onSurfaceVariant }]}>
+                    Spent
+                  </Text>
+                  <Text style={[styles.budgetAmount, { color: theme.colors.onSurface }]}>
+                    {formatCurrency(summary.totalSpent, trip.currency)}
+                  </Text>
+                </View>
+                <View style={styles.budgetRight}>
+                  <Text style={[styles.budgetLabel, { color: theme.colors.onSurfaceVariant }]}>
+                    Budget
+                  </Text>
+                  <Text style={[styles.budgetAmount, { color: theme.colors.onSurface }]}>
+                    {formatCurrency(budget, trip.currency)}
+                  </Text>
+                </View>
+              </View>
+              <ProgressBar
+                progress={progressPercentage / 100}
+                color={progressColor}
+                style={styles.progressBar}
+              />
+              <Text
+                style={[
+                  styles.progressText,
+                  {
+                    color:
+                      progressPercentage > 100
+                        ? theme.colors.error
+                        : progressPercentage > 80
+                        ? "#FF9500"
+                        : theme.colors.onSurfaceVariant,
+                  },
+                ]}
+              >
+                {progressPercentage.toFixed(0)}% of budget used
+              </Text>
+            </View>
+
+            {/* Quick Stats */}
+            <View style={styles.statsRow}>
+              <View style={styles.statItem}>
+                <Ionicons
+                  name="receipt-outline"
+                  size={18}
+                  color={theme.colors.primary}
+                />
+                <Text style={[styles.statValue, { color: theme.colors.onSurface }]}>
+                  {summary.expenseCount}
+                </Text>
+                <Text style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}>
+                  Expenses
+                </Text>
+              </View>
+              {trip.isGroup && (
+                <View style={styles.statItem}>
+                  <Ionicons
+                    name="people-outline"
+                    size={18}
+                    color={theme.colors.secondary}
+                  />
+                  <Text style={[styles.statValue, { color: theme.colors.onSurface }]}>
+                    {trip.members?.length || 1}
+                  </Text>
+                  <Text style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}>
+                    Members
+                  </Text>
+                </View>
+              )}
+              <View style={styles.statItem}>
+                <Ionicons
+                  name="wallet-outline"
+                  size={18}
+                  color={theme.colors.tertiary}
+                />
+                <Text style={[styles.statValue, { color: theme.colors.onSurface }]}>
+                  {formatCurrency(
+                    budget - summary.totalSpent > 0
+                      ? budget - summary.totalSpent
+                      : 0,
+                    trip.currency
+                  )}
+                </Text>
+                <Text style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}>
+                  Remaining
+                </Text>
+              </View>
+            </View>
+          </View>
+        </AnimatedCard>
+      </MotiView>
     );
   };
 
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    setTimeout(() => {
-      setIsRefreshing(false);
-    }, 1000);
-  };
+  if (trips.length === 0) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <View style={styles.header}>
+          <Text style={[styles.headerTitle, { color: theme.colors.onSurface }]}>
+            My Trips
+          </Text>
+        </View>
+        <EmptyTripsState
+          onAddTrip={() => navigation.navigate("AddTrip")}
+        />
+        <FloatingActionButton
+          icon="add"
+          onPress={() => navigation.navigate("AddTrip")}
+        />
+      </SafeAreaView>
+    );
+  }
 
   return (
-    <View style={styles.container}>
-      <StatusBar
-        barStyle={Platform.OS === "ios" ? "dark-content" : "light-content"}
-        backgroundColor="transparent"
-        translucent
-      />
-
-      {/* Native Header */}
-      <SafeAreaView edges={["top"]} style={styles.headerContainer}>
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.headerTitle}>Trips</Text>
-            <Text style={styles.headerSubtitle}>
-              {trips.length} {trips.length === 1 ? "trip" : "trips"}
-            </Text>
-          </View>
-          <TouchableOpacity
-            style={styles.historyButton}
-            onPress={() => navigation.navigate("History")}
-            activeOpacity={0.6}
-          >
-            <Ionicons
-              name="time-outline"
-              size={24}
-              color={Platform.OS === "ios" ? "#007AFF" : "#6200EE"}
-            />
-          </TouchableOpacity>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      {/* Header */}
+      <Surface style={[styles.header, { backgroundColor: theme.colors.surface }]} elevation={1}>
+        <Text style={[styles.headerTitle, { color: theme.colors.onSurface }]}>
+          My Trips
+        </Text>
+        <View style={styles.headerActions}>
+          <AnimatedButton
+            mode="text"
+            icon="search"
+            onPress={() => {}}
+            label=""
+            style={styles.searchButton}
+          />
         </View>
-      </SafeAreaView>
+      </Surface>
 
-      {/* Content */}
+      {/* Search Bar */}
+      {searchQuery !== "" && (
+        <MotiView
+          from={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 64 }}
+          style={styles.searchContainer}
+        >
+          <Searchbar
+            placeholder="Search trips..."
+            onChangeText={setSearchQuery}
+            value={searchQuery}
+            icon="magnify"
+            onClearIconPress={() => setSearchQuery("")}
+            style={styles.searchbar}
+          />
+        </MotiView>
+      )}
+
+      {/* Filter Chips */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.chipsContainer}
+      >
+        <Chip
+          label="All"
+          selected={statusFilter === "all"}
+          onPress={() => {
+            setStatusFilter("all");
+            if (Platform.OS !== "web") {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }
+          }}
+          variant="flat"
+        />
+        <Chip
+          label="Active"
+          selected={statusFilter === "active"}
+          onPress={() => {
+            setStatusFilter("active");
+            if (Platform.OS !== "web") {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }
+          }}
+          variant="flat"
+        />
+        <Chip
+          label="Upcoming"
+          selected={statusFilter === "upcoming"}
+          onPress={() => {
+            setStatusFilter("upcoming");
+            if (Platform.OS !== "web") {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }
+          }}
+          variant="flat"
+        />
+        <Chip
+          label="Completed"
+          selected={statusFilter === "completed"}
+          onPress={() => {
+            setStatusFilter("completed");
+            if (Platform.OS !== "web") {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }
+          }}
+          variant="flat"
+        />
+      </ScrollView>
+
+      {/* Trips List */}
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
-            onRefresh={handleRefresh}
-            tintColor={Platform.OS === "ios" ? "#007AFF" : "#6200EE"}
-            colors={["#6200EE"]}
+            onRefresh={onRefresh}
+            tintColor={theme.colors.primary}
+            colors={[theme.colors.primary]}
           />
         }
+        showsVerticalScrollIndicator={false}
       >
-        {trips.length === 0 ? (
-          <EmptyTripsState onAddTrip={() => navigation.navigate("AddTrip")} />
+        {filteredTrips.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons
+              name="search-outline"
+              size={64}
+              color={theme.colors.onSurfaceVariant}
+            />
+            <Text style={[styles.emptyText, { color: theme.colors.onSurfaceVariant }]}>
+              No trips found
+            </Text>
+            <AnimatedButton
+              mode="outlined"
+              label="Clear Filters"
+              onPress={() => {
+                setStatusFilter("all");
+                setSearchQuery("");
+              }}
+            />
+          </View>
         ) : (
-          trips.map(renderTripCard)
+          filteredTrips.map((trip, index) => renderTripCard(trip, index))
         )}
-
-        {/* Bottom spacing for FAB */}
-        <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* Native FAB */}
-      <SafeAreaView edges={["bottom"]} style={styles.fabContainer}>
-        <TouchableOpacity
-          style={styles.fab}
-          onPress={() => navigation.navigate("AddTrip")}
-          activeOpacity={0.8}
-        >
-          <LinearGradient
-            colors={
-              Platform.OS === "ios"
-                ? ["#007AFF", "#0051D5"]
-                : ["#6200EE", "#3700B3"]
-            }
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.fabGradient}
-          >
-            <Ionicons name="add" size={28} color="#FFFFFF" />
-          </LinearGradient>
-        </TouchableOpacity>
-      </SafeAreaView>
-    </View>
+      {/* Floating Action Button */}
+      <FloatingActionButton
+        icon="add"
+        onPress={() => {
+          if (Platform.OS !== "web") {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          }
+          navigation.navigate("AddTrip");
+        }}
+      />
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Platform.OS === "ios" ? "#F2F2F7" : "#FAFAFA",
-  },
-  headerContainer: {
-    backgroundColor: Platform.OS === "ios" ? "#F2F2F7" : "#FFFFFF",
-    paddingTop: 0,
-    paddingBottom: 0,
-    ...Platform.select({
-      android: {
-        elevation: 4,
-      },
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 3,
-      },
-    }),
   },
   header: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 20,
+    justifyContent: "space-between",
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: "700",
+    letterSpacing: -0.5,
+  },
+  headerActions: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  searchButton: {
+    minWidth: 40,
+  },
+  searchContainer: {
+    paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 12,
   },
-  headerTitle: {
-    fontSize: 34,
-    fontWeight: Platform.OS === "ios" ? "700" : "bold",
-    color: "#000",
-    letterSpacing: Platform.OS === "ios" ? 0.4 : 0,
+  searchbar: {
+    borderRadius: 12,
+    elevation: 0,
   },
-  headerSubtitle: {
-    fontSize: 15,
-    color: "#8E8E93",
-    marginTop: 2,
-  },
-  historyButton: {
-    width: 44,
-    height: 44,
-    justifyContent: "center",
-    alignItems: "center",
-    borderRadius: 22,
-    backgroundColor:
-      Platform.OS === "ios" ? "rgba(0,122,255,0.1)" : "rgba(98,0,238,0.1)",
+  chipsContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 8,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    padding: CARD_MARGIN,
+    padding: 16,
+    paddingBottom: 100,
+  },
+  cardWrapper: {
+    marginBottom: 16,
   },
   tripCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: Platform.OS === "ios" ? 16 : 12,
-    marginBottom: 20,
     overflow: "hidden",
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
   },
   coverContainer: {
     height: 200,
+    width: "100%",
     position: "relative",
   },
   coverImage: {
     width: "100%",
     height: "100%",
-    resizeMode: "cover",
   },
   coverPlaceholder: {
     width: "100%",
@@ -447,170 +535,130 @@ const styles = StyleSheet.create({
   },
   imageGradient: {
     position: "absolute",
+    bottom: 0,
     left: 0,
     right: 0,
-    bottom: 0,
-    height: "50%",
+    height: "60%",
   },
-  headerOverlay: {
+  statusBadge: {
     position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    padding: 16,
-  },
-  tripHeaderContent: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-end",
-  },
-  tripTitleContainer: {
-    flex: 1,
-    marginRight: 12,
-  },
-  tripName: {
-    fontSize: 24,
-    fontWeight: Platform.OS === "ios" ? "700" : "bold",
-    color: "#FFFFFF",
-    marginBottom: 4,
-    textShadowColor: "rgba(0, 0, 0, 0.3)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-  },
-  tripDestination: {
-    fontSize: 15,
-    color: "rgba(255,255,255,0.95)",
-    textShadowColor: "rgba(0, 0, 0, 0.3)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-  },
-  groupBadge: {
+    top: 12,
+    right: 12,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.25)",
+    backgroundColor: "rgba(0,0,0,0.5)",
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 16,
-    gap: 4,
-    backdropFilter: "blur(10px)",
+    gap: 6,
   },
-  groupBadgeText: {
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  statusText: {
+    color: "#FFFFFF",
     fontSize: 12,
     fontWeight: "600",
-    color: "#FFFFFF",
   },
-  tripDetails: {
+  overlayContent: {
+    position: "absolute",
+    bottom: 16,
+    left: 16,
+    right: 16,
+  },
+  tripName: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#FFFFFF",
+    marginBottom: 4,
+    textShadowColor: "rgba(0,0,0,0.3)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  locationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  destination: {
+    fontSize: 14,
+    color: "#FFFFFF",
+    fontWeight: "500",
+    textShadowColor: "rgba(0,0,0,0.3)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  cardContent: {
     padding: 16,
+    gap: 16,
   },
   dateRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    marginBottom: 16,
+    gap: 8,
   },
   dateText: {
     fontSize: 14,
-    color: "#8E8E93",
-    fontWeight: Platform.OS === "ios" ? "500" : "normal",
-  },
-  statsContainer: {
-    marginBottom: 16,
-  },
-  statRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  statItem: {
-    flex: 1,
-    alignItems: "center",
-  },
-  statLabel: {
-    fontSize: 13,
-    color: "#8E8E93",
-    marginBottom: 6,
-    fontWeight: Platform.OS === "ios" ? "500" : "normal",
-  },
-  statValue: {
-    fontSize: 17,
-    fontWeight: Platform.OS === "ios" ? "600" : "bold",
-    color: "#000",
-  },
-  statDivider: {
-    width: 1,
-    height: 40,
-    backgroundColor: "#E5E5EA",
-  },
-  statusBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    gap: 4,
-  },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  statusText: {
-    fontSize: 13,
-    fontWeight: "600",
+    fontWeight: "500",
   },
   progressSection: {
     gap: 8,
   },
-  progressBar: {
-    height: Platform.OS === "ios" ? 6 : 8,
-    backgroundColor: "#E5E5EA",
-    borderRadius: Platform.OS === "ios" ? 3 : 4,
-    overflow: "hidden",
-  },
-  progressFill: {
-    height: "100%",
-    borderRadius: Platform.OS === "ios" ? 3 : 4,
-  },
-  progressInfo: {
+  budgetRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-start",
+  },
+  budgetLabel: {
+    fontSize: 12,
+    fontWeight: "500",
+    marginBottom: 4,
+  },
+  budgetAmount: {
+    fontSize: 20,
+    fontWeight: "700",
+  },
+  budgetRight: {
+    alignItems: "flex-end",
+  },
+  progressBar: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#F3F4F6",
   },
   progressText: {
-    fontSize: 13,
-    color: "#8E8E93",
-    fontWeight: Platform.OS === "ios" ? "500" : "normal",
+    fontSize: 12,
+    fontWeight: "500",
   },
-  overBudgetText: {
-    fontSize: 13,
-    color: "#FF3B30",
-    fontWeight: "600",
+  statsRow: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#F3F4F6",
   },
-  fabContainer: {
-    position: "absolute",
-    bottom: 0,
-    right: 20,
-  },
-  fab: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    overflow: "hidden",
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.3,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
-  },
-  fabGradient: {
-    width: "100%",
-    height: "100%",
-    justifyContent: "center",
+  statItem: {
     alignItems: "center",
+    gap: 4,
+  },
+  statValue: {
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  statLabel: {
+    fontSize: 12,
+    fontWeight: "500",
+  },
+  emptyContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 64,
+    gap: 16,
+  },
+  emptyText: {
+    fontSize: 16,
+    fontWeight: "500",
   },
 });

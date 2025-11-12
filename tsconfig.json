@@ -1,5 +1,4 @@
 {
-  "extends": "./node_modules/expo/tsconfig.base",
   "compilerOptions": {
     "target": "esnext",
     "lib": [
@@ -7,7 +6,7 @@
       "dom.iterable",
       "esnext"
     ],
-    "allowJs": false,
+    "allowJs": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
@@ -26,12 +25,16 @@
     },
     "types": [
       "react",
-      "react-native"
-    ]
+      "react-native",
+      "expo"
+    ],
+    "incremental": true
   },
   "include": [
-    "src/**/*",
-    "app/**/*"
+    "**/*.ts",
+    "**/*.tsx",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts"
   ],
   "exclude": [
     "node_modules"

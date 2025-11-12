@@ -17,6 +17,10 @@ expo-env.d.ts
 *.key
 *.mobileprovision
 
+# Android
+android/local.properties
+android/.gradle/
+
 # Metro
 .metro-health-check*
 
@@ -24,6 +28,11 @@ expo-env.d.ts
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+
+# Package manager lockfiles (use npm only)
+bun.lock
+bun.lockb
+yarn.lock
 
 # macOS
 .DS_Store

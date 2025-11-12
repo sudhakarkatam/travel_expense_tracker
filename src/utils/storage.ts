@@ -18,8 +18,9 @@ const KEYS = {
   AUDIT_LOGS: "@tripwallet_audit_logs",
   CURRENCY_RATES: "@tripwallet_currency_rates",
   CATEGORIES: "@tripwallet_categories",
-  PACKING_ITEMS: "@tripwallet_packing_items", // New key for packing items
-  ACTIVITY_ITEMS: "@tripwallet_activity_items", // New key for activity items
+  PACKING_ITEMS: "@tripwallet_packing_items",
+  ACTIVITY_ITEMS: "@tripwallet_activity_items",
+  GUEST_MODE: "@tripwallet_guest_mode",
 } as const;
 
 export const storage = {
@@ -198,6 +199,43 @@ export const storage = {
       await AsyncStorage.multiRemove(Object.values(KEYS));
     } catch (error) {
       console.error("Error clearing storage:", error);
+    }
+  },
+
+  // Guest mode
+  async setGuestMode(isGuest: boolean): Promise<void> {
+    try {
+      await AsyncStorage.setItem(KEYS.GUEST_MODE, JSON.stringify(isGuest));
+    } catch (error) {
+      console.error("Error saving guest mode:", error);
+    }
+  },
+
+  async getGuestMode(): Promise<boolean> {
+    try {
+      const data = await AsyncStorage.getItem(KEYS.GUEST_MODE);
+      return data ? JSON.parse(data) : false;
+    } catch (error) {
+      console.error("Error loading guest mode:", error);
+      return false;
+    }
+  },
+
+  // Clear all local data
+  async clearAllData(): Promise<void> {
+    try {
+      await Promise.all([
+        AsyncStorage.removeItem(KEYS.TRIPS),
+        AsyncStorage.removeItem(KEYS.EXPENSES),
+        AsyncStorage.removeItem(KEYS.SETTLEMENTS),
+        AsyncStorage.removeItem(KEYS.AUDIT_LOGS),
+        AsyncStorage.removeItem(KEYS.CATEGORIES),
+        AsyncStorage.removeItem(KEYS.PACKING_ITEMS),
+        AsyncStorage.removeItem(KEYS.ACTIVITY_ITEMS),
+        AsyncStorage.removeItem(KEYS.CURRENCY_RATES),
+      ]);
+    } catch (error) {
+      console.error("Error clearing all data:", error);
     }
   },
 };

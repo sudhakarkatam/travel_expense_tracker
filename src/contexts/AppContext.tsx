@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import createContextHook from "@nkzw/create-context-hook";
 import {
   Trip,
@@ -14,6 +14,8 @@ import {
 import { storage } from "@/utils/storage";
 import { calculateBalances } from "@/utils/splitCalculations";
 import { DEFAULT_CATEGORIES } from "@/constants/categories";
+import { notificationService } from "@/services/notificationService";
+import { useAuth } from "@/contexts/AuthContext";
 
 export const [AppProvider, useApp] = createContextHook(() => {
   const [trips, setTrips] = useState<Trip[]>([]);
@@ -25,12 +27,12 @@ export const [AppProvider, useApp] = createContextHook(() => {
   const [activityItems, setActivityItems] = useState<ActivityItem[]>([]);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Get auth user to detect login changes
+  const { user: authUser } = useAuth();
+  const previousAuthUserId = useRef<string | null>(null);
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       const [
         loadedTrips,
@@ -83,7 +85,22 @@ export const [AppProvider, useApp] = createContextHook(() => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // Reload data when user logs in (auth user changes from null to a user)
+  useEffect(() => {
+    if (authUser && authUser.id !== previousAuthUserId.current) {
+      console.log('[AppContext] User logged in, reloading data...');
+      previousAuthUserId.current = authUser.id;
+      loadData();
+    } else if (!authUser) {
+      previousAuthUserId.current = null;
+    }
+  }, [authUser, loadData]);
 
   const logAction = useCallback(
     async (
@@ -128,6 +145,19 @@ export const [AppProvider, useApp] = createContextHook(() => {
         name: newTrip.name,
         destination: newTrip.destination,
       });
+
+      // Schedule notifications for new trip
+      if (newTrip.notificationsEnabled !== false) {
+        await notificationService.initialize();
+        const config = {
+          budgetAlerts: newTrip.notificationPreferences?.budgetAlerts !== false,
+          dailySummaries: newTrip.notificationPreferences?.dailySummaries === true,
+          settlementReminders: newTrip.notificationPreferences?.settlementReminders !== false,
+          activityReminders: newTrip.notificationPreferences?.activityReminders === true,
+        };
+        await notificationService.checkAndScheduleTripNotifications(newTrip, expenses, config);
+      }
+
       return newTrip;
     },
     [trips, logAction],
@@ -147,8 +177,21 @@ export const [AppProvider, useApp] = createContextHook(() => {
       await storage.saveTrips(updatedTrips);
 
       await logAction("trip", tripId, "updated", updates);
+
+      // Update notifications if trip settings changed
+      const updatedTrip = updatedTrips.find(t => t.id === tripId);
+      if (updatedTrip && updatedTrip.notificationsEnabled !== false) {
+        await notificationService.initialize();
+        const config = {
+          budgetAlerts: updatedTrip.notificationPreferences?.budgetAlerts !== false,
+          dailySummaries: updatedTrip.notificationPreferences?.dailySummaries === true,
+          settlementReminders: updatedTrip.notificationPreferences?.settlementReminders !== false,
+          activityReminders: updatedTrip.notificationPreferences?.activityReminders === true,
+        };
+        await notificationService.checkAndScheduleTripNotifications(updatedTrip, expenses, config);
+      }
     },
-    [trips, logAction],
+    [trips, expenses, logAction],
   );
 
   const deleteTrip = useCallback(
@@ -191,9 +234,28 @@ export const [AppProvider, useApp] = createContextHook(() => {
       const updatedExpenses = [...expenses, newExpense];
       setExpenses(updatedExpenses);
       await storage.saveExpenses(updatedExpenses);
+
+      await logAction("expense", newExpense.id, "created", {
+        amount: newExpense.amount,
+        description: newExpense.description,
+      });
+
+      // Check and schedule notifications for the trip
+      const trip = trips.find(t => t.id === newExpense.tripId);
+      if (trip && trip.notificationsEnabled !== false) {
+        await notificationService.initialize();
+        const config = {
+          budgetAlerts: trip.notificationPreferences?.budgetAlerts !== false,
+          dailySummaries: trip.notificationPreferences?.dailySummaries === true,
+          settlementReminders: trip.notificationPreferences?.settlementReminders !== false,
+          activityReminders: trip.notificationPreferences?.activityReminders === true,
+        };
+        await notificationService.checkAndScheduleTripNotifications(trip, updatedExpenses, config);
+      }
+
       return newExpense;
     },
-    [expenses],
+    [expenses, trips, logAction],
   );
 
   const updateExpense = useCallback(
@@ -287,10 +349,19 @@ export const [AppProvider, useApp] = createContextHook(() => {
   );
 
   const updateUser = useCallback(
-    async (updates: Partial<User>) => {
-      if (!user) return;
+    async (updates: Partial<User> | User) => {
+      // If updates has an id, treat it as a full User object (for creating new user)
+      const updatedUser = 'id' in updates && updates.id
+        ? (updates as User)
+        : user
+        ? { ...user, ...updates }
+        : {
+            id: `user_${Date.now()}`,
+            name: 'User',
+            isPro: false,
+            ...updates,
+          } as User;
 
-      const updatedUser = { ...user, ...updates };
       setUser(updatedUser);
       await storage.saveUser(updatedUser);
     },
@@ -458,8 +529,15 @@ export const [AppProvider, useApp] = createContextHook(() => {
       const updatedItems = [...activityItems, item];
       setActivityItems(updatedItems);
       await storage.saveActivityItems(updatedItems);
+
+      // Schedule activity reminder if notifications enabled
+      const trip = trips.find(t => t.id === item.tripId);
+      if (trip && trip.notificationsEnabled !== false && trip.notificationPreferences?.activityReminders === true) {
+        await notificationService.initialize();
+        await notificationService.scheduleActivityReminder(trip, item.description, item.date);
+      }
     },
-    [activityItems],
+    [activityItems, trips],
   );
 
   const updateActivityItem = useCallback(
@@ -489,6 +567,11 @@ export const [AppProvider, useApp] = createContextHook(() => {
     [activityItems],
   );
 
+  const reloadData = useCallback(() => {
+    console.log('[AppContext] Reloading data...');
+    loadData();
+  }, []);
+
   return useMemo(
     () => ({
       trips,
@@ -498,6 +581,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
       categories,
       user,
       isLoading,
+      reloadData,
       addTrip,
       updateTrip,
       deleteTrip,
@@ -535,6 +619,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
       categories,
       user,
       isLoading,
+      reloadData,
       addTrip,
       updateTrip,
       deleteTrip,

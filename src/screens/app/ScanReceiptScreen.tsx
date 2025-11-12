@@ -9,6 +9,7 @@ export default function ScanReceiptScreen({ navigation }: any) {
   const [isScanning, setIsScanning] = useState(false);
   const [scanResult, setScanResult] = useState<OCRResult | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [showRawText, setShowRawText] = useState(false);
   const [editingData, setEditingData] = useState({
     amount: '',
     description: '',
@@ -182,12 +183,60 @@ export default function ScanReceiptScreen({ navigation }: any) {
                   />
                 </View>
 
+                {scanResult.tax && scanResult.tax > 0 && (
+                  <View style={styles.infoCard}>
+                    <Ionicons name="receipt-outline" size={16} color="#8b5cf6" />
+                    <Text style={styles.infoText}>Tax: ${scanResult.tax.toFixed(2)}</Text>
+                  </View>
+                )}
+
+                {scanResult.items && scanResult.items.length > 0 && (
+                  <View style={styles.itemsContainer}>
+                    <Text style={styles.itemsTitle}>Items Found ({scanResult.items.length}):</Text>
+                    {scanResult.items.slice(0, 3).map((item, index) => (
+                      <View key={index} style={styles.itemRow}>
+                        <Text style={styles.itemName}>{item.name}</Text>
+                        <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
+                      </View>
+                    ))}
+                    {scanResult.items.length > 3 && (
+                      <Text style={styles.moreItemsText}>+{scanResult.items.length - 3} more items</Text>
+                    )}
+                  </View>
+                )}
+
+                {scanResult.provider && (
+                  <View style={styles.providerBadge}>
+                    <Ionicons 
+                      name={scanResult.provider === 'google-vision' ? 'cloud' : 'document-text'} 
+                      size={12} 
+                      color="#8b5cf6" 
+                    />
+                    <Text style={styles.providerText}>
+                      {scanResult.provider === 'google-vision' ? 'Google Vision' : 
+                       scanResult.provider === 'aws-textract' ? 'AWS Textract' : 'Tesseract OCR'}
+                    </Text>
+                  </View>
+                )}
+
                 {scanResult.rawText && (
                   <View style={styles.rawTextContainer}>
-                    <Text style={styles.rawTextTitle}>Raw OCR Text:</Text>
-                    <ScrollView style={styles.rawTextView}>
-                      <Text style={styles.rawText}>{scanResult.rawText}</Text>
-                    </ScrollView>
+                    <TouchableOpacity 
+                      style={styles.rawTextToggle}
+                      onPress={() => setShowRawText(!showRawText)}
+                    >
+                      <Text style={styles.rawTextTitle}>Raw OCR Text</Text>
+                      <Ionicons 
+                        name={showRawText ? "chevron-up" : "chevron-down"} 
+                        size={20} 
+                        color="#8b5cf6" 
+                      />
+                    </TouchableOpacity>
+                    {showRawText && (
+                      <ScrollView style={styles.rawTextView}>
+                        <Text style={styles.rawText}>{scanResult.rawText}</Text>
+                      </ScrollView>
+                    )}
                   </View>
                 )}
               </View>
@@ -346,14 +395,82 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: '#fff',
   },
+  infoCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+    gap: 8,
+  },
+  infoText: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '500',
+  },
+  itemsContainer: {
+    backgroundColor: '#F9FAFB',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  itemsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  itemRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+  },
+  itemName: {
+    fontSize: 13,
+    color: '#666',
+    flex: 1,
+  },
+  itemPrice: {
+    fontSize: 13,
+    color: '#333',
+    fontWeight: '600',
+  },
+  moreItemsText: {
+    fontSize: 12,
+    color: '#8b5cf6',
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
+  providerBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    marginBottom: 12,
+    gap: 6,
+  },
+  providerText: {
+    fontSize: 12,
+    color: '#8b5cf6',
+    fontWeight: '500',
+  },
   rawTextContainer: {
     marginTop: 16,
+  },
+  rawTextToggle: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
   },
   rawTextTitle: {
     fontSize: 14,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 8,
   },
   rawTextView: {
     maxHeight: 100,

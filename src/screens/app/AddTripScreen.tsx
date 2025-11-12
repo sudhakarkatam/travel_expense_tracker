@@ -1,12 +1,20 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Switch, Alert, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert, Platform, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTheme, Surface, Switch, TextInput, Divider } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
+import { MotiView } from 'moti';
+import * as Haptics from 'expo-haptics';
+import { Image } from 'expo-image';
 import { useApp } from '@/contexts/AppContext';
 import DatePickerInput from '@/components/DatePickerInput';
 import { pickImage, saveImage } from '@/utils/imageStorage';
+import { AnimatedButton } from '@/components/ui/AnimatedButton';
+import { AnimatedCard } from '@/components/ui/AnimatedCard';
+import { AnimatedInput } from '@/components/ui/AnimatedInput';
 
 export default function AddTripScreen({ navigation }: any) {
+  const theme = useTheme();
   const { addTrip } = useApp();
   const [formData, setFormData] = useState({
     name: '',
@@ -17,9 +25,16 @@ export default function AddTripScreen({ navigation }: any) {
     currency: 'INR',
     isGroupTrip: false,
     coverImage: '',
+    notificationsEnabled: true,
   });
   const [addSelfAsMember, setAddSelfAsMember] = useState(false);
   const [selfMemberName, setSelfMemberName] = useState('');
+  const [notificationPreferences, setNotificationPreferences] = useState({
+    budgetAlerts: true,
+    dailySummaries: false,
+    settlementReminders: true,
+    activityReminders: false,
+  });
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -42,7 +57,6 @@ export default function AddTripScreen({ navigation }: any) {
         coverImagePath = await saveImage(formData.coverImage, 'cover');
       }
 
-      // Create participants array
       const participants = [];
       if (formData.isGroupTrip && addSelfAsMember) {
         participants.push({
@@ -69,8 +83,13 @@ export default function AddTripScreen({ navigation }: any) {
         participants: participants,
         createdBy: 'current_user',
         inviteCode: `TRIP${Date.now().toString().slice(-6)}`,
+        notificationsEnabled: formData.notificationsEnabled,
+        notificationPreferences: formData.notificationsEnabled ? notificationPreferences : undefined,
       });
       
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
       navigation.goBack();
     } catch (error) {
       Alert.alert('Error', 'Failed to create trip. Please try again.');
@@ -81,164 +100,317 @@ export default function AddTripScreen({ navigation }: any) {
     const imageUri = await pickImage('cover');
     if (imageUri) {
       setFormData(prev => ({ ...prev, coverImage: imageUri }));
+      if (Platform.OS !== 'web') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
     }
   };
 
   const handleRemoveCoverImage = () => {
     setFormData(prev => ({ ...prev, coverImage: '' }));
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
-        </TouchableOpacity>
-        <Text style={styles.title}>New Trip</Text>
-        <View style={{ width: 24 }} />
-      </View>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
+      <Surface style={styles.header} elevation={1}>
+        <AnimatedButton
+          mode="text"
+          icon="arrow-back"
+          onPress={() => {
+            navigation.goBack();
+            if (Platform.OS !== 'web') {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }
+          }}
+          label=""
+          style={styles.backButton}
+        />
+        <Text style={[styles.title, { color: theme.colors.onSurface }]}>New Trip</Text>
+        <View style={styles.backButton} />
+      </Surface>
 
-      <View style={styles.content}>
-        <View style={styles.form}>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Cover Image</Text>
-            {formData.coverImage ? (
-              <View style={styles.imagePreview}>
-                <Image source={{ uri: formData.coverImage }} style={styles.coverImage} />
-                <TouchableOpacity style={styles.removeImageButton} onPress={handleRemoveCoverImage}>
-                  <Ionicons name="close-circle" size={24} color="#ef4444" />
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <TouchableOpacity style={styles.imagePicker} onPress={handlePickCoverImage}>
-                <Ionicons name="camera" size={24} color="#8b5cf6" />
-                <Text style={styles.imagePickerText}>Add Cover Image</Text>
-              </TouchableOpacity>
-            )}
-          </View>
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <MotiView
+          from={{ opacity: 0, translateY: 20 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'timing', duration: 300 }}
+        >
+          <AnimatedCard variant="elevated" elevation={2} style={styles.card}>
+            <View style={styles.inputGroup}>
+              <Text style={[styles.label, { color: theme.colors.onSurface }]}>Cover Image</Text>
+              {formData.coverImage ? (
+                <MotiView
+                  from={{ scale: 0.9 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: 'spring' }}
+                  style={styles.imagePreview}
+                >
+                  <Image source={{ uri: formData.coverImage }} style={styles.coverImage} contentFit="cover" />
+                  <TouchableOpacity 
+                    style={[styles.removeImageButton, { backgroundColor: theme.colors.errorContainer }]} 
+                    onPress={handleRemoveCoverImage}
+                  >
+                    <Ionicons name="close-circle" size={24} color={theme.colors.error} />
+                  </TouchableOpacity>
+                </MotiView>
+              ) : (
+                <AnimatedCard
+                  variant="outlined"
+                  onPress={handlePickCoverImage}
+                  style={styles.imagePicker}
+                >
+                  <Ionicons name="camera" size={32} color={theme.colors.primary} />
+                  <Text style={[styles.imagePickerText, { color: theme.colors.primary }]}>
+                    Add Cover Image
+                  </Text>
+                </AnimatedCard>
+              )}
+            </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Trip Name *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. Summer Vacation 2025"
+            <AnimatedInput
+              label="Trip Name"
               value={formData.name}
               onChangeText={(value) => handleInputChange('name', value)}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Destination *</Text>
-            <TextInput
+              placeholder="e.g. Summer Vacation 2025"
+              left={<TextInput.Icon icon={() => <Ionicons name="airplane-outline" size={20} />} />}
               style={styles.input}
-              placeholder="e.g. Paris, France"
+            />
+
+            <AnimatedInput
+              label="Destination"
               value={formData.destination}
               onChangeText={(value) => handleInputChange('destination', value)}
+              placeholder="e.g. Paris, France"
+              left={<TextInput.Icon icon={() => <Ionicons name="location-outline" size={20} />} />}
+              style={styles.input}
             />
-          </View>
 
-          <View style={styles.dateRow}>
-            <View style={styles.dateInput}>
-              <Text style={styles.label}>Start Date</Text>
-              <DatePickerInput
-                value={formData.startDate}
-                onChange={(value) => handleInputChange('startDate', value)}
-              />
-            </View>
-            <View style={styles.dateInput}>
-              <Text style={styles.label}>End Date</Text>
-              <DatePickerInput
-                value={formData.endDate}
-                onChange={(value) => handleInputChange('endDate', value)}
-                minimumDate={new Date(formData.startDate)}
-              />
-            </View>
-          </View>
-
-          <View style={styles.budgetRow}>
-            <View style={styles.budgetInput}>
-              <Text style={styles.label}>Budget *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="1000"
-                value={formData.budget}
-                onChangeText={(value) => handleInputChange('budget', value)}
-                keyboardType="numeric"
-              />
-            </View>
-            <View style={styles.currencyInput}>
-              <Text style={styles.label}>Currency</Text>
-              <TextInput
-                style={styles.input}
-                value={formData.currency}
-                onChangeText={(value) => handleInputChange('currency', value)}
-                maxLength={3}
-              />
-            </View>
-          </View>
-
-          <View style={styles.switchGroup}>
-            <Text style={styles.label}>Share expenses with friends</Text>
-            <Switch
-              value={formData.isGroupTrip}
-              onValueChange={(value) => {
-                handleInputChange('isGroupTrip', value);
-                if (!value) {
-                  setAddSelfAsMember(false);
-                  setSelfMemberName('');
-                }
-              }}
-              trackColor={{ false: '#e5e7eb', true: '#8b5cf6' }}
-              thumbColor={formData.isGroupTrip ? '#fff' : '#f4f3f4'}
-            />
-          </View>
-
-          {formData.isGroupTrip && (
-            <>
-              <View style={styles.switchGroup}>
-                <Text style={styles.label}>Add yourself as first member</Text>
-                <Switch
-                  value={addSelfAsMember}
-                  onValueChange={setAddSelfAsMember}
-                  trackColor={{ false: '#e5e7eb', true: '#8b5cf6' }}
-                  thumbColor={addSelfAsMember ? '#fff' : '#f4f3f4'}
+            <View style={styles.dateRow}>
+              <View style={styles.dateInput}>
+                <Text style={[styles.label, { color: theme.colors.onSurface }]}>Start Date</Text>
+                <DatePickerInput
+                  value={formData.startDate}
+                  onChange={(value) => handleInputChange('startDate', value)}
                 />
               </View>
-              
-              {addSelfAsMember && (
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Your Name *</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Enter your name"
+              <View style={styles.dateInput}>
+                <Text style={[styles.label, { color: theme.colors.onSurface }]}>End Date</Text>
+                <DatePickerInput
+                  value={formData.endDate}
+                  onChange={(value) => handleInputChange('endDate', value)}
+                  minimumDate={new Date(formData.startDate)}
+                />
+              </View>
+            </View>
+
+            <View style={styles.budgetRow}>
+              <View style={styles.budgetInput}>
+                <AnimatedInput
+                  label="Budget"
+                  value={formData.budget}
+                  onChangeText={(value) => handleInputChange('budget', value)}
+                  placeholder="1000"
+                  keyboardType="numeric"
+                  left={<TextInput.Icon icon={() => <Ionicons name="wallet-outline" size={20} />} />}
+                  style={styles.input}
+                />
+              </View>
+              <View style={styles.currencyInput}>
+                <AnimatedInput
+                  label="Currency"
+                  value={formData.currency}
+                  onChangeText={(value) => handleInputChange('currency', value)}
+                  maxLength={3}
+                  left={<TextInput.Icon icon={() => <Ionicons name="cash-outline" size={20} />} />}
+                  style={styles.input}
+                />
+              </View>
+            </View>
+
+            <Divider style={styles.divider} />
+
+            <View style={styles.switchGroup}>
+              <View style={styles.switchLabelContainer}>
+                <Ionicons name="people-outline" size={20} color={theme.colors.primary} />
+                <Text style={[styles.switchLabel, { color: theme.colors.onSurface }]}>
+                  Share expenses with friends
+                </Text>
+              </View>
+              <Switch
+                value={formData.isGroupTrip}
+                onValueChange={(value) => {
+                  handleInputChange('isGroupTrip', value);
+                  if (!value) {
+                    setAddSelfAsMember(false);
+                    setSelfMemberName('');
+                  }
+                  if (Platform.OS !== 'web') {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }
+                }}
+                color={theme.colors.primary}
+              />
+            </View>
+
+            {formData.isGroupTrip && (
+              <MotiView
+                from={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                transition={{ type: 'timing', duration: 300 }}
+              >
+                <View style={styles.switchGroup}>
+                  <Text style={[styles.switchLabel, { color: theme.colors.onSurface }]}>
+                    Add yourself as first member
+                  </Text>
+                  <Switch
+                    value={addSelfAsMember}
+                    onValueChange={(value) => {
+                      setAddSelfAsMember(value);
+                      if (Platform.OS !== 'web') {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      }
+                    }}
+                    color={theme.colors.primary}
+                  />
+                </View>
+                
+                {addSelfAsMember && (
+                  <AnimatedInput
+                    label="Your Name"
                     value={selfMemberName}
                     onChangeText={setSelfMemberName}
+                    placeholder="Enter your name"
+                    left={<TextInput.Icon icon={() => <Ionicons name="person-outline" size={20} />} />}
+                    style={styles.input}
                   />
-                  <Text style={styles.helperText}>
-                    This will help identify you in expense tracking and settlements
-                  </Text>
+                )}
+              </MotiView>
+            )}
+
+            <Divider style={styles.divider} />
+
+            <View style={styles.switchGroup}>
+              <View style={styles.switchLabelContainer}>
+                <Ionicons name="notifications-outline" size={20} color={theme.colors.primary} />
+                <Text style={[styles.switchLabel, { color: theme.colors.onSurface }]}>
+                  Enable Notifications
+                </Text>
+              </View>
+              <Switch
+                value={formData.notificationsEnabled}
+                onValueChange={(value) => {
+                  handleInputChange('notificationsEnabled', value);
+                  if (Platform.OS !== 'web') {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }
+                }}
+                color={theme.colors.primary}
+              />
+            </View>
+
+            {formData.notificationsEnabled && (
+              <MotiView
+                from={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                transition={{ type: 'timing', duration: 300 }}
+                style={styles.notificationPreferences}
+              >
+                <Text style={[styles.preferencesTitle, { color: theme.colors.primary }]}>
+                  Notification Preferences
+                </Text>
+                
+                <View style={styles.switchGroup}>
+                  <Text style={[styles.preferenceLabel, { color: theme.colors.onSurface }]}>Budget Alerts</Text>
+                  <Switch
+                    value={notificationPreferences.budgetAlerts}
+                    onValueChange={(value) => {
+                      setNotificationPreferences(prev => ({ ...prev, budgetAlerts: value }));
+                      if (Platform.OS !== 'web') {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      }
+                    }}
+                    color={theme.colors.primary}
+                  />
                 </View>
-              )}
-            </>
-          )}
-        </View>
 
-        <View style={styles.actions}>
-          <TouchableOpacity 
-            style={styles.cancelButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Text style={styles.cancelText}>Cancel</Text>
-          </TouchableOpacity>
+                <View style={styles.switchGroup}>
+                  <Text style={[styles.preferenceLabel, { color: theme.colors.onSurface }]}>Daily Summaries</Text>
+                  <Switch
+                    value={notificationPreferences.dailySummaries}
+                    onValueChange={(value) => {
+                      setNotificationPreferences(prev => ({ ...prev, dailySummaries: value }));
+                      if (Platform.OS !== 'web') {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      }
+                    }}
+                    color={theme.colors.primary}
+                  />
+                </View>
 
-          <TouchableOpacity 
-            style={styles.createButton}
-            onPress={handleCreateTrip}
-          >
-            <Text style={styles.createText}>Create Trip</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+                <View style={styles.switchGroup}>
+                  <Text style={[styles.preferenceLabel, { color: theme.colors.onSurface }]}>Settlement Reminders</Text>
+                  <Switch
+                    value={notificationPreferences.settlementReminders}
+                    onValueChange={(value) => {
+                      setNotificationPreferences(prev => ({ ...prev, settlementReminders: value }));
+                      if (Platform.OS !== 'web') {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      }
+                    }}
+                    color={theme.colors.primary}
+                  />
+                </View>
+
+                <View style={styles.switchGroup}>
+                  <Text style={[styles.preferenceLabel, { color: theme.colors.onSurface }]}>Activity Reminders</Text>
+                  <Switch
+                    value={notificationPreferences.activityReminders}
+                    onValueChange={(value) => {
+                      setNotificationPreferences(prev => ({ ...prev, activityReminders: value }));
+                      if (Platform.OS !== 'web') {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      }
+                    }}
+                    color={theme.colors.primary}
+                  />
+                </View>
+              </MotiView>
+            )}
+          </AnimatedCard>
+
+          <View style={styles.actions}>
+            <AnimatedButton
+              mode="outlined"
+              label="Cancel"
+              onPress={() => {
+                navigation.goBack();
+                if (Platform.OS !== 'web') {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }
+              }}
+              variant="secondary"
+              style={styles.cancelButton}
+            />
+
+            <AnimatedButton
+              mode="contained"
+              label="Create Trip"
+              onPress={handleCreateTrip}
+              variant="primary"
+              fullWidth
+              style={styles.createButton}
+            />
+          </View>
+        </MotiView>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -246,7 +418,6 @@ export default function AddTripScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
   },
   header: {
     flexDirection: 'row',
@@ -254,37 +425,35 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+  },
+  backButton: {
+    minWidth: 40,
   },
   title: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: 20,
+    fontWeight: '700',
   },
-  content: {
+  scrollView: {
     flex: 1,
+  },
+  scrollContent: {
     padding: 16,
+    paddingBottom: 32,
   },
-  form: {
-    flex: 1,
+  card: {
+    marginBottom: 16,
+    padding: 16,
   },
   inputGroup: {
     marginBottom: 20,
   },
   label: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
-    color: '#333',
     marginBottom: 8,
   },
   input: {
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: '#fff',
+    marginBottom: 16,
   },
   dateRow: {
     flexDirection: 'row',
@@ -305,77 +474,74 @@ const styles = StyleSheet.create({
   currencyInput: {
     flex: 1,
   },
+  divider: {
+    marginVertical: 16,
+  },
   switchGroup: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
   },
-  actions: {
+  switchLabelContainer: {
     flexDirection: 'row',
-    gap: 12,
-    paddingTop: 20,
-  },
-  cancelButton: {
-    flex: 1,
-    padding: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#d1d5db',
     alignItems: 'center',
-  },
-  cancelText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-  },
-  createButton: {
     flex: 1,
-    padding: 16,
-    borderRadius: 8,
-    backgroundColor: '#8b5cf6',
-    alignItems: 'center',
+    gap: 8,
   },
-  createText: {
+  switchLabel: {
     fontSize: 16,
+    flex: 1,
+  },
+  notificationPreferences: {
+    marginTop: 12,
+    paddingLeft: 28,
+  },
+  preferencesTitle: {
+    fontSize: 14,
     fontWeight: '600',
-    color: 'white',
+    marginBottom: 16,
+  },
+  preferenceLabel: {
+    fontSize: 15,
+    flex: 1,
   },
   imagePicker: {
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#d1d5db',
-    borderStyle: 'dashed',
-    borderRadius: 8,
-    padding: 20,
+    padding: 24,
     gap: 8,
+    borderStyle: 'dashed',
   },
   imagePickerText: {
     fontSize: 16,
-    color: '#8b5cf6',
     fontWeight: '500',
   },
   imagePreview: {
     position: 'relative',
+    borderRadius: 12,
+    overflow: 'hidden',
   },
   coverImage: {
     width: '100%',
-    height: 120,
-    borderRadius: 8,
+    height: 200,
   },
   removeImageButton: {
     position: 'absolute',
     top: 8,
     right: 8,
-    backgroundColor: 'white',
     borderRadius: 12,
+    padding: 4,
   },
-  helperText: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 4,
-    fontStyle: 'italic',
+  actions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+  },
+  cancelButton: {
+    flex: 1,
+  },
+  createButton: {
+    flex: 2,
   },
 });

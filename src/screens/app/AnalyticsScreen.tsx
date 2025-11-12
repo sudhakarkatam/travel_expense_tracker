@@ -7,9 +7,11 @@ import {
   TouchableOpacity,
   Dimensions,
   Platform,
+  Pressable,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { TouchableNativeFeedback } from "react-native";
 import { PieChart, LineChart } from "react-native-chart-kit";
 import { useApp } from "@/contexts/AppContext";
 import {
@@ -20,6 +22,7 @@ import {
   getBudgetUtilization,
   getSpendingInsights,
 } from "@/utils/analyticsCalculations";
+import { calculateSpendingForecast, generateHeatMapData } from "@/utils/forecastCalculations";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { EmptyAnalyticsState } from "@/components/EmptyState";
 import { formatCurrency } from "@/utils/currencyFormatter";
@@ -33,8 +36,10 @@ export default function AnalyticsScreen({ navigation }: any) {
     "7d" | "30d" | "90d" | "all"
   >("30d");
   const [selectedTab, setSelectedTab] = useState<
-    "overview" | "trends" | "categories"
+    "overview" | "trends" | "categories" | "forecast"
   >("overview");
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedTripComparison, setSelectedTripComparison] = useState<string[]>([]);
 
   const periodDays = useMemo(
     () => ({
@@ -87,6 +92,19 @@ export default function AnalyticsScreen({ navigation }: any) {
     [trips, filteredExpenses],
   );
 
+  // Advanced visualizations
+  const spendingForecast = useMemo(
+    () => calculateSpendingForecast(filteredExpenses, 30),
+    [filteredExpenses],
+  );
+
+  const heatMapData = useMemo(() => {
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(endDate.getDate() - (selectedPeriod === "all" ? 90 : periodDays[selectedPeriod]));
+    return generateHeatMapData(filteredExpenses, startDate, endDate);
+  }, [filteredExpenses, selectedPeriod, periodDays]);
+
   const totalSpent = filteredExpenses.reduce(
     (sum, expense) => sum + expense.amount,
     0,
@@ -135,71 +153,88 @@ export default function AnalyticsScreen({ navigation }: any) {
     ],
   };
 
+  // Native button component
+  const NativeButton = ({ onPress, children, style, variant = "primary" }: any) => {
+    const buttonContent = (
+      <View style={[styles.nativeButton, styles[`nativeButton_${variant}`], style]}>
+        {children}
+      </View>
+    );
+
+    if (Platform.OS === "android") {
+      return (
+        <TouchableNativeFeedback
+          onPress={onPress}
+          background={TouchableNativeFeedback.Ripple("#00000020", false)}
+        >
+          {buttonContent}
+        </TouchableNativeFeedback>
+      );
+    }
+
+    return (
+      <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
+        {buttonContent}
+      </TouchableOpacity>
+    );
+  };
+
   const renderHeader = () => (
     <View style={styles.header}>
-      <View>
-        <Text style={styles.title}>Analytics</Text>
-        <Text style={styles.subtitle}>Track your spending patterns</Text>
-      </View>
+      <Text style={styles.headerTitle}>Analytics</Text>
     </View>
   );
 
   const renderPeriodSelector = () => (
     <View style={styles.periodSelector}>
       {(["7d", "30d", "90d", "all"] as const).map((period) => (
-        <TouchableOpacity
+        <NativeButton
           key={period}
-          style={[
-            styles.periodButton,
-            selectedPeriod === period && styles.selectedPeriodButton,
-          ]}
           onPress={() => setSelectedPeriod(period)}
-          activeOpacity={0.7}
+          variant={selectedPeriod === period ? "primary" : "secondary"}
+          style={[styles.periodButton, selectedPeriod === period && styles.periodButtonActive]}
         >
           <Text
             style={[
               styles.periodButtonText,
-              selectedPeriod === period && styles.selectedPeriodButtonText,
+              selectedPeriod === period && styles.periodButtonTextActive,
             ]}
           >
             {period === "all" ? "All" : period.toUpperCase()}
           </Text>
-        </TouchableOpacity>
+        </NativeButton>
       ))}
     </View>
   );
 
   const renderTabSelector = () => (
-    <View style={styles.tabSelector}>
+    <View style={styles.segmentedControl}>
       {[
         { key: "overview", label: "Overview", icon: "analytics-outline" },
         { key: "trends", label: "Trends", icon: "trending-up-outline" },
         { key: "categories", label: "Categories", icon: "pie-chart-outline" },
-      ].map((tab) => (
-        <TouchableOpacity
-          key={tab.key}
-          style={[
-            styles.tabButton,
-            selectedTab === tab.key && styles.selectedTabButton,
-          ]}
-          onPress={() => setSelectedTab(tab.key as any)}
-          activeOpacity={0.7}
-        >
-          <Ionicons
-            name={tab.icon as any}
-            size={20}
-            color={selectedTab === tab.key ? "#8b5cf6" : "#9ca3af"}
-          />
-          <Text
-            style={[
-              styles.tabButtonText,
-              selectedTab === tab.key && styles.selectedTabButtonText,
-            ]}
+        { key: "forecast", label: "Forecast", icon: "calendar-outline" },
+      ].map((tab) => {
+        const isActive = selectedTab === tab.key;
+        return (
+          <NativeButton
+            key={tab.key}
+            onPress={() => setSelectedTab(tab.key as any)}
+            variant={isActive ? "primary" : "secondary"}
+            style={[styles.segmentedButton, isActive && styles.segmentedButtonActive]}
           >
-            {tab.label}
-          </Text>
-        </TouchableOpacity>
-      ))}
+            <Ionicons
+              name={tab.icon as any}
+              size={18}
+              color={isActive ? "#FFFFFF" : "#8b5cf6"}
+              style={styles.segmentedIcon}
+            />
+            <Text style={[styles.segmentedText, isActive && styles.segmentedTextActive]}>
+              {tab.label}
+            </Text>
+          </NativeButton>
+        );
+      })}
     </View>
   );
 
@@ -562,6 +597,172 @@ export default function AnalyticsScreen({ navigation }: any) {
     </>
   );
 
+  const renderForecastTab = () => (
+    <>
+      {/* Spending Forecast */}
+      {spendingForecast.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🔮 Spending Forecast</Text>
+          <Text style={styles.sectionSubtitle}>
+            Predicted spending for the next 30 days based on your trends
+          </Text>
+          {spendingForecast.map((forecast, index) => (
+            <View key={index} style={styles.forecastItem}>
+              <View style={styles.forecastHeader}>
+                <Text style={styles.forecastPeriod}>
+                  {new Date(forecast.period).toLocaleDateString('default', { month: 'short', day: 'numeric' })}
+                </Text>
+                <View style={styles.forecastTrend}>
+                  <Ionicons
+                    name={
+                      forecast.trend === 'increasing'
+                        ? 'trending-up'
+                        : forecast.trend === 'decreasing'
+                        ? 'trending-down'
+                        : 'remove'
+                    }
+                    size={16}
+                    color={
+                      forecast.trend === 'increasing'
+                        ? '#ef4444'
+                        : forecast.trend === 'decreasing'
+                        ? '#10b981'
+                        : '#6b7280'
+                    }
+                  />
+                  <Text style={styles.forecastConfidence}>
+                    {(forecast.confidence * 100).toFixed(0)}% confidence
+                  </Text>
+                </View>
+              </View>
+              <Text style={styles.forecastAmount}>
+                {formatCurrency(forecast.predictedAmount)}
+              </Text>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {/* Heat Map */}
+      {heatMapData.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🔥 Spending Heat Map</Text>
+          <Text style={styles.sectionSubtitle}>
+            Daily spending intensity over the selected period
+          </Text>
+          <View style={styles.heatMapContainer}>
+            <View style={styles.heatMapGrid}>
+              {heatMapData.slice(-30).map((data, index) => {
+                const intensity = Math.min(data.intensity, 1);
+                const opacity = 0.3 + (intensity * 0.7);
+                const backgroundColor = `rgba(139, 92, 246, ${opacity})`;
+                
+                return (
+                  <TouchableOpacity
+                    key={index}
+                    style={[styles.heatMapCell, { backgroundColor }]}
+                    onPress={() => {
+                      // Could show details for that day
+                    }}
+                  >
+                    <Text style={styles.heatMapCellText}>
+                      {new Date(data.date).getDate()}
+                    </Text>
+                    {data.amount > 0 && (
+                      <Text style={styles.heatMapCellAmount}>
+                        {formatCurrency(data.amount, { compact: true })}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            <View style={styles.heatMapLegend}>
+              <Text style={styles.heatMapLegendText}>Less</Text>
+              <View style={styles.heatMapLegendGradient}>
+                <View style={[styles.heatMapLegendDot, { backgroundColor: 'rgba(139, 92, 246, 0.3)' }]} />
+                <View style={[styles.heatMapLegendDot, { backgroundColor: 'rgba(139, 92, 246, 0.5)' }]} />
+                <View style={[styles.heatMapLegendDot, { backgroundColor: 'rgba(139, 92, 246, 0.7)' }]} />
+                <View style={[styles.heatMapLegendDot, { backgroundColor: 'rgba(139, 92, 246, 1)' }]} />
+              </View>
+              <Text style={styles.heatMapLegendText}>More</Text>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* Enhanced Trip Comparison */}
+      {tripComparison.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🏝️ Trip Comparison</Text>
+          <Text style={styles.sectionSubtitle}>
+            Compare spending across your trips
+          </Text>
+          {tripComparison.map((trip) => (
+            <TouchableOpacity
+              key={trip.tripId}
+              style={styles.enhancedTripComparisonItem}
+              onPress={() => {
+                const isSelected = selectedTripComparison.includes(trip.tripId);
+                if (isSelected) {
+                  setSelectedTripComparison(prev => prev.filter(id => id !== trip.tripId));
+                } else {
+                  setSelectedTripComparison(prev => [...prev, trip.tripId]);
+                }
+              }}
+            >
+              <View style={styles.enhancedTripHeader}>
+                <View style={styles.enhancedTripInfo}>
+                  <Text style={styles.enhancedTripName} numberOfLines={1}>
+                    {trip.tripName}
+                  </Text>
+                  <Text style={styles.enhancedTripDestination}>
+                    {trip.destination}
+                  </Text>
+                </View>
+                <View style={styles.enhancedTripAmounts}>
+                  <Text style={styles.enhancedTripTotal}>
+                    {formatCurrency(trip.totalSpent)}
+                  </Text>
+                  <Text style={styles.enhancedTripAvg}>
+                    {formatCurrency(trip.avgPerDay)}/day
+                  </Text>
+                </View>
+                <Ionicons
+                  name={selectedTripComparison.includes(trip.tripId) ? 'checkmark-circle' : 'checkmark-circle-outline'}
+                  size={24}
+                  color={selectedTripComparison.includes(trip.tripId) ? '#8b5cf6' : '#d1d5db'}
+                />
+              </View>
+              <View style={styles.enhancedTripBar}>
+                <View
+                  style={[
+                    styles.enhancedTripProgress,
+                    {
+                      width: `${Math.min((trip.totalSpent / (trip.budget || trip.totalSpent)) * 100, 100)}%`,
+                      backgroundColor:
+                        trip.totalSpent > trip.budget ? "#ef4444" : "#8b5cf6",
+                    },
+                  ]}
+                />
+              </View>
+              <View style={styles.enhancedTripFooter}>
+                <Text style={styles.enhancedTripBudget}>
+                  Budget: {formatCurrency(trip.budget)} • {trip.duration} days
+                </Text>
+                {trip.totalSpent > trip.budget && (
+                  <Text style={styles.enhancedTripOverBudget}>
+                    Over by {formatCurrency(trip.totalSpent - trip.budget)}
+                  </Text>
+                )}
+              </View>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+    </>
+  );
+
   if (!hasData) {
     return (
       <SafeAreaView style={styles.container} edges={["top"]}>
@@ -573,18 +774,23 @@ export default function AnalyticsScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Analytics</Text>
+      </View>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {renderHeader()}
         {renderPeriodSelector()}
         {renderTabSelector()}
 
-        {selectedTab === "overview" && renderOverviewTab()}
-        {selectedTab === "trends" && renderTrendsTab()}
-        {selectedTab === "categories" && renderCategoriesTab()}
+        <View style={styles.contentSection}>
+          {selectedTab === "overview" && renderOverviewTab()}
+          {selectedTab === "trends" && renderTrendsTab()}
+          {selectedTab === "categories" && renderCategoriesTab()}
+          {selectedTab === "forecast" && renderForecastTab()}
+        </View>
 
         {/* Bottom Padding */}
         <View style={styles.bottomPadding} />
@@ -596,105 +802,123 @@ export default function AnalyticsScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f9fafb",
+    backgroundColor: "#F9FAFB",
+  },
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 12,
+    backgroundColor: "#FFFFFF",
+  },
+  headerTitle: {
+    fontSize: 32,
+    fontWeight: "700",
+    color: "#111827",
+    letterSpacing: -0.5,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 16,
     paddingBottom: 32,
   },
-  header: {
-    paddingTop: 8,
-    paddingBottom: 16,
-    paddingHorizontal: 0,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#111827",
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 15,
-    color: "#6b7280",
+  contentSection: {
+    paddingHorizontal: 20,
   },
   periodSelector: {
     flexDirection: "row",
-    backgroundColor: "#f3f4f6",
-    borderRadius: 10,
-    padding: 4,
+    backgroundColor: "#FFFFFF",
+    marginHorizontal: 20,
+    marginTop: 20,
     marginBottom: 16,
-  },
-  periodButton: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: "center",
-    borderRadius: 8,
-  },
-  selectedPeriodButton: {
-    backgroundColor: "#ffffff",
+    borderRadius: 16,
+    padding: 4,
     ...Platform.select({
       ios: {
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
       },
       android: {
         elevation: 2,
       },
     }),
   },
-  periodButtonText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#6b7280",
+  periodButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    alignItems: "center",
   },
-  selectedPeriodButtonText: {
+  periodButtonActive: {
+    backgroundColor: "#8b5cf6",
+  },
+  periodButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
     color: "#8b5cf6",
   },
-  tabSelector: {
+  periodButtonTextActive: {
+    color: "#FFFFFF",
+  },
+  segmentedControl: {
     flexDirection: "row",
-    backgroundColor: "#ffffff",
-    borderRadius: 12,
-    padding: 4,
+    backgroundColor: "#FFFFFF",
+    marginHorizontal: 20,
     marginBottom: 20,
+    borderRadius: 16,
+    padding: 4,
     ...Platform.select({
       ios: {
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
+        shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.05,
-        shadowRadius: 3,
+        shadowRadius: 8,
       },
       android: {
-        elevation: 1,
+        elevation: 2,
       },
     }),
   },
-  tabButton: {
+  segmentedButton: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 12,
-    borderRadius: 10,
-    gap: 6,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: "transparent",
   },
-  selectedTabButton: {
-    backgroundColor: "#f3f4f6",
+  segmentedButtonActive: {
+    backgroundColor: "#8b5cf6",
   },
-  tabButtonText: {
+  segmentedIcon: {
+    marginRight: 6,
+  },
+  segmentedText: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#9ca3af",
-  },
-  selectedTabButtonText: {
     color: "#8b5cf6",
+  },
+  segmentedTextActive: {
+    color: "#FFFFFF",
+  },
+  // Native Button Styles
+  nativeButton: {
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  nativeButton_primary: {
+    backgroundColor: "#8b5cf6",
+  },
+  nativeButton_secondary: {
+    backgroundColor: "#EDE9FE",
+  },
+  nativeButton_ghost: {
+    backgroundColor: "transparent",
   },
   summaryCards: {
     flexDirection: "row",
@@ -703,16 +927,16 @@ const styles = StyleSheet.create({
   },
   summaryCard: {
     flex: 1,
-    backgroundColor: "#ffffff",
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+    padding: 20,
+    borderRadius: 16,
     alignItems: "center",
     ...Platform.select({
       ios: {
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.05,
-        shadowRadius: 4,
+        shadowRadius: 8,
       },
       android: {
         elevation: 2,
@@ -720,7 +944,7 @@ const styles = StyleSheet.create({
     }),
   },
   summaryCardPrimary: {
-    backgroundColor: "#f5f3ff",
+    backgroundColor: "#EDE9FE",
   },
   summaryValue: {
     fontSize: 20,
@@ -738,10 +962,11 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: "700",
     color: "#111827",
-    marginBottom: 12,
+    marginBottom: 16,
+    paddingHorizontal: 4,
   },
   insightsScroll: {
     paddingRight: 16,
@@ -866,19 +1091,19 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#ffffff",
+    backgroundColor: "#FFFFFF",
     padding: 16,
-    borderRadius: 10,
-    marginBottom: 8,
+    borderRadius: 16,
+    marginBottom: 12,
     ...Platform.select({
       ios: {
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
+        shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.05,
-        shadowRadius: 3,
+        shadowRadius: 8,
       },
       android: {
-        elevation: 1,
+        elevation: 2,
       },
     }),
   },
@@ -1093,4 +1318,161 @@ const styles = StyleSheet.create({
   bottomPadding: {
     height: 32,
   },
+  sectionSubtitle: {
+    fontSize: 13,
+    color: '#6b7280',
+    marginBottom: 16,
+    marginTop: -4,
+  },
+  forecastItem: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  forecastHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  forecastPeriod: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+  },
+  forecastTrend: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  forecastConfidence: {
+    fontSize: 12,
+    color: '#6b7280',
+  },
+  forecastAmount: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#8b5cf6',
+  },
+  heatMapContainer: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  heatMapGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+    marginBottom: 16,
+  },
+  heatMapCell: {
+    width: (SCREEN_WIDTH - 80) / 7,
+    aspectRatio: 1,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 4,
+  },
+  heatMapCellText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#333',
+  },
+  heatMapCellAmount: {
+    fontSize: 8,
+    color: '#333',
+    marginTop: 2,
+  },
+  heatMapLegend: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  heatMapLegendText: {
+    fontSize: 12,
+    color: '#6b7280',
+  },
+  heatMapLegendGradient: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  heatMapLegendDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  enhancedTripComparisonItem: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  enhancedTripHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  enhancedTripInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  enhancedTripName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
+  },
+  enhancedTripDestination: {
+    fontSize: 13,
+    color: '#6b7280',
+  },
+  enhancedTripAmounts: {
+    alignItems: 'flex-end',
+    marginRight: 12,
+  },
+  enhancedTripTotal: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#8b5cf6',
+    marginBottom: 4,
+  },
+  enhancedTripAvg: {
+    fontSize: 12,
+    color: '#6b7280',
+  },
+  enhancedTripBar: {
+    height: 8,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 4,
+    marginBottom: 8,
+    overflow: 'hidden',
+  },
+  enhancedTripProgress: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  enhancedTripFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  enhancedTripBudget: {
+    fontSize: 12,
+    color: '#6b7280',
+  },
+  enhancedTripOverBudget: {
+    fontSize: 12,
+    color: '#ef4444',
+    fontWeight: '600',
+  },
 });
+
