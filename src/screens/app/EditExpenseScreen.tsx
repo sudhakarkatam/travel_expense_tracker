@@ -15,7 +15,12 @@ const CATEGORIES = [
   { id: 'other', name: 'Other', color: '#6b7280', icon: 'ellipsis-horizontal' },
 ];
 
-export default function EditExpenseScreen({ navigation, route }: any) {
+interface EditExpenseScreenProps {
+  navigation: any;
+  route: any;
+}
+
+export default function EditExpenseScreen({ navigation, route }: EditExpenseScreenProps) {
   const { updateExpense, deleteExpense, getTrip, getTripExpenses } = useApp();
   const { expenseId, tripId } = route.params;
   const expense = getTripExpenses(tripId).find(e => e.id === expenseId);

@@ -14,6 +14,10 @@ import { LineChart, BarChart } from "react-native-chart-kit";
 
 const screenWidth = Dimensions.get("window").width;
 
+interface InsightsScreenProps {
+  navigation: any;
+}
+
 interface Insight {
   id: string;
   type: "success" | "warning" | "info" | "danger";
@@ -34,7 +38,7 @@ interface SpendingPattern {
   recommendation: string;
 }
 
-export default function InsightsScreen({ navigation }: any) {
+export default function InsightsScreen({ navigation }: InsightsScreenProps) {
   const { trips, expenses } = useApp();
   const [selectedPeriod, setSelectedPeriod] = useState<
     "week" | "month" | "trip"

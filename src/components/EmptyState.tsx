@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from 'react-native-paper';
 
 interface EmptyStateProps {
   icon?: string;
@@ -19,22 +20,37 @@ export default function EmptyState({
   onActionPress,
   actionIcon = 'add',
 }: EmptyStateProps) {
+  const theme = useTheme();
+  
+  // Safe defaults for theme colors
+  const safeTheme = {
+    colors: {
+      onSurfaceVariant: theme?.colors?.onSurfaceVariant || '#666666',
+      onSurface: theme?.colors?.onSurface || '#333333',
+      primary: theme?.colors?.primary || '#8b5cf6',
+      onPrimary: theme?.colors?.onPrimary || '#FFFFFF',
+    },
+  };
+  
   return (
     <View style={styles.container}>
       <View style={styles.iconContainer}>
-        <Ionicons name={icon as any} size={64} color="#d1d5db" />
+        <Ionicons name={icon as any} size={64} color={safeTheme.colors.onSurfaceVariant} />
       </View>
       
-      <Text style={styles.title}>{title}</Text>
+      <Text style={[styles.title, { color: safeTheme.colors.onSurface }]}>{title}</Text>
       
       {subtitle && (
-        <Text style={styles.subtitle}>{subtitle}</Text>
+        <Text style={[styles.subtitle, { color: safeTheme.colors.onSurfaceVariant }]}>{subtitle}</Text>
       )}
       
       {actionText && onActionPress && (
-        <TouchableOpacity style={styles.actionButton} onPress={onActionPress}>
-          <Ionicons name={actionIcon as any} size={20} color="white" />
-          <Text style={styles.actionText}>{actionText}</Text>
+        <TouchableOpacity 
+          style={[styles.actionButton, { backgroundColor: safeTheme.colors.primary }]} 
+          onPress={onActionPress}
+        >
+          <Ionicons name={actionIcon as any} size={20} color={safeTheme.colors.onPrimary} />
+          <Text style={[styles.actionText, { color: safeTheme.colors.onPrimary }]}>{actionText}</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -122,13 +138,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
     textAlign: 'center',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#666',
     textAlign: 'center',
     marginBottom: 32,
     lineHeight: 22,
@@ -136,14 +150,12 @@ const styles = StyleSheet.create({
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#8b5cf6',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
     gap: 8,
   },
   actionText: {
-    color: 'white',
     fontSize: 16,
     fontWeight: '600',
   },

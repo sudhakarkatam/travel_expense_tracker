@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,13 +7,14 @@ import {
   Dimensions,
   Platform,
   ScrollView,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useAuth } from '@/contexts/AuthContext';
 import { TouchableNativeFeedback } from 'react-native';
+import * as Haptics from 'expo-haptics';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -23,20 +24,45 @@ interface OnboardingScreenProps {
 
 export default function OnboardingScreen({ navigation }: OnboardingScreenProps) {
   const { setGuestMode } = useAuth();
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideUpAnim = useRef(new Animated.Value(30)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideUpAnim, {
+        toValue: 0,
+        duration: 800,
+        delay: 200,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
 
   const handleLogin = () => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
     navigation.navigate('Login');
   };
 
   const handleSignup = () => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
     navigation.navigate('Signup');
   };
 
   const handleContinueAsGuest = async () => {
     try {
+      if (Platform.OS !== 'web') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
       await setGuestMode();
-      // Navigation will happen automatically when guest mode is set
-      // Use navigate instead of replace to avoid navigation errors
       if (navigation.canGoBack()) {
         navigation.goBack();
       }
@@ -45,125 +71,124 @@ export default function OnboardingScreen({ navigation }: OnboardingScreenProps) 
     }
   };
 
-  const renderButton = (onPress: () => void, style: any, textStyle: any, text: string, icon?: string) => {
-    const buttonContent = (
-      <View style={[styles.button, style]}>
-        {icon && <Ionicons name={icon as any} size={20} color={textStyle.color} style={styles.buttonIcon} />}
-        <Text style={textStyle}>{text}</Text>
-      </View>
-    );
-
-    if (Platform.OS === 'android') {
-      return (
-        <TouchableNativeFeedback onPress={onPress} background={TouchableNativeFeedback.Ripple('#FFFFFF20', false)}>
-          {buttonContent}
-        </TouchableNativeFeedback>
-      );
-    }
-
-    return (
-      <TouchableOpacity onPress={onPress} activeOpacity={0.8}>
-        {buttonContent}
-      </TouchableOpacity>
-    );
-  };
-
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <StatusBar style="light" />
-      <LinearGradient
-        colors={['#667eea', '#764ba2', '#8b5cf6']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.gradient}
+      <StatusBar style="dark" />
+      
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        bounces={false}
       >
-        <ScrollView 
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
+        {/* Top Spacer */}
+        <View style={styles.topSpacer} />
+
+        {/* Main Content */}
+        <Animated.View
+          style={[
+            styles.contentWrapper,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideUpAnim }],
+            },
+          ]}
         >
-          {/* Logo/Icon Section */}
-          <View style={styles.logoSection}>
-            <View style={styles.logoContainer}>
-              <LinearGradient
-                colors={['rgba(255, 255, 255, 0.3)', 'rgba(255, 255, 255, 0.1)']}
-                style={styles.logoGradient}
-              >
-                <Ionicons name="airplane" size={56} color="#FFFFFF" />
-              </LinearGradient>
-            </View>
-            <Text style={styles.appName}>Travel Expense Tracker</Text>
-            <Text style={styles.tagline}>Track, Split & Settle with Ease</Text>
-            <Text style={styles.subtitle}>Your all-in-one companion for managing travel expenses</Text>
-          </View>
-
-          {/* Features Section */}
-          <View style={styles.featuresSection}>
-            <View style={styles.featureCard}>
-              <View style={styles.featureIconContainer}>
-                <Ionicons name="receipt" size={28} color="#8b5cf6" />
-              </View>
-              <Text style={styles.featureTitle}>Smart Tracking</Text>
-              <Text style={styles.featureDescription}>Automatically categorize and track all your expenses</Text>
-            </View>
-
-            <View style={styles.featureCard}>
-              <View style={styles.featureIconContainer}>
-                <Ionicons name="people" size={28} color="#8b5cf6" />
-              </View>
-              <Text style={styles.featureTitle}>Group Splitting</Text>
-              <Text style={styles.featureDescription}>Easily split expenses with friends and family</Text>
-            </View>
-
-            <View style={styles.featureCard}>
-              <View style={styles.featureIconContainer}>
-                <Ionicons name="analytics" size={28} color="#8b5cf6" />
-              </View>
-              <Text style={styles.featureTitle}>Insights</Text>
-              <Text style={styles.featureDescription}>Get detailed analytics and spending patterns</Text>
-            </View>
-
-            <View style={styles.featureCard}>
-              <View style={styles.featureIconContainer}>
-                <Ionicons name="compass" size={28} color="#8b5cf6" />
-              </View>
-              <Text style={styles.featureTitle}>Trip Planning</Text>
-              <Text style={styles.featureDescription}>Plan your trips with packing lists and activities</Text>
+          {/* App Icon */}
+          <View style={styles.iconContainer}>
+            <View style={styles.iconCircle}>
+              <Ionicons name="airplane" size={48} color="#8b5cf6" />
             </View>
           </View>
 
-          {/* Action Buttons */}
-          <View style={styles.actionsSection}>
-            {renderButton(
-              handleSignup,
-              styles.primaryButton,
-              styles.primaryButtonText,
-              'Create Account',
-              'person-add'
-            )}
-
-            {renderButton(
-              handleLogin,
-              styles.secondaryButton,
-              styles.secondaryButtonText,
-              'Sign In',
-              'log-in'
-            )}
-
-            {renderButton(
-              handleContinueAsGuest,
-              styles.guestButton,
-              styles.guestButtonText,
-              'Continue as Guest',
-              'person-outline'
-            )}
-
-            <Text style={styles.termsText}>
-              By continuing, you agree to our{'\n'}
-              <Text style={styles.termsLink}>Terms of Service</Text> and <Text style={styles.termsLink}>Privacy Policy</Text>
+          {/* Title Section */}
+          <View style={styles.titleSection}>
+            <Text style={styles.mainTitle}>Travel Expense Tracker</Text>
+            <Text style={styles.subtitle}>
+              Track, split, and manage your travel expenses effortlessly
             </Text>
           </View>
-        </ScrollView>
-      </LinearGradient>
+
+          {/* Feature List */}
+          <View style={styles.featuresList}>
+            <View style={styles.featureItem}>
+              <View style={styles.featureIcon}>
+                <Ionicons name="checkmark-circle" size={24} color="#8b5cf6" />
+              </View>
+              <Text style={styles.featureText}>Smart expense tracking</Text>
+            </View>
+            
+            <View style={styles.featureItem}>
+              <View style={styles.featureIcon}>
+                <Ionicons name="checkmark-circle" size={24} color="#8b5cf6" />
+              </View>
+              <Text style={styles.featureText}>Split bills with friends</Text>
+            </View>
+            
+            <View style={styles.featureItem}>
+              <View style={styles.featureIcon}>
+                <Ionicons name="checkmark-circle" size={24} color="#8b5cf6" />
+              </View>
+              <Text style={styles.featureText}>Visual analytics & insights</Text>
+            </View>
+            
+            <View style={styles.featureItem}>
+              <View style={styles.featureIcon}>
+                <Ionicons name="checkmark-circle" size={24} color="#8b5cf6" />
+              </View>
+              <Text style={styles.featureText}>Trip planning tools</Text>
+            </View>
+          </View>
+        </Animated.View>
+
+        {/* Bottom Spacer */}
+        <View style={styles.bottomSpacer} />
+
+        {/* Action Buttons */}
+        <Animated.View
+          style={[
+            styles.actionsContainer,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideUpAnim }],
+            },
+          ]}
+        >
+          {/* Primary Button */}
+          <TouchableOpacity
+            style={styles.primaryButton}
+            onPress={handleSignup}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.primaryButtonText}>Get Started</Text>
+            <Ionicons name="arrow-forward" size={20} color="#FFFFFF" style={styles.buttonIcon} />
+          </TouchableOpacity>
+
+          {/* Secondary Button */}
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={handleLogin}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.secondaryButtonText}>Sign In</Text>
+          </TouchableOpacity>
+
+          {/* Guest Button */}
+          <TouchableOpacity
+            style={styles.guestButton}
+            onPress={handleContinueAsGuest}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.guestButtonText}>Continue as Guest</Text>
+          </TouchableOpacity>
+
+          {/* Terms */}
+          <Text style={styles.termsText}>
+            By continuing, you agree to our{' '}
+            <Text style={styles.termsLink}>Terms</Text> and{' '}
+            <Text style={styles.termsLink}>Privacy Policy</Text>
+          </Text>
+        </Animated.View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -171,194 +196,157 @@ export default function OnboardingScreen({ navigation }: OnboardingScreenProps) 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  gradient: {
-    flex: 1,
+    backgroundColor: '#FFFFFF',
   },
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: 24,
-    paddingTop: Platform.OS === 'ios' ? 60 : 40,
-    paddingBottom: 32,
   },
-  logoSection: {
+  topSpacer: {
+    height: Platform.OS === 'ios' ? 60 : 40,
+  },
+  contentWrapper: {
+    flex: 1,
     alignItems: 'center',
-    marginTop: Platform.OS === 'ios' ? 20 : 40,
-    marginBottom: 40,
   },
-  logoContainer: {
+  iconContainer: {
+    marginBottom: 32,
+    alignItems: 'center',
+  },
+  iconCircle: {
     width: 100,
     height: 100,
     borderRadius: 50,
-    overflow: 'hidden',
-    marginBottom: 24,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
     ...Platform.select({
       ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.3,
+        shadowColor: '#8b5cf6',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
         shadowRadius: 12,
       },
       android: {
-        elevation: 12,
+        elevation: 4,
       },
     }),
   },
-  logoGradient: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
+  titleSection: {
     alignItems: 'center',
+    marginBottom: 48,
+    paddingHorizontal: 20,
   },
-  appName: {
-    fontSize: Platform.OS === 'ios' ? 36 : 32,
-    fontWeight: Platform.OS === 'ios' ? '700' : 'bold',
-    color: '#FFFFFF',
-    marginBottom: 8,
+  mainTitle: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#111827',
     textAlign: 'center',
-    letterSpacing: Platform.OS === 'ios' ? 0.5 : 0,
-  },
-  tagline: {
-    fontSize: 20,
-    color: '#FFFFFF',
-    textAlign: 'center',
-    fontWeight: '600',
-    marginBottom: 8,
+    marginBottom: 12,
+    letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: 15,
-    color: 'rgba(255, 255, 255, 0.85)',
+    fontSize: 16,
+    color: '#6B7280',
     textAlign: 'center',
-    paddingHorizontal: 20,
-    lineHeight: 22,
+    lineHeight: 24,
+    fontWeight: '400',
   },
-  featuresSection: {
-    marginVertical: 32,
-  },
-  featureCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-    alignItems: 'center',
-    backdropFilter: 'blur(10px)',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
-  },
-  featureIconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
-  },
-  featureTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginBottom: 6,
-    textAlign: 'center',
-  },
-  featureDescription: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.9)',
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  actionsSection: {
+  featuresList: {
     width: '100%',
-    marginTop: 24,
+    paddingHorizontal: 8,
   },
-  button: {
-    width: '100%',
-    height: 56,
-    borderRadius: Platform.OS === 'ios' ? 14 : 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
+  featureItem: {
     flexDirection: 'row',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingHorizontal: 8,
   },
-  buttonIcon: {
-    marginRight: 8,
+  featureIcon: {
+    marginRight: 16,
+  },
+  featureText: {
+    fontSize: 16,
+    color: '#374151',
+    fontWeight: '500',
+    flex: 1,
+  },
+  bottomSpacer: {
+    flex: 1,
+    minHeight: 40,
+  },
+  actionsContainer: {
+    width: '100%',
+    paddingBottom: Platform.OS === 'ios' ? 20 : 16,
   },
   primaryButton: {
-    backgroundColor: '#FFFFFF',
+    width: '100%',
+    height: 56,
+    backgroundColor: '#8b5cf6',
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexDirection: 'row',
+    marginBottom: 12,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#8b5cf6',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
   },
   primaryButtonText: {
     fontSize: 17,
-    fontWeight: '700',
-    color: '#8b5cf6',
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginRight: 8,
+  },
+  buttonIcon: {
+    marginLeft: 0,
   },
   secondaryButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    width: '100%',
+    height: 56,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
     borderWidth: 1.5,
-    borderColor: '#FFFFFF',
+    borderColor: '#E5E7EB',
+    marginBottom: 12,
   },
   secondaryButtonText: {
     fontSize: 17,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: '#374151',
   },
   guestButton: {
-    backgroundColor: 'transparent',
-    marginTop: 4,
-    ...Platform.select({
-      ios: {
-        shadowOpacity: 0,
-      },
-      android: {
-        elevation: 0,
-      },
-    }),
+    width: '100%',
+    height: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
   },
   guestButtonText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '500',
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: '#6B7280',
   },
   termsText: {
     fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.75)',
+    color: '#9CA3AF',
     textAlign: 'center',
-    marginTop: 24,
     lineHeight: 18,
+    paddingHorizontal: 20,
   },
   termsLink: {
-    textDecorationLine: 'underline',
+    color: '#8b5cf6',
     fontWeight: '600',
+    textDecorationLine: 'underline',
   },
 });
-

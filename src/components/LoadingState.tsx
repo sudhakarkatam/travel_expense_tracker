@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from 'react-native-paper';
 
 interface LoadingStateProps {
   message?: string;
@@ -11,12 +12,18 @@ interface LoadingStateProps {
 export default function LoadingState({ 
   message = 'Loading...', 
   size = 'large', 
-  color = '#8b5cf6' 
+  color 
 }: LoadingStateProps) {
+  const theme = useTheme();
+  
+  // Safe defaults for theme colors
+  const safeColor = color || theme?.colors?.primary || '#8b5cf6';
+  const safeTextColor = theme?.colors?.onSurfaceVariant || '#666666';
+  
   return (
     <View style={styles.container}>
-      <ActivityIndicator size={size} color={color} />
-      <Text style={styles.message}>{message}</Text>
+      <ActivityIndicator size={size} color={safeColor} />
+      <Text style={[styles.message, { color: safeTextColor }]}>{message}</Text>
     </View>
   );
 }
@@ -34,11 +41,14 @@ export function SkeletonLoading({
   borderRadius = 4,
   style 
 }: SkeletonLoadingProps) {
+  const theme = useTheme();
+  const safeBgColor = theme?.colors?.surfaceVariant || '#f3f4f6';
+  
   return (
     <View 
       style={[
         styles.skeleton,
-        { width, height, borderRadius },
+        { width, height, borderRadius, backgroundColor: safeBgColor },
         style
       ]} 
     />
@@ -46,8 +56,11 @@ export function SkeletonLoading({
 }
 
 export function SkeletonCard() {
+  const theme = useTheme();
+  const safeBgColor = theme?.colors?.surface || '#FFFFFF';
+  
   return (
-    <View style={styles.skeletonCard}>
+    <View style={[styles.skeletonCard, { backgroundColor: safeBgColor }]}>
       <SkeletonLoading width="60%" height={16} style={{ marginBottom: 8 }} />
       <SkeletonLoading width="40%" height={14} style={{ marginBottom: 12 }} />
       <SkeletonLoading width="80%" height={12} style={{ marginBottom: 4 }} />
@@ -75,15 +88,12 @@ const styles = StyleSheet.create({
   },
   message: {
     fontSize: 16,
-    color: '#666',
     marginTop: 16,
   },
   skeleton: {
-    backgroundColor: '#f3f4f6',
     opacity: 0.6,
   },
   skeletonCard: {
-    backgroundColor: 'white',
     padding: 16,
     borderRadius: 8,
     marginBottom: 12,

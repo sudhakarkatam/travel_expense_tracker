@@ -1,0 +1,84 @@
+# EAS Build Ignore File
+# Files and directories to exclude from EAS build uploads
+
+# CMake build artifacts (causes EAS build failures)
+android/app/.cxx/
+android/app/build/
+android/build/
+**/.cxx/
+**/build/
+
+# Temporary files
+**/*.tmp
+**/compile_commands.json*
+**/*.log
+
+# Gradle build artifacts
+android/.gradle/
+android/app/.gradle/
+.gradle/
+
+# Local build outputs
+android/app/build/
+android/build/
+build/
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Node modules (already excluded by default, but explicit)
+node_modules/
+
+# Expo build artifacts
+.expo/
+dist/
+web-build/
+
+# Debug keystores (should not be uploaded)
+*.jks
+*.keystore
+debug.keystore
+
+# Local properties
+android/local.properties
+
+# Metro cache
+.metro-health-check*
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Environment files
+.env*.local
+.env
+
+# Package manager lockfiles (if using npm)
+bun.lock
+bun.lockb
+yarn.lock
+
+# macOS files
+*.pem
+.DS_Store
+
+# Windows files
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Kotlin error logs
+android/.kotlin/errors/
+
+# Build reports
+android/build/reports/
+

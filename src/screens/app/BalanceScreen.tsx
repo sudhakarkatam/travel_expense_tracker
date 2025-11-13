@@ -35,7 +35,12 @@ interface SettlementModalData {
   toName: string;
 }
 
-export default function BalanceScreen({ route }: any) {
+interface BalanceScreenProps {
+  route: any;
+  navigation?: any;
+}
+
+export default function BalanceScreen({ route, navigation }: BalanceScreenProps) {
   const { tripId } = route?.params || {};
   const { trips, settlements, addSettlement, getTrip, getTripExpenses } =
     useApp();

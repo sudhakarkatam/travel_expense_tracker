@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { useTheme, Surface } from "react-native-paper";
 import { useApp } from "@/contexts/AppContext";
 import { pickImage, takePhoto, saveImage } from "@/utils/imageStorage";
 import { CURRENCIES, getCurrencySymbol } from "@/constants/currencies";
@@ -19,7 +20,29 @@ import DatePickerInput from "@/components/DatePickerInput";
 
 // Categories are now loaded from context
 
-export default function AddExpenseScreen({ navigation, route }: any) {
+interface AddExpenseScreenProps {
+  navigation: any;
+  route: any;
+}
+
+export default function AddExpenseScreen({ navigation, route }: AddExpenseScreenProps) {
+  const theme = useTheme();
+  
+  // Safe defaults for theme colors to prevent runtime errors
+  const safeTheme = {
+    colors: {
+      background: theme?.colors?.background || '#FFFFFF',
+      surface: theme?.colors?.surface || '#FFFFFF',
+      surfaceVariant: theme?.colors?.surfaceVariant || '#F5F5F5',
+      onSurface: theme?.colors?.onSurface || '#000000',
+      onSurfaceVariant: theme?.colors?.onSurfaceVariant || '#666666',
+      primary: theme?.colors?.primary || '#8b5cf6',
+      onPrimary: theme?.colors?.onPrimary || '#FFFFFF',
+      error: theme?.colors?.error || '#EF4444',
+      outline: theme?.colors?.outline || '#E5E5E5',
+      outlineVariant: theme?.colors?.outlineVariant || '#E5E5E5',
+    },
+  };
   const { trips, expenses, addExpense, getTrip, categories } = useApp();
   const tripId =
     route?.params?.tripId || (trips && trips.length > 0 ? trips[0].id : "");

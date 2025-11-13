@@ -2,7 +2,11 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-export default function JoinTripScreen() {
+interface JoinTripScreenProps {
+  navigation?: any;
+}
+
+export default function JoinTripScreen({ navigation }: JoinTripScreenProps = {}) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>

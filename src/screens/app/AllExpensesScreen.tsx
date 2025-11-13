@@ -9,7 +9,12 @@ import { generateTripSummary } from '@/utils/tripSummary';
 import { formatCurrency } from '@/utils/currencyFormatter';
 import { formatDateTime } from '@/utils/dateFormatter';
 
-export default function AllExpensesScreen({ navigation, route }: any) {
+interface AllExpensesScreenProps {
+  navigation: any;
+  route: any;
+}
+
+export default function AllExpensesScreen({ navigation, route }: AllExpensesScreenProps) {
   const { trips, expenses, deleteExpense, categories } = useApp();
   const { tripId } = route.params || {};
   const trip = tripId ? trips.find(t => t.id === tripId) : null;

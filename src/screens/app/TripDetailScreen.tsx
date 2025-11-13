@@ -17,8 +17,32 @@ import { AnimatedButton } from '@/components/ui/AnimatedButton';
 import { AnimatedCard } from '@/components/ui/AnimatedCard';
 import { Chip } from '@/components/ui/Chip';
 
-export default function TripDetailScreen({ navigation, route }: any) {
+interface TripDetailScreenProps {
+  navigation: any;
+  route: any;
+}
+
+export default function TripDetailScreen({ navigation, route }: TripDetailScreenProps) {
   const theme = useTheme();
+  
+  // Safe defaults for theme colors to prevent runtime errors
+  const safeTheme = {
+    colors: {
+      background: theme?.colors?.background || '#FFFFFF',
+      surface: theme?.colors?.surface || '#FFFFFF',
+      surfaceVariant: theme?.colors?.surfaceVariant || '#F5F5F5',
+      onSurface: theme?.colors?.onSurface || '#000000',
+      onSurfaceVariant: theme?.colors?.onSurfaceVariant || '#666666',
+      primary: theme?.colors?.primary || '#8b5cf6',
+      secondary: theme?.colors?.secondary || '#06b6d4',
+      onPrimary: theme?.colors?.onPrimary || '#FFFFFF',
+      primaryContainer: theme?.colors?.primaryContainer || '#EDE9FE',
+      onPrimaryContainer: theme?.colors?.onPrimaryContainer || '#000000',
+      error: theme?.colors?.error || '#EF4444',
+      outline: theme?.colors?.outline || '#E5E5E5',
+      outlineVariant: theme?.colors?.outlineVariant || '#E5E5E5',
+    },
+  };
   const { trips, expenses, deleteExpense, settlements, getTripBalances } = useApp();
   const { tripId } = route.params;
   const trip = trips.find(t => t.id === tripId);
@@ -75,10 +99,10 @@ export default function TripDetailScreen({ navigation, route }: any) {
 
   if (!trip || !summary) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: safeTheme.colors.background }]}>
         <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle-outline" size={64} color={theme.colors.error} />
-          <Text style={[styles.errorText, { color: theme.colors.error }]}>Trip not found</Text>
+          <Ionicons name="alert-circle-outline" size={64} color={safeTheme.colors.error} />
+          <Text style={[styles.errorText, { color: safeTheme.colors.error }]}>Trip not found</Text>
         </View>
       </SafeAreaView>
     );
@@ -117,16 +141,16 @@ export default function TripDetailScreen({ navigation, route }: any) {
               <List.Icon 
                 {...props} 
                 icon="receipt" 
-                color={theme.colors.primary} 
+                color={safeTheme.colors.primary} 
               />
             )}
             right={() => (
-              <Text style={[styles.expenseAmount, { color: theme.colors.onSurface }]}>
+              <Text style={[styles.expenseAmount, { color: safeTheme.colors.onSurface }]}>
                 {formatCurrency(expense.amount, trip.currency)}
               </Text>
             )}
-            titleStyle={{ color: theme.colors.onSurface, fontWeight: '600' }}
-            descriptionStyle={{ color: theme.colors.onSurfaceVariant }}
+            titleStyle={{ color: safeTheme.colors.onSurface, fontWeight: '600' }}
+            descriptionStyle={{ color: safeTheme.colors.onSurfaceVariant }}
           />
         </AnimatedCard>
       </MotiView>
@@ -134,7 +158,7 @@ export default function TripDetailScreen({ navigation, route }: any) {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: safeTheme.colors.background }]} edges={['top']}>
       <Surface style={styles.header} elevation={1}>
         <AnimatedButton
           mode="text"
@@ -153,7 +177,7 @@ export default function TripDetailScreen({ navigation, route }: any) {
           label=""
           style={styles.backButton}
         />
-        <Text style={[styles.title, { color: theme.colors.onSurface }]} numberOfLines={1}>
+        <Text style={[styles.title, { color: safeTheme.colors.onSurface }]} numberOfLines={1}>
           {trip.name}
         </Text>
         <View style={styles.headerActions}>
@@ -207,7 +231,7 @@ export default function TripDetailScreen({ navigation, route }: any) {
             </View>
           ) : (
             <LinearGradient
-              colors={[theme.colors.primary, theme.colors.secondary]}
+              colors={[safeTheme.colors.primary || '#8b5cf6', safeTheme.colors.secondary || '#06b6d4']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.coverImagePlaceholder}
@@ -224,7 +248,7 @@ export default function TripDetailScreen({ navigation, route }: any) {
           {/* Budget Card */}
           <AnimatedCard variant="elevated" elevation={2} style={styles.budgetCard}>
             <LinearGradient
-              colors={[theme.colors.primary, theme.colors.secondary]}
+              colors={[safeTheme.colors.primary || '#8b5cf6', safeTheme.colors.secondary || '#06b6d4']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.budgetGradient}
@@ -240,7 +264,7 @@ export default function TripDetailScreen({ navigation, route }: any) {
                 <Text style={styles.budgetLabel}>Remaining</Text>
                 <Text style={[
                   styles.budgetAmount,
-                  summary.remainingBudget < 0 && { color: theme.colors.error }
+                  summary.remainingBudget < 0 && { color: safeTheme.colors.error }
                 ]}>
                   {formatCurrency(summary.remainingBudget, trip.currency)}
                 </Text>
@@ -251,17 +275,17 @@ export default function TripDetailScreen({ navigation, route }: any) {
           {/* Progress Section */}
           <AnimatedCard variant="elevated" elevation={2} style={styles.progressCard}>
             <View style={styles.progressHeader}>
-              <Text style={[styles.progressTitle, { color: theme.colors.onSurface }]}>
+              <Text style={[styles.progressTitle, { color: safeTheme.colors.onSurface }]}>
                 Budget Progress
               </Text>
               <Text style={[
                 styles.progressPercentage,
                 { 
                   color: isOverBudget 
-                    ? theme.colors.error 
+                    ? safeTheme.colors.error 
                     : isNearBudget 
                     ? '#FF9500' 
-                    : theme.colors.primary 
+                    : safeTheme.colors.primary 
                 }
               ]}>
                 {progressPercentage.toFixed(0)}%
@@ -271,14 +295,14 @@ export default function TripDetailScreen({ navigation, route }: any) {
               progress={progressPercentage / 100}
               color={
                 isOverBudget 
-                  ? theme.colors.error 
+                  ? safeTheme.colors.error 
                   : isNearBudget 
                   ? '#FF9500' 
-                  : theme.colors.primary
+                  : safeTheme.colors.primary
               }
               style={styles.progressBar}
             />
-            <Text style={[styles.progressText, { color: theme.colors.onSurfaceVariant }]}>
+            <Text style={[styles.progressText, { color: safeTheme.colors.onSurfaceVariant }]}>
               {formatCurrency(trip.budget, trip.currency)} total budget
             </Text>
           </AnimatedCard>
@@ -287,21 +311,21 @@ export default function TripDetailScreen({ navigation, route }: any) {
           <AnimatedCard variant="elevated" elevation={2} style={styles.summaryCard}>
             <View style={styles.summaryRow}>
               <View style={styles.summaryItem}>
-                <Ionicons name="receipt-outline" size={24} color={theme.colors.primary} />
-                <Text style={[styles.summaryValue, { color: theme.colors.onSurface }]}>
+                <Ionicons name="receipt-outline" size={24} color={safeTheme.colors.primary} />
+                <Text style={[styles.summaryValue, { color: safeTheme.colors.onSurface }]}>
                   {summary.expenses.length}
                 </Text>
-                <Text style={[styles.summaryLabel, { color: theme.colors.onSurfaceVariant }]}>
+                <Text style={[styles.summaryLabel, { color: safeTheme.colors.onSurfaceVariant }]}>
                   Expenses
                 </Text>
               </View>
               <Divider style={styles.summaryDivider} />
               <View style={styles.summaryItem}>
-                <Ionicons name="wallet-outline" size={24} color={theme.colors.secondary} />
-                <Text style={[styles.summaryValue, { color: theme.colors.onSurface }]}>
+                <Ionicons name="wallet-outline" size={24} color={safeTheme.colors.secondary} />
+                <Text style={[styles.summaryValue, { color: safeTheme.colors.onSurface }]}>
                   {formatCurrency(summary.totalSpent, trip.currency)}
                 </Text>
-                <Text style={[styles.summaryLabel, { color: theme.colors.onSurfaceVariant }]}>
+                <Text style={[styles.summaryLabel, { color: safeTheme.colors.onSurfaceVariant }]}>
                   Total Spent
                 </Text>
               </View>
@@ -311,7 +335,7 @@ export default function TripDetailScreen({ navigation, route }: any) {
           {/* Expenses Section */}
           <View style={styles.expensesSection}>
             <View style={styles.expensesHeader}>
-              <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
+              <Text style={[styles.sectionTitle, { color: safeTheme.colors.onSurface }]}>
                 Expenses ({summary.expenses.length})
               </Text>
               {summary.expenses.length > 0 && (
@@ -333,11 +357,11 @@ export default function TripDetailScreen({ navigation, route }: any) {
             {summary.expenses.length === 0 ? (
               <AnimatedCard variant="outlined" style={styles.emptyCard}>
                 <View style={styles.emptyExpenses}>
-                  <Ionicons name="trending-up-outline" size={64} color={theme.colors.onSurfaceVariant} />
-                  <Text style={[styles.emptyText, { color: theme.colors.onSurface }]}>
+                  <Ionicons name="trending-up-outline" size={64} color={safeTheme.colors.onSurfaceVariant} />
+                  <Text style={[styles.emptyText, { color: safeTheme.colors.onSurface }]}>
                     No expenses yet
                   </Text>
-                  <Text style={[styles.emptySubtext, { color: theme.colors.onSurfaceVariant }]}>
+                  <Text style={[styles.emptySubtext, { color: safeTheme.colors.onSurfaceVariant }]}>
                     Start tracking by adding your first expense
                   </Text>
                   <AnimatedButton

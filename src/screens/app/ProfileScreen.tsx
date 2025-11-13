@@ -25,7 +25,11 @@ import { AnimatedButton } from '@/components/ui/AnimatedButton';
 import { AnimatedCard } from '@/components/ui/AnimatedCard';
 import { AnimatedInput } from '@/components/ui/AnimatedInput';
 
-export default function ProfileScreen({ navigation }: any) {
+interface ProfileScreenProps {
+  navigation: any;
+}
+
+export default function ProfileScreen({ navigation }: ProfileScreenProps) {
   const theme = useTheme();
   const { user, isGuest, signOut, signIn, signUp, signInWithGoogle } = useAuth();
   const { user: appUser, updateUser, trips, expenses, packingItems, activityItems, settlements, categories, auditLogs } = useApp();

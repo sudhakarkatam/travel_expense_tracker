@@ -13,8 +13,30 @@ import { AnimatedButton } from '@/components/ui/AnimatedButton';
 import { AnimatedCard } from '@/components/ui/AnimatedCard';
 import { AnimatedInput } from '@/components/ui/AnimatedInput';
 
-export default function AddTripScreen({ navigation }: any) {
+interface AddTripScreenProps {
+  navigation: any;
+}
+
+export default function AddTripScreen({ navigation }: AddTripScreenProps) {
   const theme = useTheme();
+  
+  // Safe defaults for theme colors to prevent runtime errors
+  const safeTheme = {
+    colors: {
+      background: theme?.colors?.background || '#FFFFFF',
+      surface: theme?.colors?.surface || '#FFFFFF',
+      surfaceVariant: theme?.colors?.surfaceVariant || '#F5F5F5',
+      onSurface: theme?.colors?.onSurface || '#000000',
+      onSurfaceVariant: theme?.colors?.onSurfaceVariant || '#666666',
+      primary: theme?.colors?.primary || '#8b5cf6',
+      onPrimary: theme?.colors?.onPrimary || '#FFFFFF',
+      primaryContainer: theme?.colors?.primaryContainer || '#EDE9FE',
+      onPrimaryContainer: theme?.colors?.onPrimaryContainer || '#000000',
+      error: theme?.colors?.error || '#EF4444',
+      outline: theme?.colors?.outline || '#E5E5E5',
+      outlineVariant: theme?.colors?.outlineVariant || '#E5E5E5',
+    },
+  };
   const { addTrip } = useApp();
   const [formData, setFormData] = useState({
     name: '',

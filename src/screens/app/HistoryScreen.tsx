@@ -23,7 +23,11 @@ interface TimelineItem {
 type ViewMode = 'timeline' | 'calendar';
 type PresetFilter = 'all' | 'today' | 'week' | 'month' | 'year' | 'custom';
 
-export default function HistoryScreen({ navigation }: any) {
+interface HistoryScreenProps {
+  navigation: any;
+}
+
+export default function HistoryScreen({ navigation }: HistoryScreenProps) {
   const theme = useTheme();
   const { trips = [], expenses = [], settlements = [], auditLogs = [] } = useApp();
   const [activeTab, setActiveTab] = useState<'timeline' | 'audit'>('timeline');

@@ -7,7 +7,12 @@ import { formatDateTime } from '@/utils/dateFormatter';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
-export default function ExpenseDetailScreen({ navigation, route }: any) {
+interface ExpenseDetailScreenProps {
+  navigation: any;
+  route: any;
+}
+
+export default function ExpenseDetailScreen({ navigation, route }: ExpenseDetailScreenProps) {
   const { expenses, deleteExpense, categories } = useApp();
   const { expenseId, tripId } = route.params;
   const expense = expenses.find(e => e.id === expenseId);

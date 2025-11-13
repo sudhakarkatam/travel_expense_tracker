@@ -19,8 +19,30 @@ import { AnimatedButton } from '@/components/ui/AnimatedButton';
 import { AnimatedInput } from '@/components/ui/AnimatedInput';
 import { AnimatedCard } from '@/components/ui/AnimatedCard';
 
-export default function LoginScreen({ navigation }: any) {
+interface LoginScreenProps {
+  navigation: any;
+}
+
+export default function LoginScreen({ navigation }: LoginScreenProps) {
   const theme = useTheme();
+  
+  // Safe defaults for theme colors to prevent runtime errors
+  const safeTheme = {
+    colors: {
+      background: theme?.colors?.background || '#FFFFFF',
+      surface: theme?.colors?.surface || '#FFFFFF',
+      surfaceVariant: theme?.colors?.surfaceVariant || '#F5F5F5',
+      onSurface: theme?.colors?.onSurface || '#000000',
+      onSurfaceVariant: theme?.colors?.onSurfaceVariant || '#666666',
+      primary: theme?.colors?.primary || '#8b5cf6',
+      onPrimary: theme?.colors?.onPrimary || '#FFFFFF',
+      primaryContainer: theme?.colors?.primaryContainer || '#EDE9FE',
+      onPrimaryContainer: theme?.colors?.onPrimaryContainer || '#000000',
+      error: theme?.colors?.error || '#EF4444',
+      outline: theme?.colors?.outline || '#E5E5E5',
+      outlineVariant: theme?.colors?.outlineVariant || '#E5E5E5',
+    },
+  };
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -65,7 +87,7 @@ export default function LoginScreen({ navigation }: any) {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: safeTheme.colors.background }]} edges={['top', 'bottom']}>
       <StatusBar style={Platform.OS === 'ios' ? 'dark' : 'auto'} />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -93,8 +115,8 @@ export default function LoginScreen({ navigation }: any) {
                 label=""
                 style={styles.backButton}
               />
-              <Text style={[styles.title, { color: theme.colors.onSurface }]}>Welcome Back</Text>
-              <Text style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}>Sign in to continue</Text>
+              <Text style={[styles.title, { color: safeTheme.colors.onSurface }]}>Welcome Back</Text>
+              <Text style={[styles.subtitle, { color: safeTheme.colors.onSurfaceVariant }]}>Sign in to continue</Text>
             </Surface>
 
             <AnimatedCard variant="elevated" elevation={2} style={styles.card}>
@@ -161,9 +183,9 @@ export default function LoginScreen({ navigation }: any) {
                 />
 
                 <View style={styles.divider}>
-                  <View style={[styles.dividerLine, { backgroundColor: theme.colors.outline }]} />
-                  <Text style={[styles.dividerText, { color: theme.colors.onSurfaceVariant }]}>OR</Text>
-                  <View style={[styles.dividerLine, { backgroundColor: theme.colors.outline }]} />
+                  <View style={[styles.dividerLine, { backgroundColor: safeTheme.colors.outline }]} />
+                  <Text style={[styles.dividerText, { color: safeTheme.colors.onSurfaceVariant }]}>OR</Text>
+                  <View style={[styles.dividerLine, { backgroundColor: safeTheme.colors.outline }]} />
                 </View>
 
                 <AnimatedButton
@@ -178,7 +200,7 @@ export default function LoginScreen({ navigation }: any) {
                 />
 
                 <View style={styles.signupContainer}>
-                  <Text style={[styles.signupText, { color: theme.colors.onSurfaceVariant }]}>
+                  <Text style={[styles.signupText, { color: safeTheme.colors.onSurfaceVariant }]}>
                     Don't have an account?{' '}
                   </Text>
                   <AnimatedButton

@@ -13,7 +13,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { useApp } from "@/contexts/AppContext";
 import { calculateSplit, validateSplit } from "@/utils/splitCalculations";
 
-export default function SplitExpenseScreen({ navigation, route }: any) {
+interface SplitExpenseScreenProps {
+  navigation: any;
+  route: any;
+}
+
+export default function SplitExpenseScreen({ navigation, route }: SplitExpenseScreenProps) {
   const { tripId, expenseData } = route.params;
   const { getTrip, addExpense } = useApp();
   const trip = getTrip(tripId);

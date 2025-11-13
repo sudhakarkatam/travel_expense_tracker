@@ -31,7 +31,12 @@ import EmptyState from "@/components/EmptyState"; // Correct default import
 const IS_IOS = Platform.OS === "ios";
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
-export default function SettleUpScreen({ navigation, route }: any) {
+interface SettleUpScreenProps {
+  navigation: any;
+  route: any;
+}
+
+export default function SettleUpScreen({ navigation, route }: SettleUpScreenProps) {
   const theme = useTheme();
   const { tripId } = route.params;
   const {

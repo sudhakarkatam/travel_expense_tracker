@@ -2,7 +2,11 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-export default function PremiumScreen() {
+interface PremiumScreenProps {
+  navigation?: any;
+}
+
+export default function PremiumScreen({ navigation }: PremiumScreenProps = {}) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>

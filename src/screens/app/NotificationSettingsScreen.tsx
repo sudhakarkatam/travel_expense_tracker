@@ -15,7 +15,11 @@ import { useApp } from '@/contexts/AppContext';
 import { Trip } from '@/types';
 import { notificationService } from '@/services/notificationService';
 
-export default function NotificationSettingsScreen({ navigation }: any) {
+interface NotificationSettingsScreenProps {
+  navigation: any;
+}
+
+export default function NotificationSettingsScreen({ navigation }: NotificationSettingsScreenProps) {
   const { trips, updateTrip } = useApp();
   const [isInitialized, setIsInitialized] = useState(false);
 

@@ -13,8 +13,31 @@ import { AnimatedButton } from '@/components/ui/AnimatedButton';
 import { AnimatedCard } from '@/components/ui/AnimatedCard';
 import { AnimatedInput } from '@/components/ui/AnimatedInput';
 
-export default function EditTripScreen({ navigation, route }: any) {
+interface EditTripScreenProps {
+  navigation: any;
+  route: any;
+}
+
+export default function EditTripScreen({ navigation, route }: EditTripScreenProps) {
   const theme = useTheme();
+  
+  // Safe defaults for theme colors to prevent runtime errors
+  const safeTheme = {
+    colors: {
+      background: theme?.colors?.background || '#FFFFFF',
+      surface: theme?.colors?.surface || '#FFFFFF',
+      surfaceVariant: theme?.colors?.surfaceVariant || '#F5F5F5',
+      onSurface: theme?.colors?.onSurface || '#000000',
+      onSurfaceVariant: theme?.colors?.onSurfaceVariant || '#666666',
+      primary: theme?.colors?.primary || '#8b5cf6',
+      onPrimary: theme?.colors?.onPrimary || '#FFFFFF',
+      primaryContainer: theme?.colors?.primaryContainer || '#EDE9FE',
+      onPrimaryContainer: theme?.colors?.onPrimaryContainer || '#000000',
+      error: theme?.colors?.error || '#EF4444',
+      outline: theme?.colors?.outline || '#E5E5E5',
+      outlineVariant: theme?.colors?.outlineVariant || '#E5E5E5',
+    },
+  };
   const { updateTrip, deleteTrip, getTrip } = useApp();
   const { tripId } = route.params;
   const trip = getTrip(tripId);
@@ -137,16 +160,16 @@ export default function EditTripScreen({ navigation, route }: any) {
 
   if (!trip) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: safeTheme.colors.background }]}>
         <View style={styles.errorContainer}>
-          <Text style={[styles.errorText, { color: theme.colors.error }]}>Trip not found</Text>
+          <Text style={[styles.errorText, { color: safeTheme.colors.error }]}>Trip not found</Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: safeTheme.colors.background }]} edges={['top']}>
       <Surface style={styles.header} elevation={1}>
         <AnimatedButton
           mode="text"
@@ -160,7 +183,7 @@ export default function EditTripScreen({ navigation, route }: any) {
           label=""
           style={styles.backButton}
         />
-        <Text style={[styles.title, { color: theme.colors.onSurface }]}>Edit Trip</Text>
+        <Text style={[styles.title, { color: safeTheme.colors.onSurface }]}>Edit Trip</Text>
         <AnimatedButton
           mode="text"
           icon="trash-outline"
@@ -183,7 +206,7 @@ export default function EditTripScreen({ navigation, route }: any) {
         >
           <AnimatedCard variant="elevated" elevation={2} style={styles.card}>
             <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: theme.colors.onSurface }]}>Cover Image</Text>
+              <Text style={[styles.label, { color: safeTheme.colors.onSurface }]}>Cover Image</Text>
               {formData.coverImage ? (
                 <MotiView
                   from={{ scale: 0.9 }}
@@ -193,10 +216,10 @@ export default function EditTripScreen({ navigation, route }: any) {
                 >
                   <Image source={{ uri: formData.coverImage }} style={styles.coverImage} contentFit="cover" />
                   <TouchableOpacity 
-                    style={[styles.removeImageButton, { backgroundColor: theme.colors.errorContainer }]} 
+                    style={[styles.removeImageButton, { backgroundColor: safeTheme.colors.errorContainer }]} 
                     onPress={handleRemoveCoverImage}
                   >
-                    <Ionicons name="close-circle" size={24} color={theme.colors.error} />
+                    <Ionicons name="close-circle" size={24} color={safeTheme.colors.error} />
                   </TouchableOpacity>
                 </MotiView>
               ) : (
@@ -205,8 +228,8 @@ export default function EditTripScreen({ navigation, route }: any) {
                   onPress={handlePickCoverImage}
                   style={styles.imagePicker}
                 >
-                  <Ionicons name="camera" size={32} color={theme.colors.primary} />
-                  <Text style={[styles.imagePickerText, { color: theme.colors.primary }]}>
+                  <Ionicons name="camera" size={32} color={safeTheme.colors.primary} />
+                  <Text style={[styles.imagePickerText, { color: safeTheme.colors.primary }]}>
                     Add Cover Image
                   </Text>
                 </AnimatedCard>
@@ -233,14 +256,14 @@ export default function EditTripScreen({ navigation, route }: any) {
 
             <View style={styles.dateRow}>
               <View style={styles.dateInput}>
-                <Text style={[styles.label, { color: theme.colors.onSurface }]}>Start Date</Text>
+                <Text style={[styles.label, { color: safeTheme.colors.onSurface }]}>Start Date</Text>
                 <DatePickerInput
                   value={formData.startDate}
                   onChange={(value) => handleInputChange('startDate', value)}
                 />
               </View>
               <View style={styles.dateInput}>
-                <Text style={[styles.label, { color: theme.colors.onSurface }]}>End Date</Text>
+                <Text style={[styles.label, { color: safeTheme.colors.onSurface }]}>End Date</Text>
                 <DatePickerInput
                   value={formData.endDate}
                   onChange={(value) => handleInputChange('endDate', value)}
@@ -277,8 +300,8 @@ export default function EditTripScreen({ navigation, route }: any) {
 
             <View style={styles.switchGroup}>
               <View style={styles.switchLabelContainer}>
-                <Ionicons name="people-outline" size={20} color={theme.colors.primary} />
-                <Text style={[styles.switchLabel, { color: theme.colors.onSurface }]}>
+                <Ionicons name="people-outline" size={20} color={safeTheme.colors.primary} />
+                <Text style={[styles.switchLabel, { color: safeTheme.colors.onSurface }]}>
                   Share expenses with friends
                 </Text>
               </View>
@@ -290,7 +313,7 @@ export default function EditTripScreen({ navigation, route }: any) {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   }
                 }}
-                color={theme.colors.primary}
+                color={safeTheme.colors.primary}
               />
             </View>
           </AnimatedCard>

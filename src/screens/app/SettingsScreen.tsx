@@ -12,7 +12,11 @@ import { CSVService } from '@/services/csvService';
 import { useApp } from '@/contexts/AppContext';
 import { AnimatedCard } from '@/components/ui/AnimatedCard';
 
-export default function SettingsScreen({ navigation }: any) {
+interface SettingsScreenProps {
+  navigation: any;
+}
+
+export default function SettingsScreen({ navigation }: SettingsScreenProps) {
   const theme = useTheme();
   const { trips, expenses, addTrip, addExpense, settlements, getTripBalances } = useApp();
   const [isExporting, setIsExporting] = useState(false);

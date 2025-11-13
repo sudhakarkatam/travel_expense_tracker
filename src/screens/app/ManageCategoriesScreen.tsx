@@ -6,7 +6,11 @@ import { useApp } from '@/contexts/AppContext';
 import { CustomCategory } from '@/types';
 import { AVAILABLE_ICONS, AVAILABLE_COLORS } from '@/constants/categories';
 
-export default function ManageCategoriesScreen({ navigation }: any) {
+interface ManageCategoriesScreenProps {
+  navigation: any;
+}
+
+export default function ManageCategoriesScreen({ navigation }: ManageCategoriesScreenProps) {
   const { categories, addCategory, updateCategory, deleteCategory } = useApp();
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingCategory, setEditingCategory] = useState<CustomCategory | null>(null);

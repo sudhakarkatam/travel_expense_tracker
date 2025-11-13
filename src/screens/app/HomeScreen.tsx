@@ -26,7 +26,12 @@ import { Image } from "expo-image";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
-export default function HomeScreen({ navigation, route }: any) {
+interface HomeScreenProps {
+  navigation: any;
+  route: any;
+}
+
+export default function HomeScreen({ navigation, route }: HomeScreenProps) {
   const theme = useTheme();
   const { trips, expenses, deleteTrip } = useApp();
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -137,7 +142,7 @@ export default function HomeScreen({ navigation, route }: any) {
               />
             ) : (
               <LinearGradient
-                colors={[theme.colors.primary, theme.colors.secondary]}
+                colors={[theme?.colors?.primary || '#8b5cf6', theme?.colors?.secondary || '#06b6d4']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.coverPlaceholder}
@@ -388,8 +393,8 @@ export default function HomeScreen({ navigation, route }: any) {
           <RefreshControl
             refreshing={isRefreshing}
             onRefresh={onRefresh}
-            tintColor={theme.colors.primary}
-            colors={[theme.colors.primary]}
+            tintColor={theme?.colors?.primary || '#8b5cf6'}
+            colors={[theme?.colors?.primary || '#8b5cf6']}
           />
         }
         showsVerticalScrollIndicator={false}
