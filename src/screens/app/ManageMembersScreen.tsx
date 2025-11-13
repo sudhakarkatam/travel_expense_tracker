@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme, Surface } from 'react-native-paper';
 import { useApp } from '@/contexts/AppContext';
 
 export default function ManageMembersScreen({ navigation, route }: any) {
+  const theme = useTheme();
   const { tripId } = route.params;
   const { getTrip, updateTrip } = useApp();
   const trip = getTrip(tripId);
@@ -16,9 +18,9 @@ export default function ManageMembersScreen({ navigation, route }: any) {
 
   if (!trip) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
         <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Trip not found</Text>
+          <Text style={[styles.errorText, { color: theme.colors.error }]}>Trip not found</Text>
         </View>
       </SafeAreaView>
     );
@@ -105,75 +107,75 @@ export default function ManageMembersScreen({ navigation, route }: any) {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
+      <Surface style={[styles.header, { backgroundColor: theme.colors.surface }]} elevation={1}>
         <TouchableOpacity 
           onPress={() => navigation.goBack()}
           style={styles.backButton}
         >
-          <Ionicons name="arrow-back" size={24} color="#333" />
+          <Ionicons name="arrow-back" size={24} color={theme.colors.onSurface} />
         </TouchableOpacity>
-        <Text style={styles.title}>Manage Members</Text>
+        <Text style={[styles.title, { color: theme.colors.onSurface }]}>Manage Members</Text>
         <TouchableOpacity 
           onPress={handleShareInvite}
           style={styles.shareButton}
         >
-          <Ionicons name="share-outline" size={24} color="#8b5cf6" />
+          <Ionicons name="share-outline" size={24} color={theme.colors.primary} />
         </TouchableOpacity>
-      </View>
+      </Surface>
 
       <ScrollView style={styles.content}>
-        <View style={styles.inviteSection}>
-          <View style={styles.inviteCodeContainer}>
-            <Text style={styles.inviteCodeLabel}>Invite Code</Text>
-            <Text style={styles.inviteCode}>{trip.inviteCode || `TRIP${trip.id.slice(-6).toUpperCase()}`}</Text>
+        <Surface style={[styles.inviteSection, { backgroundColor: theme.colors.surface }]} elevation={1}>
+          <View style={[styles.inviteCodeContainer, { backgroundColor: theme.colors.surfaceVariant }]}>
+            <Text style={[styles.inviteCodeLabel, { color: theme.colors.onSurfaceVariant }]}>Invite Code</Text>
+            <Text style={[styles.inviteCode, { color: theme.colors.primary }]}>{trip.inviteCode || `TRIP${trip.id.slice(-6).toUpperCase()}`}</Text>
           </View>
           
           <View style={styles.inviteActions}>
-            <TouchableOpacity style={styles.inviteButton} onPress={handleShareInvite}>
-              <Ionicons name="share-outline" size={20} color="#8b5cf6" />
-              <Text style={styles.inviteButtonText}>Share Invite</Text>
+            <TouchableOpacity style={[styles.inviteButton, { backgroundColor: theme.colors.surfaceVariant }]} onPress={handleShareInvite}>
+              <Ionicons name="share-outline" size={20} color={theme.colors.primary} />
+              <Text style={[styles.inviteButtonText, { color: theme.colors.primary }]}>Share Invite</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.inviteButton} onPress={handleJoinWithCode}>
-              <Ionicons name="add-circle-outline" size={20} color="#8b5cf6" />
-              <Text style={styles.inviteButtonText}>Join with Code</Text>
+            <TouchableOpacity style={[styles.inviteButton, { backgroundColor: theme.colors.surfaceVariant }]} onPress={handleJoinWithCode}>
+              <Ionicons name="add-circle-outline" size={20} color={theme.colors.primary} />
+              <Text style={[styles.inviteButtonText, { color: theme.colors.primary }]}>Join with Code</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </Surface>
 
         <View style={styles.membersSection}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Members ({(trip.participants || []).length})</Text>
+            <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>Members ({(trip.participants || []).length})</Text>
             <TouchableOpacity 
-              style={styles.addButton}
+              style={[styles.addButton, { backgroundColor: theme.colors.primary }]}
               onPress={() => setIsAddingMember(true)}
             >
-              <Ionicons name="add" size={20} color="white" />
+              <Ionicons name="add" size={20} color={theme.colors.onPrimary} />
             </TouchableOpacity>
           </View>
 
           {(trip.participants || []).map((member) => (
-            <View key={member.id} style={styles.memberItem}>
+            <Surface key={member.id} style={[styles.memberItem, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.outlineVariant }]} elevation={1}>
               <View style={styles.memberInfo}>
-                <View style={styles.memberAvatar}>
-                  <Text style={styles.memberInitial}>
+                <View style={[styles.memberAvatar, { backgroundColor: theme.colors.primary }]}>
+                  <Text style={[styles.memberInitial, { color: theme.colors.onPrimary }]}>
                     {member.name.charAt(0).toUpperCase()}
                   </Text>
                 </View>
                 <View style={styles.memberDetails}>
                   <View style={styles.memberNameRow}>
-                    <Text style={styles.memberName}>{member.name}</Text>
+                    <Text style={[styles.memberName, { color: theme.colors.onSurface }]}>{member.name}</Text>
                     {member.isCurrentUser && (
-                      <View style={styles.currentUserBadge}>
-                        <Text style={styles.currentUserText}>You</Text>
+                      <View style={[styles.currentUserBadge, { backgroundColor: theme.colors.primaryContainer }]}>
+                        <Text style={[styles.currentUserText, { color: theme.colors.onPrimaryContainer }]}>You</Text>
                       </View>
                     )}
                   </View>
                   {member.email && (
-                    <Text style={styles.memberEmail}>{member.email}</Text>
+                    <Text style={[styles.memberEmail, { color: theme.colors.onSurfaceVariant }]}>{member.email}</Text>
                   )}
-                  <Text style={styles.memberJoined}>
+                  <Text style={[styles.memberJoined, { color: theme.colors.onSurfaceVariant }]}>
                     Joined {new Date(member.joinedAt).toLocaleDateString()}
                   </Text>
                 </View>
@@ -183,30 +185,32 @@ export default function ManageMembersScreen({ navigation, route }: any) {
                 style={styles.removeButton}
                 onPress={() => handleRemoveMember(member.id)}
               >
-                <Ionicons name="close-circle" size={24} color="#ef4444" />
+                <Ionicons name="close-circle" size={24} color={theme.colors.error} />
               </TouchableOpacity>
-            </View>
+            </Surface>
           ))}
 
           {isAddingMember && (
-            <View style={styles.addMemberForm}>
-              <Text style={styles.formTitle}>Add New Member</Text>
+            <Surface style={[styles.addMemberForm, { backgroundColor: theme.colors.surface }]} elevation={2}>
+              <Text style={[styles.formTitle, { color: theme.colors.onSurface }]}>Add New Member</Text>
               
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Name *</Text>
+                <Text style={[styles.label, { color: theme.colors.onSurface }]}>Name *</Text>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outlineVariant, color: theme.colors.onSurface }]}
                   placeholder="Enter member name"
+                  placeholderTextColor={theme.colors.onSurfaceVariant}
                   value={newMemberName}
                   onChangeText={setNewMemberName}
                 />
               </View>
               
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Email (optional)</Text>
+                <Text style={[styles.label, { color: theme.colors.onSurface }]}>Email (optional)</Text>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outlineVariant, color: theme.colors.onSurface }]}
                   placeholder="Enter email address"
+                  placeholderTextColor={theme.colors.onSurfaceVariant}
                   value={newMemberEmail}
                   onChangeText={setNewMemberEmail}
                   keyboardType="email-address"
@@ -216,22 +220,22 @@ export default function ManageMembersScreen({ navigation, route }: any) {
               
               <View style={styles.inputGroup}>
                 <View style={styles.switchContainer}>
-                  <Text style={styles.label}>This is me (Current User)</Text>
+                  <Text style={[styles.label, { color: theme.colors.onSurface }]}>This is me (Current User)</Text>
                   <Switch
                     value={isCurrentUser}
                     onValueChange={setIsCurrentUser}
-                    trackColor={{ false: '#e5e7eb', true: '#8b5cf6' }}
-                    thumbColor={isCurrentUser ? '#fff' : '#f4f3f4'}
+                    trackColor={{ false: theme.colors.surfaceVariant, true: theme.colors.primary }}
+                    thumbColor={isCurrentUser ? theme.colors.onPrimary : theme.colors.onSurfaceVariant}
                   />
                 </View>
-                <Text style={styles.switchDescription}>
+                <Text style={[styles.switchDescription, { color: theme.colors.onSurfaceVariant }]}>
                   Mark this member as yourself for easier expense tracking
                 </Text>
               </View>
               
               <View style={styles.formActions}>
                 <TouchableOpacity 
-                  style={styles.cancelButton}
+                  style={[styles.cancelButton, { backgroundColor: theme.colors.surfaceVariant }]}
                   onPress={() => {
                     setIsAddingMember(false);
                     setNewMemberName('');
@@ -239,17 +243,17 @@ export default function ManageMembersScreen({ navigation, route }: any) {
                     setIsCurrentUser(false);
                   }}
                 >
-                  <Text style={styles.cancelText}>Cancel</Text>
+                  <Text style={[styles.cancelText, { color: theme.colors.onSurface }]}>Cancel</Text>
                 </TouchableOpacity>
                 
                 <TouchableOpacity 
-                  style={styles.addMemberButton}
+                  style={[styles.addMemberButton, { backgroundColor: theme.colors.primary }]}
                   onPress={handleAddMember}
                 >
-                  <Text style={styles.addMemberText}>Add Member</Text>
+                  <Text style={[styles.addMemberText, { color: theme.colors.onPrimary }]}>Add Member</Text>
                 </TouchableOpacity>
               </View>
-            </View>
+            </Surface>
           )}
         </View>
       </ScrollView>

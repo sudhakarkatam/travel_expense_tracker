@@ -17,6 +17,7 @@ import {
 import { Picker } from "@react-native-picker/picker";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { useTheme, Surface } from "react-native-paper";
 import { useApp } from "@/contexts/AppContext";
 import { Trip, PackingItem, ActivityItem } from "@/types";
 import EmptyState from "@/components/EmptyState";
@@ -125,6 +126,7 @@ const INDIA_ACTIVITY_TEMPLATES = [
 ];
 
 export default function PlanningScreen({ navigation }: any) {
+  const theme = useTheme();
   const {
     trips,
     addPackingItem,
@@ -578,7 +580,7 @@ export default function PlanningScreen({ navigation }: any) {
               <Ionicons
                 name={tab.icon as any}
                 size={18}
-                color={isActive ? "#FFFFFF" : "#8b5cf6"}
+                color={isActive ? theme.colors.onPrimary : theme.colors.primary}
                 style={styles.segmentedIcon}
               />
               <Text style={[styles.segmentedText, isActive && styles.segmentedTextActive]}>
@@ -596,9 +598,9 @@ export default function PlanningScreen({ navigation }: any) {
     if (sortedPackingItems.length === 0) {
       return (
         <View style={styles.emptyContainer}>
-          <Ionicons name="bag-outline" size={64} color="#D1D5DB" />
-          <Text style={styles.emptyTitle}>No items yet</Text>
-          <Text style={styles.emptySubtitle}>Tap the + button to add items</Text>
+          <Ionicons name="bag-outline" size={64} color={theme.colors.onSurfaceVariant} />
+          <Text style={[styles.emptyTitle, { color: theme.colors.onSurface }]}>No items yet</Text>
+          <Text style={[styles.emptySubtitle, { color: theme.colors.onSurfaceVariant }]}>Tap the + button to add items</Text>
         </View>
       );
     }
@@ -615,7 +617,7 @@ export default function PlanningScreen({ navigation }: any) {
             <View style={styles.packingItemContent}>
               <View style={[styles.checkbox, item.packed && styles.checkboxChecked]}>
                 {item.packed && (
-                  <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                  <Ionicons name="checkmark" size={16} color={theme.colors.onPrimary} />
                 )}
               </View>
               <Text style={[styles.packingItemName, item.packed && styles.packingItemNameChecked]}>
@@ -627,7 +629,7 @@ export default function PlanningScreen({ navigation }: any) {
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               style={styles.deleteIconButton}
             >
-              <Ionicons name="trash-outline" size={20} color="#EF4444" />
+              <Ionicons name="trash-outline" size={20} color={theme.colors.error} />
         </TouchableOpacity>
           </NativeButton>
         ))}
@@ -640,7 +642,7 @@ export default function PlanningScreen({ navigation }: any) {
     if (activityItems.length === 0) {
       return (
         <View style={styles.emptyContainer}>
-          <Ionicons name="calendar-outline" size={64} color="#D1D5DB" />
+          <Ionicons name="calendar-outline" size={64} color={theme.colors.onSurfaceVariant} />
           <Text style={styles.emptyTitle}>No activities yet</Text>
           <Text style={styles.emptySubtitle}>Tap the + button to add activities</Text>
         </View>
@@ -676,7 +678,7 @@ export default function PlanningScreen({ navigation }: any) {
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   style={styles.deleteIconButton}
                 >
-                  <Ionicons name="trash-outline" size={20} color="#EF4444" />
+                  <Ionicons name="trash-outline" size={20} color={theme.colors.error} />
       </TouchableOpacity>
               </NativeButton>
             ))}
@@ -717,7 +719,7 @@ export default function PlanningScreen({ navigation }: any) {
     if (itineraryDays.length === 0) {
       return (
         <View style={styles.emptyContainer}>
-          <Ionicons name="calendar-outline" size={64} color="#D1D5DB" />
+          <Ionicons name="calendar-outline" size={64} color={theme.colors.onSurfaceVariant} />
           <Text style={styles.emptyTitle}>No Itinerary Days</Text>
           <Text style={styles.emptySubtitle}>Set trip dates to generate itinerary</Text>
         </View>
@@ -749,7 +751,7 @@ export default function PlanningScreen({ navigation }: any) {
 
               {dayActivities.length === 0 ? (
                 <View style={styles.emptyDayActivities}>
-                  <Ionicons name="add-circle-outline" size={24} color="#8b5cf6" />
+                  <Ionicons name="add-circle-outline" size={24} color={theme.colors.primary} />
                   <Text style={styles.emptyDayActivitiesText}>
                     No activities planned. Tap + to add.
                   </Text>
@@ -766,7 +768,7 @@ export default function PlanningScreen({ navigation }: any) {
                         <View style={styles.itineraryActivityContent}>
                           <View style={styles.itineraryActivityLeft}>
                             <View style={styles.itineraryActivityTime}>
-                              <Ionicons name="time-outline" size={16} color="#8b5cf6" />
+                              <Ionicons name="time-outline" size={16} color={theme.colors.primary} />
                               <Text style={styles.itineraryActivityTimeText}>
                                 {actIndex + 1}
                               </Text>
@@ -795,7 +797,7 @@ export default function PlanningScreen({ navigation }: any) {
                         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                         style={styles.itineraryDeleteButton}
                       >
-                        <Ionicons name="trash-outline" size={20} color="#EF4444" />
+                        <Ionicons name="trash-outline" size={20} color={theme.colors.error} />
       </TouchableOpacity>
                     </View>
                   ))}
@@ -810,7 +812,7 @@ export default function PlanningScreen({ navigation }: any) {
                 variant="secondary"
                 style={styles.addDayActivityButton}
               >
-                <Ionicons name="add-circle" size={20} color="#8b5cf6" />
+                <Ionicons name="add-circle" size={20} color={theme.colors.primary} />
                 <Text style={styles.addDayActivityButtonText}>Add Activity</Text>
               </NativeButton>
     </View>
@@ -830,7 +832,7 @@ export default function PlanningScreen({ navigation }: any) {
             variant="secondary"
             style={styles.quickActionButton}
           >
-            <Ionicons name="layers-outline" size={20} color="#8b5cf6" />
+            <Ionicons name="layers-outline" size={20} color={theme.colors.primary} />
             <Text style={styles.quickActionText}>Templates</Text>
           </NativeButton>
           <NativeButton
@@ -838,7 +840,7 @@ export default function PlanningScreen({ navigation }: any) {
             variant="secondary"
             style={styles.quickActionButton}
           >
-            <Ionicons name="copy-outline" size={20} color="#8b5cf6" />
+            <Ionicons name="copy-outline" size={20} color={theme.colors.primary} />
             <Text style={styles.quickActionText}>Copy List</Text>
           </NativeButton>
         </View>
@@ -853,7 +855,7 @@ export default function PlanningScreen({ navigation }: any) {
             variant="secondary"
             style={styles.quickActionButton}
           >
-            <Ionicons name="layers-outline" size={20} color="#8b5cf6" />
+            <Ionicons name="layers-outline" size={20} color={theme.colors.primary} />
             <Text style={styles.quickActionText}>Templates</Text>
           </NativeButton>
         </View>
@@ -865,10 +867,10 @@ export default function PlanningScreen({ navigation }: any) {
 
   if (trips.length === 0) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Planning</Text>
-        </View>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
+        <Surface style={[styles.header, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.outlineVariant }]} elevation={1}>
+          <Text style={[styles.headerTitle, { color: theme.colors.onSurface }]}>Planning</Text>
+        </Surface>
         <EmptyState
           icon="airplane-outline"
           title="No Trips Yet"
@@ -882,10 +884,10 @@ export default function PlanningScreen({ navigation }: any) {
 
   if (!selectedTrip) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Planning</Text>
-        </View>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
+        <Surface style={[styles.header, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.outlineVariant }]} elevation={1}>
+          <Text style={[styles.headerTitle, { color: theme.colors.onSurface }]}>Planning</Text>
+        </Surface>
         <EmptyState
           icon="alert-circle-outline"
           title="Trip Not Found"
@@ -896,10 +898,10 @@ export default function PlanningScreen({ navigation }: any) {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.header}>
-        <Text style={styles.headerTitle}>Planning</Text>
-        </View>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
+        <Surface style={[styles.header, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.outlineVariant }]} elevation={1}>
+        <Text style={[styles.headerTitle, { color: theme.colors.onSurface }]}>Planning</Text>
+        </Surface>
 
       <ScrollView
         style={styles.scrollView}
@@ -925,7 +927,7 @@ export default function PlanningScreen({ navigation }: any) {
           onPress={() => setShowAddInput(true)}
           activeOpacity={0.8}
         >
-          <Ionicons name="add" size={28} color="#FFFFFF" />
+          <Ionicons name="add" size={28} color={theme.colors.onPrimary} />
         </TouchableOpacity>
       )}
 
@@ -964,7 +966,7 @@ export default function PlanningScreen({ navigation }: any) {
                 }}
                 style={styles.closeButton}
               >
-                <Ionicons name="close" size={24} color="#6B7280" />
+                <Ionicons name="close" size={24} color={theme.colors.onSurfaceVariant} />
               </TouchableOpacity>
             </View>
 
@@ -973,7 +975,7 @@ export default function PlanningScreen({ navigation }: any) {
             <Ionicons
                   name={activeTab === "packing" ? "bag-outline" : "calendar-outline"}
               size={20}
-                  color="#9CA3AF"
+                  color={theme.colors.onSurfaceVariant}
                   style={styles.inputIcon}
                 />
                 <TextInput
@@ -1025,7 +1027,7 @@ export default function PlanningScreen({ navigation }: any) {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Copy Packing List</Text>
               <TouchableOpacity onPress={() => setShowCopyModal(false)} style={styles.modalCloseButton}>
-                <Ionicons name="close" size={24} color="#6B7280" />
+                <Ionicons name="close" size={24} color={theme.colors.onSurfaceVariant} />
               </TouchableOpacity>
             </View>
             <ScrollView 
@@ -1056,7 +1058,7 @@ export default function PlanningScreen({ navigation }: any) {
                           {sourceItems.length} item{sourceItems.length !== 1 ? 's' : ''} • {trip.destination || 'No destination'}
             </Text>
                       </View>
-                      <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                      <Ionicons name="chevron-forward" size={20} color={theme.colors.onSurfaceVariant} />
                     </NativeButton>
                   );
                 })}
@@ -1103,7 +1105,7 @@ export default function PlanningScreen({ navigation }: any) {
                 }}
                 style={styles.modalBackButton}
               >
-                <Ionicons name="arrow-back" size={24} color="#6B7280" />
+                <Ionicons name="arrow-back" size={24} color={theme.colors.onSurfaceVariant} />
           </TouchableOpacity>
               <Text style={styles.modalTitle}>
                 Select Items from {selectedCopyTrip?.name || 'Trip'}
@@ -1116,7 +1118,7 @@ export default function PlanningScreen({ navigation }: any) {
                 }}
                 style={styles.modalCloseButton}
               >
-                <Ionicons name="close" size={24} color="#6B7280" />
+                <Ionicons name="close" size={24} color={theme.colors.onSurfaceVariant} />
               </TouchableOpacity>
             </View>
             
@@ -1187,7 +1189,7 @@ export default function PlanningScreen({ navigation }: any) {
                     style={[styles.templateItemRow, isSelected && styles.templateItemRowSelected]}
                   >
                     <View style={[styles.checkbox, isSelected && styles.checkboxChecked]}>
-                      {isSelected && <Ionicons name="checkmark" size={16} color="#FFFFFF" />}
+                      {isSelected && <Ionicons name="checkmark" size={16} color={theme.colors.onPrimary} />}
                     </View>
                     <View style={styles.modalListItemContent}>
                       <Text style={styles.modalListItemTitle}>{item.name}</Text>
@@ -1236,7 +1238,7 @@ export default function PlanningScreen({ navigation }: any) {
                 setShowPackingTemplatesModal(false);
                 setTemplateCategory("location");
               }} style={styles.modalCloseButton}>
-                <Ionicons name="close" size={24} color="#6B7280" />
+                <Ionicons name="close" size={24} color={theme.colors.onSurfaceVariant} />
               </TouchableOpacity>
             </View>
 
@@ -1248,7 +1250,7 @@ export default function PlanningScreen({ navigation }: any) {
                   variant={templateCategory === "location" ? "primary" : "secondary"}
                   style={styles.templateTab}
                 >
-                  <Ionicons name="location-outline" size={18} color={templateCategory === "location" ? "#FFFFFF" : "#8b5cf6"} />
+                  <Ionicons name="location-outline" size={18} color={templateCategory === "location" ? theme.colors.onPrimary : theme.colors.primary} />
                   <Text style={[styles.templateTabText, templateCategory === "location" && styles.templateTabTextActive]}>
                     Location
                   </Text>
@@ -1260,7 +1262,7 @@ export default function PlanningScreen({ navigation }: any) {
                   variant={templateCategory === "category" ? "primary" : "secondary"}
                   style={styles.templateTab}
                 >
-                  <Ionicons name="pricetag-outline" size={18} color={templateCategory === "category" ? "#FFFFFF" : "#8b5cf6"} />
+                  <Ionicons name="pricetag-outline" size={18} color={templateCategory === "category" ? theme.colors.onPrimary : theme.colors.primary} />
                   <Text style={[styles.templateTabText, templateCategory === "category" && styles.templateTabTextActive]}>
                     Category
                   </Text>
@@ -1272,7 +1274,7 @@ export default function PlanningScreen({ navigation }: any) {
                   variant={templateCategory === "general" ? "primary" : "secondary"}
                   style={styles.templateTab}
                 >
-                  <Ionicons name="grid-outline" size={18} color={templateCategory === "general" ? "#FFFFFF" : "#8b5cf6"} />
+                  <Ionicons name="grid-outline" size={18} color={templateCategory === "general" ? theme.colors.onPrimary : theme.colors.primary} />
                   <Text style={[styles.templateTabText, templateCategory === "general" && styles.templateTabTextActive]}>
                     General
                   </Text>
@@ -1317,13 +1319,13 @@ export default function PlanningScreen({ navigation }: any) {
                       style={styles.modalListItem}
                     >
                       <View style={styles.templateItemIcon}>
-                        <Ionicons name={template.icon as any} size={24} color="#8b5cf6" />
+                        <Ionicons name={template.icon as any} size={24} color={theme.colors.primary} />
                       </View>
                       <View style={styles.modalListItemContent}>
                         <Text style={styles.modalListItemTitle}>{template.destination}</Text>
                         <Text style={styles.modalListItemSubtitle}>{template.items?.length || 0} items</Text>
                       </View>
-                      <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                      <Ionicons name="chevron-forward" size={20} color={theme.colors.onSurfaceVariant} />
                     </NativeButton>
                   ))}
                 </>
@@ -1361,13 +1363,13 @@ export default function PlanningScreen({ navigation }: any) {
                       style={styles.modalListItem}
                     >
                       <View style={styles.templateItemIcon}>
-                        <Ionicons name={template.icon as any} size={24} color="#8b5cf6" />
+                        <Ionicons name={template.icon as any} size={24} color={theme.colors.primary} />
                       </View>
                       <View style={styles.modalListItemContent}>
                         <Text style={styles.modalListItemTitle}>{template.destination}</Text>
                         <Text style={styles.modalListItemSubtitle}>{template.items?.length || 0} items</Text>
                       </View>
-                      <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                      <Ionicons name="chevron-forward" size={20} color={theme.colors.onSurfaceVariant} />
                     </NativeButton>
                   ))}
                 </>
@@ -1410,13 +1412,13 @@ export default function PlanningScreen({ navigation }: any) {
                       style={styles.modalListItem}
                     >
                       <View style={styles.templateItemIcon}>
-                        <Ionicons name={template.icon as any} size={24} color="#8b5cf6" />
+                        <Ionicons name={template.icon as any} size={24} color={theme.colors.primary} />
                       </View>
                       <View style={styles.modalListItemContent}>
                         <Text style={styles.modalListItemTitle}>{template.name}</Text>
                         <Text style={styles.modalListItemSubtitle}>{template.items.length} items</Text>
                       </View>
-                      <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                      <Ionicons name="chevron-forward" size={20} color={theme.colors.onSurfaceVariant} />
                     </NativeButton>
                   ))}
                 </>
@@ -1449,7 +1451,7 @@ export default function PlanningScreen({ navigation }: any) {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Activity Templates</Text>
               <TouchableOpacity onPress={() => setShowActivityTemplatesModal(false)} style={styles.modalCloseButton}>
-                <Ionicons name="close" size={24} color="#6B7280" />
+                <Ionicons name="close" size={24} color={theme.colors.onSurfaceVariant} />
               </TouchableOpacity>
             </View>
             <ScrollView 
@@ -1578,7 +1580,7 @@ export default function PlanningScreen({ navigation }: any) {
                 }}
                 style={styles.modalBackButton}
               >
-                <Ionicons name="arrow-back" size={24} color="#6B7280" />
+                <Ionicons name="arrow-back" size={24} color={theme.colors.onSurfaceVariant} />
               </TouchableOpacity>
               <Text style={styles.modalTitle}>{selectedTemplate?.destination || selectedTemplate?.name || 'Select Items'}</Text>
               <TouchableOpacity
@@ -1590,7 +1592,7 @@ export default function PlanningScreen({ navigation }: any) {
                 }}
                 style={styles.modalCloseButton}
               >
-                <Ionicons name="close" size={24} color="#6B7280" />
+                <Ionicons name="close" size={24} color={theme.colors.onSurfaceVariant} />
               </TouchableOpacity>
             </View>
             <View style={styles.selectAllContainer}>
@@ -1659,7 +1661,7 @@ export default function PlanningScreen({ navigation }: any) {
                     style={[styles.templateItemRow, isSelected && styles.templateItemRowSelected]}
                   >
                     <View style={[styles.checkbox, isSelected && styles.checkboxChecked]}>
-                      {isSelected && <Ionicons name="checkmark" size={16} color="#FFFFFF" />}
+                      {isSelected && <Ionicons name="checkmark" size={16} color={theme.colors.onPrimary} />}
                     </View>
                     <View style={styles.modalListItemContent}>
                       <Text style={styles.modalListItemTitle}>{item.name || item.description}</Text>
@@ -1689,7 +1691,7 @@ export default function PlanningScreen({ navigation }: any) {
                     style={[styles.templateItemRow, isSelected && styles.templateItemRowSelected]}
                   >
                     <View style={[styles.checkbox, isSelected && styles.checkboxChecked]}>
-                      {isSelected && <Ionicons name="checkmark" size={16} color="#FFFFFF" />}
+                      {isSelected && <Ionicons name="checkmark" size={16} color={theme.colors.onPrimary} />}
                     </View>
                     <View style={styles.modalListItemContent}>
                       <Text style={styles.modalListItemTitle}>{activity.description}</Text>

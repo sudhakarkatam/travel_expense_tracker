@@ -1,14 +1,36 @@
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 
 buildscript {
+  ext {
+    kotlinVersion = '2.1.20'
+  }
   repositories {
     google()
     mavenCentral()
   }
   dependencies {
+    // Let Expo/React Native manage AGP version via version catalog
     classpath('com.android.tools.build:gradle')
     classpath('com.facebook.react:react-native-gradle-plugin')
-    classpath('org.jetbrains.kotlin:kotlin-gradle-plugin')
+    classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
+  }
+  
+  // Force Kotlin version to prevent conflicts - CRITICAL: Force compiler plugin too
+  configurations.classpath {
+    resolutionStrategy {
+      force("org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion")
+      force("org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlinVersion")
+      force("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion")
+      force("org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion")
+      force("org.jetbrains.kotlin:kotlin-stdlib-common:$kotlinVersion")
+      // CRITICAL: Force Kotlin compiler plugin to ensure correct compiler version
+      force("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
+      // Force KSP plugin version if set
+      def kspVersion = rootProject.findProperty('kspVersion')
+      if (kspVersion) {
+        force("com.google.devtools.ksp:symbol-processing-gradle-plugin:$kspVersion")
+      }
+    }
   }
 }
 
@@ -17,6 +39,52 @@ allprojects {
     google()
     mavenCentral()
     maven { url 'https://www.jitpack.io' }
+  }
+  
+  // Force Kotlin and KSP versions across all subprojects to prevent conflicts
+  configurations.all {
+    resolutionStrategy {
+      force("org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion")
+      force("org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlinVersion")
+      force("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion")
+      force("org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion")
+      force("org.jetbrains.kotlin:kotlin-stdlib-common:$kotlinVersion")
+      // Force KSP version to match Kotlin version (read from gradle.properties)
+      def kspVersion = rootProject.findProperty('kspVersion')
+      if (kspVersion) {
+        force("com.google.devtools.ksp:symbol-processing-api:$kspVersion")
+        force("com.google.devtools.ksp:symbol-processing:$kspVersion")
+      }
+    }
+  }
+}
+
+subprojects {
+  // Force Kotlin and KSP versions at subproject configuration level
+  configurations.all {
+    resolutionStrategy {
+      force("org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion")
+      force("org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlinVersion")
+      force("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion")
+      force("org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion")
+      force("org.jetbrains.kotlin:kotlin-stdlib-common:$kotlinVersion")
+      force("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
+      // Force KSP version to match Kotlin version (read from gradle.properties)
+      def kspVersion = rootProject.findProperty('kspVersion')
+      if (kspVersion) {
+        force("com.google.devtools.ksp:symbol-processing-api:$kspVersion")
+        force("com.google.devtools.ksp:symbol-processing:$kspVersion")
+      }
+    }
+  }
+  
+  afterEvaluate { project ->
+    if (project.hasProperty('android')) {
+      project.android {
+        // Override NDK version for all native modules to use working NDK
+        ndkVersion = "27.1.12297006"
+      }
+    }
   }
 }
 

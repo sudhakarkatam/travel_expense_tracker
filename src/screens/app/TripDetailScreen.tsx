@@ -369,7 +369,7 @@ export default function TripDetailScreen({ navigation, route }: any) {
         <AnimatedButton
           mode="outlined"
           label="Members"
-          icon="people-outline"
+          icon="people"
           onPress={() => {
             navigation.navigate('ManageMembers', { tripId: trip.id });
             if (Platform.OS !== 'web') {
@@ -377,12 +377,13 @@ export default function TripDetailScreen({ navigation, route }: any) {
             }
           }}
           variant="secondary"
-          style={styles.bottomActionButton}
+          style={[styles.bottomActionButton, { flex: 1, minWidth: 0 }]}
+          labelStyle={{ fontSize: 13 }}
         />
         <AnimatedButton
           mode="outlined"
-          label="Settle"
-          icon="card-outline"
+          label="Settle Up"
+          icon="card"
           onPress={() => {
             navigation.navigate('SettleUp', { tripId: trip.id });
             if (Platform.OS !== 'web') {
@@ -390,7 +391,8 @@ export default function TripDetailScreen({ navigation, route }: any) {
             }
           }}
           variant="secondary"
-          style={styles.bottomActionButton}
+          style={[styles.bottomActionButton, { flex: 1, minWidth: 0 }]}
+          labelStyle={{ fontSize: 13 }}
         />
         <AnimatedButton
           mode="contained"
@@ -627,16 +629,19 @@ const styles = StyleSheet.create({
   },
   bottomActions: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingVertical: 12,
     gap: 8,
-    borderTopWidth: 1,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
   },
   bottomActionButton: {
     flex: 1,
+    minWidth: 0,
   },
   addExpenseButton: {
     flex: 1.5,
+    minWidth: 0,
   },
   errorContainer: {
     flex: 1,

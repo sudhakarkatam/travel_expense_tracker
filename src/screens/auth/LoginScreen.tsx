@@ -54,7 +54,7 @@ export default function LoginScreen({ navigation }: any) {
       if (Platform.OS !== 'web') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
-      navigation.replace('MainTabs');
+      // Navigation will happen automatically when auth state changes
     } catch (error: any) {
       if (!error.message?.includes('cancelled') && !error.message?.includes('dismissed')) {
         Alert.alert('Login Failed', error.message || 'Please try again');

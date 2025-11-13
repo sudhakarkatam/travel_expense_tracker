@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { useTheme, Surface } from "react-native-paper";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 interface Currency {
@@ -54,6 +55,7 @@ const CACHE_KEY = "@currency_rates_cache";
 const CACHE_DURATION = 3600000; // 1 hour in milliseconds
 
 export default function CurrencyConverterScreen() {
+  const theme = useTheme();
   const [fromCurrency, setFromCurrency] = useState<Currency>(
     POPULAR_CURRENCIES[0],
   );
@@ -200,18 +202,19 @@ export default function CurrencyConverterScreen() {
     onSelect: (currency: Currency) => void,
     onClose: () => void,
   ) => (
-    <View style={styles.pickerOverlay}>
-      <View style={styles.pickerContent}>
-        <View style={styles.pickerHeader}>
-          <Text style={styles.pickerTitle}>Select Currency</Text>
+    <View style={[styles.pickerOverlay, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}>
+      <Surface style={[styles.pickerContent, { backgroundColor: theme.colors.surface }]} elevation={8}>
+        <View style={[styles.pickerHeader, { borderBottomColor: theme.colors.outlineVariant }]}>
+          <Text style={[styles.pickerTitle, { color: theme.colors.onSurface }]}>Select Currency</Text>
           <TouchableOpacity onPress={onClose}>
-            <Ionicons name="close" size={24} color="#666" />
+            <Ionicons name="close" size={24} color={theme.colors.onSurfaceVariant} />
           </TouchableOpacity>
         </View>
 
         <TextInput
-          style={styles.searchInput}
+          style={[styles.searchInput, { backgroundColor: theme.colors.surfaceVariant, color: theme.colors.onSurface, borderColor: theme.colors.outlineVariant }]}
           placeholder="Search currencies..."
+          placeholderTextColor={theme.colors.onSurfaceVariant}
           value={searchQuery}
           onChangeText={setSearchQuery}
           autoFocus
@@ -223,8 +226,9 @@ export default function CurrencyConverterScreen() {
               key={currency.code}
               style={[
                 styles.currencyOption,
+                { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.outlineVariant },
                 selectedCurrency.code === currency.code &&
-                  styles.currencyOptionSelected,
+                  [styles.currencyOptionSelected, { backgroundColor: theme.colors.primaryContainer }],
               ]}
               onPress={() => {
                 onSelect(currency);
@@ -234,16 +238,16 @@ export default function CurrencyConverterScreen() {
             >
               <Text style={styles.currencyFlag}>{currency.flag}</Text>
               <View style={styles.currencyInfo}>
-                <Text style={styles.currencyCode}>{currency.code}</Text>
-                <Text style={styles.currencyName}>{currency.name}</Text>
+                <Text style={[styles.currencyCode, { color: theme.colors.onSurface }]}>{currency.code}</Text>
+                <Text style={[styles.currencyName, { color: theme.colors.onSurfaceVariant }]}>{currency.name}</Text>
               </View>
               {selectedCurrency.code === currency.code && (
-                <Ionicons name="checkmark" size={24} color="#8b5cf6" />
+                <Ionicons name="checkmark" size={24} color={theme.colors.primary} />
               )}
             </TouchableOpacity>
           ))}
         </ScrollView>
-      </View>
+      </Surface>
     </View>
   );
 
@@ -251,21 +255,21 @@ export default function CurrencyConverterScreen() {
     const quickAmounts = [1, 10, 50, 100, 500, 1000];
     return (
       <View style={styles.quickConversions}>
-        <Text style={styles.sectionTitle}>Quick Conversions</Text>
+        <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>Quick Conversions</Text>
         {quickAmounts.map((amt) => {
           const converted = amt * getExchangeRate;
           return (
             <TouchableOpacity
               key={amt}
-              style={styles.quickConversionItem}
+              style={[styles.quickConversionItem, { backgroundColor: theme.colors.surfaceVariant }]}
               onPress={() => setAmount(amt.toString())}
             >
-              <Text style={styles.quickAmount}>
+              <Text style={[styles.quickAmount, { color: theme.colors.onSurface }]}>
                 {fromCurrency.symbol}
                 {amt}
               </Text>
-              <Ionicons name="arrow-forward" size={16} color="#666" />
-              <Text style={styles.quickResult}>
+              <Ionicons name="arrow-forward" size={16} color={theme.colors.onSurfaceVariant} />
+              <Text style={[styles.quickResult, { color: theme.colors.primary }]}>
                 {toCurrency.symbol}
                 {converted.toFixed(2)}
               </Text>
@@ -278,129 +282,129 @@ export default function CurrencyConverterScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#8b5cf6" />
-          <Text style={styles.loadingText}>Loading exchange rates...</Text>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={[styles.loadingText, { color: theme.colors.onSurfaceVariant }]}>Loading exchange rates...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
       <ScrollView
         style={styles.content}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
             onRefresh={handleRefresh}
-            tintColor="#8b5cf6"
-            colors={["#8b5cf6"]}
+            tintColor={theme.colors.primary}
+            colors={[theme.colors.primary]}
           />
         }
       >
-        <View style={styles.header}>
-          <Text style={styles.title}>Currency Converter</Text>
-          <Text style={styles.subtitle}>Real-time exchange rates</Text>
-        </View>
+        <Surface style={[styles.header, { backgroundColor: theme.colors.surface }]} elevation={0}>
+          <Text style={[styles.title, { color: theme.colors.onSurface }]}>Currency Converter</Text>
+          <Text style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}>Real-time exchange rates</Text>
+        </Surface>
 
         {/* Status Banner */}
         {isOffline && (
-          <View style={styles.offlineBanner}>
-            <Ionicons name="cloud-offline" size={20} color="#f59e0b" />
-            <Text style={styles.offlineText}>Using cached rates</Text>
-          </View>
+          <Surface style={[styles.offlineBanner, { backgroundColor: theme.colors.warningContainer }]} elevation={1}>
+            <Ionicons name="cloud-offline" size={20} color={theme.colors.onWarningContainer} />
+            <Text style={[styles.offlineText, { color: theme.colors.onWarningContainer }]}>Using cached rates</Text>
+          </Surface>
         )}
 
         {/* Last Updated */}
         {lastUpdated && (
-          <View style={styles.lastUpdated}>
-            <Ionicons name="time-outline" size={16} color="#666" />
-            <Text style={styles.lastUpdatedText}>
+          <View style={[styles.lastUpdated, { backgroundColor: theme.colors.surfaceVariant }]}>
+            <Ionicons name="time-outline" size={16} color={theme.colors.onSurfaceVariant} />
+            <Text style={[styles.lastUpdatedText, { color: theme.colors.onSurfaceVariant }]}>
               Updated {lastUpdated.toLocaleTimeString()}
             </Text>
             <TouchableOpacity
               onPress={handleRefresh}
               style={styles.refreshButton}
             >
-              <Ionicons name="refresh" size={20} color="#8b5cf6" />
+              <Ionicons name="refresh" size={20} color={theme.colors.primary} />
             </TouchableOpacity>
           </View>
         )}
 
         {/* Converter Card */}
-        <View style={styles.converterCard}>
+        <Surface style={[styles.converterCard, { backgroundColor: theme.colors.surface }]} elevation={2}>
           {/* From Currency */}
           <TouchableOpacity
-            style={styles.currencySelector}
+            style={[styles.currencySelector, { backgroundColor: theme.colors.surfaceVariant }]}
             onPress={() => setShowFromPicker(true)}
           >
             <Text style={styles.currencyFlag}>{fromCurrency.flag}</Text>
             <View style={styles.currencySelectorInfo}>
-              <Text style={styles.currencyCodeLarge}>{fromCurrency.code}</Text>
-              <Text style={styles.currencyNameSmall}>{fromCurrency.name}</Text>
+              <Text style={[styles.currencyCodeLarge, { color: theme.colors.onSurface }]}>{fromCurrency.code}</Text>
+              <Text style={[styles.currencyNameSmall, { color: theme.colors.onSurfaceVariant }]}>{fromCurrency.name}</Text>
             </View>
-            <Ionicons name="chevron-down" size={24} color="#666" />
+            <Ionicons name="chevron-down" size={24} color={theme.colors.onSurfaceVariant} />
           </TouchableOpacity>
 
           <TextInput
-            style={styles.amountInput}
+            style={[styles.amountInput, { backgroundColor: theme.colors.surfaceVariant, color: theme.colors.onSurface, borderColor: theme.colors.outlineVariant }]}
             value={amount}
             onChangeText={setAmount}
             keyboardType="decimal-pad"
             placeholder="Enter amount"
-            placeholderTextColor="#999"
+            placeholderTextColor={theme.colors.onSurfaceVariant}
           />
 
           {/* Swap Button */}
-          <TouchableOpacity style={styles.swapButton} onPress={swapCurrencies}>
-            <Ionicons name="swap-vertical" size={24} color="white" />
+          <TouchableOpacity style={[styles.swapButton, { backgroundColor: theme.colors.primary }]} onPress={swapCurrencies}>
+            <Ionicons name="swap-vertical" size={24} color={theme.colors.onPrimary} />
           </TouchableOpacity>
 
           {/* To Currency */}
           <TouchableOpacity
-            style={styles.currencySelector}
+            style={[styles.currencySelector, { backgroundColor: theme.colors.surfaceVariant }]}
             onPress={() => setShowToPicker(true)}
           >
             <Text style={styles.currencyFlag}>{toCurrency.flag}</Text>
             <View style={styles.currencySelectorInfo}>
-              <Text style={styles.currencyCodeLarge}>{toCurrency.code}</Text>
-              <Text style={styles.currencyNameSmall}>{toCurrency.name}</Text>
+              <Text style={[styles.currencyCodeLarge, { color: theme.colors.onSurface }]}>{toCurrency.code}</Text>
+              <Text style={[styles.currencyNameSmall, { color: theme.colors.onSurfaceVariant }]}>{toCurrency.name}</Text>
             </View>
-            <Ionicons name="chevron-down" size={24} color="#666" />
+            <Ionicons name="chevron-down" size={24} color={theme.colors.onSurfaceVariant} />
           </TouchableOpacity>
 
           {/* Result */}
           <View style={styles.resultContainer}>
-            <Text style={styles.resultAmount}>
+            <Text style={[styles.resultAmount, { color: theme.colors.primary }]}>
               {toCurrency.symbol}
               {convertCurrency.toFixed(2)}
             </Text>
-            <Text style={styles.resultLabel}>
+            <Text style={[styles.resultLabel, { color: theme.colors.onSurfaceVariant }]}>
               1 {fromCurrency.code} = {getExchangeRate.toFixed(4)}{" "}
               {toCurrency.code}
             </Text>
           </View>
-        </View>
+        </Surface>
 
         {/* Quick Conversions */}
         {renderQuickConversions()}
 
         {/* Historical Trend (Placeholder for future) */}
-        <View style={styles.trendCard}>
-          <Text style={styles.sectionTitle}>Exchange Rate Trend</Text>
+        <Surface style={[styles.trendCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>Exchange Rate Trend</Text>
           <View style={styles.trendPlaceholder}>
-            <Ionicons name="trending-up" size={48} color="#d1d5db" />
-            <Text style={styles.trendPlaceholderText}>
+            <Ionicons name="trending-up" size={48} color={theme.colors.onSurfaceVariant} />
+            <Text style={[styles.trendPlaceholderText, { color: theme.colors.onSurfaceVariant }]}>
               Historical data coming soon
             </Text>
           </View>
-        </View>
+        </Surface>
 
         {/* Popular Currencies Grid */}
         <View style={styles.popularCurrencies}>
-          <Text style={styles.sectionTitle}>Popular Currencies</Text>
+          <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>Popular Currencies</Text>
           <View style={styles.currencyGrid}>
             {POPULAR_CURRENCIES.slice(0, 8).map((currency) => {
               const rate = exchangeRates
@@ -409,14 +413,14 @@ export default function CurrencyConverterScreen() {
               return (
                 <TouchableOpacity
                   key={currency.code}
-                  style={styles.currencyGridItem}
+                  style={[styles.currencyGridItem, { backgroundColor: theme.colors.surfaceVariant }]}
                   onPress={() => {
                     setToCurrency(currency);
                   }}
                 >
                   <Text style={styles.gridFlag}>{currency.flag}</Text>
-                  <Text style={styles.gridCode}>{currency.code}</Text>
-                  <Text style={styles.gridRate}>
+                  <Text style={[styles.gridCode, { color: theme.colors.onSurface }]}>{currency.code}</Text>
+                  <Text style={[styles.gridRate, { color: theme.colors.primary }]}>
                     {rate ? rate.toFixed(2) : "N/A"}
                   </Text>
                 </TouchableOpacity>
@@ -426,29 +430,29 @@ export default function CurrencyConverterScreen() {
         </View>
 
         {/* Tips */}
-        <View style={styles.tipsCard}>
-          <Text style={styles.sectionTitle}>💡 Travel Tips</Text>
+        <Surface style={[styles.tipsCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>💡 Travel Tips</Text>
           <View style={styles.tip}>
-            <Ionicons name="information-circle" size={20} color="#8b5cf6" />
-            <Text style={styles.tipText}>
+            <Ionicons name="information-circle" size={20} color={theme.colors.primary} />
+            <Text style={[styles.tipText, { color: theme.colors.onSurface }]}>
               Exchange rates fluctuate. Check before making large transactions.
             </Text>
           </View>
           <View style={styles.tip}>
-            <Ionicons name="card" size={20} color="#8b5cf6" />
-            <Text style={styles.tipText}>
+            <Ionicons name="card" size={20} color={theme.colors.primary} />
+            <Text style={[styles.tipText, { color: theme.colors.onSurface }]}>
               Credit cards often offer better exchange rates than currency
               exchange booths.
             </Text>
           </View>
           <View style={styles.tip}>
-            <Ionicons name="alert-circle" size={20} color="#8b5cf6" />
-            <Text style={styles.tipText}>
+            <Ionicons name="alert-circle" size={20} color={theme.colors.primary} />
+            <Text style={[styles.tipText, { color: theme.colors.onSurface }]}>
               Avoid exchanging money at airports - rates are usually less
               favorable.
             </Text>
           </View>
-        </View>
+        </Surface>
       </ScrollView>
 
       {/* Currency Pickers */}
@@ -467,7 +471,6 @@ export default function CurrencyConverterScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
   },
   content: {
     flex: 1,

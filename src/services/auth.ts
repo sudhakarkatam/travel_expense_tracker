@@ -155,8 +155,25 @@ export const authService = {
             throw new Error('Google Sign-In is already in progress');
           } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
             throw new Error('Google Play Services not available. Please update Google Play Services.');
+          } else if (error.code === statusCodes.DEVELOPER_ERROR || error.message?.includes('DEVELOPER_ERROR')) {
+            // DEVELOPER_ERROR typically means SHA-1 fingerprint is not configured
+            const errorMsg = 'Google Sign-In configuration error. This usually means the SHA-1 fingerprint is not configured in Firebase Console.\n\n' +
+              'To fix this:\n' +
+              '1. Get your SHA-1 fingerprint:\n' +
+              '   - Debug: keytool -list -v -keystore android/app/debug.keystore -alias androiddebugkey -storepass android -keypass android\n' +
+              '   - Release: keytool -list -v -keystore YOUR_RELEASE_KEYSTORE -alias YOUR_ALIAS\n' +
+              '2. Add the SHA-1 to Firebase Console > Project Settings > Your Android App\n' +
+              '3. Download the updated google-services.json\n' +
+              '4. Rebuild the app\n\n' +
+              'For more details: https://react-native-google-signin.github.io/docs/troubleshooting';
+            throw new Error(errorMsg);
           } else {
-            throw new Error(error.message || 'Failed to sign in with Google');
+            // Provide more helpful error message
+            const errorMsg = error.message || 'Failed to sign in with Google';
+            if (errorMsg.includes('DEVELOPER_ERROR')) {
+              throw new Error('Google Sign-In configuration error. Please check Firebase Console settings and SHA-1 fingerprint configuration.');
+            }
+            throw new Error(errorMsg);
           }
         }
       }

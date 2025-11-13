@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { useTheme, Surface } from "react-native-paper";
 import { TouchableNativeFeedback } from "react-native";
 import { PieChart, LineChart } from "react-native-chart-kit";
 import { useApp } from "@/contexts/AppContext";
@@ -116,27 +117,45 @@ export default function AnalyticsScreen({ navigation }: any) {
   const hasData = filteredExpenses.length > 0;
 
   const chartConfig = {
-    backgroundColor: "#ffffff",
-    backgroundGradientFrom: "#ffffff",
-    backgroundGradientTo: "#ffffff",
+    backgroundColor: theme.colors.surface,
+    backgroundGradientFrom: theme.colors.surface,
+    backgroundGradientTo: theme.colors.surface,
     decimalPlaces: 0,
-    color: (opacity = 1) => `rgba(139, 92, 246, ${opacity})`,
-    labelColor: (opacity = 1) => `rgba(107, 114, 128, ${opacity})`,
+    color: (opacity = 1) => {
+      const rgb = hexToRgb(theme.colors.primary);
+      return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${opacity})`;
+    },
+    labelColor: (opacity = 1) => {
+      const rgb = hexToRgb(theme.colors.onSurfaceVariant);
+      return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${opacity})`;
+    },
     style: {
       borderRadius: 16,
     },
     propsForDots: {
       r: "4",
       strokeWidth: "2",
-      stroke: "#8b5cf6",
+      stroke: theme.colors.primary,
     },
+  };
+
+  // Helper function to convert hex to RGB
+  const hexToRgb = (hex: string) => {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result
+      ? {
+          r: parseInt(result[1], 16),
+          g: parseInt(result[2], 16),
+          b: parseInt(result[3], 16),
+        }
+      : { r: 139, g: 92, b: 246 };
   };
 
   const pieChartData = categoryBreakdown.slice(0, 6).map((category) => ({
     name: category.category,
     population: category.amount,
     color: category.color,
-    legendFontColor: "#6b7280",
+    legendFontColor: theme.colors.onSurfaceVariant,
     legendFontSize: 11,
   }));
 
@@ -180,9 +199,9 @@ export default function AnalyticsScreen({ navigation }: any) {
   };
 
   const renderHeader = () => (
-    <View style={styles.header}>
-      <Text style={styles.headerTitle}>Analytics</Text>
-    </View>
+    <Surface style={[styles.header, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.outlineVariant }]} elevation={1}>
+      <Text style={[styles.headerTitle, { color: theme.colors.onSurface }]}>Analytics</Text>
+    </Surface>
   );
 
   const renderPeriodSelector = () => (
@@ -226,7 +245,7 @@ export default function AnalyticsScreen({ navigation }: any) {
             <Ionicons
               name={tab.icon as any}
               size={18}
-              color={isActive ? "#FFFFFF" : "#8b5cf6"}
+              color={isActive ? theme.colors.onPrimary : theme.colors.primary}
               style={styles.segmentedIcon}
             />
             <Text style={[styles.segmentedText, isActive && styles.segmentedTextActive]}>
@@ -240,25 +259,25 @@ export default function AnalyticsScreen({ navigation }: any) {
 
   const renderSummaryCards = () => (
     <View style={styles.summaryCards}>
-      <View style={[styles.summaryCard, styles.summaryCardPrimary]}>
-        <Ionicons name="wallet-outline" size={28} color="#8b5cf6" />
-        <Text style={styles.summaryValue}>
+      <Surface style={[styles.summaryCard, styles.summaryCardPrimary, { backgroundColor: theme.colors.primaryContainer }]} elevation={2}>
+        <Ionicons name="wallet-outline" size={28} color={theme.colors.primary} />
+        <Text style={[styles.summaryValue, { color: theme.colors.onPrimaryContainer }]}>
           {formatCurrency(totalSpent, { compact: true })}
         </Text>
-        <Text style={styles.summaryLabel}>Total Spent</Text>
-      </View>
+        <Text style={[styles.summaryLabel, { color: theme.colors.onPrimaryContainer }]}>Total Spent</Text>
+      </Surface>
 
-      <View style={styles.summaryCard}>
-        <Ionicons name="airplane-outline" size={24} color="#3b82f6" />
-        <Text style={styles.summaryValue}>{trips.length}</Text>
-        <Text style={styles.summaryLabel}>Trips</Text>
-      </View>
+      <Surface style={[styles.summaryCard, { backgroundColor: theme.colors.surface }]} elevation={2}>
+        <Ionicons name="airplane-outline" size={24} color={theme.colors.info} />
+        <Text style={[styles.summaryValue, { color: theme.colors.onSurface }]}>{trips.length}</Text>
+        <Text style={[styles.summaryLabel, { color: theme.colors.onSurfaceVariant }]}>Trips</Text>
+      </Surface>
 
-      <View style={styles.summaryCard}>
-        <Ionicons name="receipt-outline" size={24} color="#10b981" />
-        <Text style={styles.summaryValue}>{filteredExpenses.length}</Text>
-        <Text style={styles.summaryLabel}>Expenses</Text>
-      </View>
+      <Surface style={[styles.summaryCard, { backgroundColor: theme.colors.surface }]} elevation={2}>
+        <Ionicons name="receipt-outline" size={24} color={theme.colors.success} />
+        <Text style={[styles.summaryValue, { color: theme.colors.onSurface }]}>{filteredExpenses.length}</Text>
+        <Text style={[styles.summaryLabel, { color: theme.colors.onSurfaceVariant }]}>Expenses</Text>
+      </Surface>
     </View>
   );
 
@@ -274,32 +293,32 @@ export default function AnalyticsScreen({ navigation }: any) {
           contentContainerStyle={styles.insightsScroll}
         >
           {spendingInsights.slice(0, 5).map((insight) => (
-            <View key={insight.title} style={styles.insightCard}>
-              <View style={styles.insightHeader}>
+            <Surface key={insight.title} style={[styles.insightCard, { backgroundColor: theme.colors.surface }]} elevation={2}>
+              <View style={[styles.insightHeader, { backgroundColor: theme.colors.surfaceVariant }]}>
                 <Ionicons
                   name={insight.icon as any}
                   size={20}
                   color={
                     insight.type === "warning"
-                      ? "#f59e0b"
+                      ? theme.colors.warning
                       : insight.type === "success"
-                        ? "#10b981"
+                        ? theme.colors.success
                         : insight.type === "info"
-                          ? "#3b82f6"
-                          : "#ef4444"
+                          ? theme.colors.info
+                          : theme.colors.error
                   }
                 />
               </View>
-              <Text style={styles.insightTitle}>{insight.title}</Text>
-              <Text style={styles.insightDescription} numberOfLines={2}>
+              <Text style={[styles.insightTitle, { color: theme.colors.onSurface }]}>{insight.title}</Text>
+              <Text style={[styles.insightDescription, { color: theme.colors.onSurfaceVariant }]} numberOfLines={2}>
                 {insight.description}
               </Text>
               {insight.value !== undefined && (
-                <Text style={styles.insightValue}>
+                <Text style={[styles.insightValue, { color: theme.colors.primary }]}>
                   {formatCurrency(insight.value)}
                 </Text>
               )}
-            </View>
+            </Surface>
           ))}
         </ScrollView>
       </View>
@@ -313,25 +332,25 @@ export default function AnalyticsScreen({ navigation }: any) {
 
       {/* Quick Stats */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>📊 Quick Stats</Text>
+        <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>📊 Quick Stats</Text>
         <View style={styles.statsGrid}>
-          <View style={styles.statItem}>
-            <Text style={styles.statLabel}>Avg per Trip</Text>
-            <Text style={styles.statValue}>{formatCurrency(avgPerTrip)}</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statLabel}>Avg per Expense</Text>
-            <Text style={styles.statValue}>
+          <Surface style={[styles.statItem, { backgroundColor: theme.colors.surface }]} elevation={1}>
+            <Text style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}>Avg per Trip</Text>
+            <Text style={[styles.statValue, { color: theme.colors.onSurface }]}>{formatCurrency(avgPerTrip)}</Text>
+          </Surface>
+          <Surface style={[styles.statItem, { backgroundColor: theme.colors.surface }]} elevation={1}>
+            <Text style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}>Avg per Expense</Text>
+            <Text style={[styles.statValue, { color: theme.colors.onSurface }]}>
               {formatCurrency(avgPerExpense)}
             </Text>
-          </View>
+          </Surface>
           {categoryBreakdown.length > 0 && (
-            <View style={styles.statItem}>
-              <Text style={styles.statLabel}>Top Category</Text>
-              <Text style={styles.statValue} numberOfLines={1}>
+            <Surface style={[styles.statItem, { backgroundColor: theme.colors.surface }]} elevation={1}>
+              <Text style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}>Top Category</Text>
+              <Text style={[styles.statValue, { color: theme.colors.onSurface }]} numberOfLines={1}>
                 {categoryBreakdown[0].category}
               </Text>
-            </View>
+            </Surface>
           )}
         </View>
       </View>
@@ -372,7 +391,7 @@ export default function AnalyticsScreen({ navigation }: any) {
                   <Text style={styles.expenseAmount}>
                     {formatCurrency(expense.amount, { currency: expense.currency })}
                   </Text>
-                  <Ionicons name="chevron-forward" size={16} color="#8E8E93" />
+                  <Ionicons name="chevron-forward" size={16} color={theme.colors.onSurfaceVariant} />
                 </View>
               </TouchableOpacity>
             );
@@ -731,7 +750,7 @@ export default function AnalyticsScreen({ navigation }: any) {
                 <Ionicons
                   name={selectedTripComparison.includes(trip.tripId) ? 'checkmark-circle' : 'checkmark-circle-outline'}
                   size={24}
-                  color={selectedTripComparison.includes(trip.tripId) ? '#8b5cf6' : '#d1d5db'}
+                  color={selectedTripComparison.includes(trip.tripId) ? theme.colors.primary : theme.colors.onSurfaceVariant}
                 />
               </View>
               <View style={styles.enhancedTripBar}>
@@ -773,10 +792,8 @@ export default function AnalyticsScreen({ navigation }: any) {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Analytics</Text>
-      </View>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={["top"]}>
+      {renderHeader()}
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}

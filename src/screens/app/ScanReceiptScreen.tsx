@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, Image, ScrollView, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme, Surface } from 'react-native-paper';
 import { ocrService, OCRResult } from '@/services/ocrService';
 import { pickImage, takePhoto } from '@/utils/imageStorage';
 
 export default function ScanReceiptScreen({ navigation }: any) {
+  const theme = useTheme();
   const [isScanning, setIsScanning] = useState(false);
   const [scanResult, setScanResult] = useState<OCRResult | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
@@ -89,43 +91,43 @@ export default function ScanReceiptScreen({ navigation }: any) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
+      <Surface style={[styles.header, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.outlineVariant }]} elevation={1}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
+          <Ionicons name="arrow-back" size={24} color={theme.colors.onSurface} />
         </TouchableOpacity>
-        <Text style={styles.title}>Scan Receipt</Text>
+        <Text style={[styles.title, { color: theme.colors.onSurface }]}>Scan Receipt</Text>
         <View style={{ width: 24 }} />
-      </View>
+      </Surface>
 
       <ScrollView style={styles.content}>
         {!capturedImage ? (
           <View style={styles.placeholder}>
-            <Ionicons name="camera" size={64} color="#ccc" />
-            <Text style={styles.placeholderTitle}>Receipt Scanner</Text>
-            <Text style={styles.placeholderText}>
+            <Ionicons name="camera" size={64} color={theme.colors.onSurfaceVariant} />
+            <Text style={[styles.placeholderTitle, { color: theme.colors.onSurface }]}>Receipt Scanner</Text>
+            <Text style={[styles.placeholderText, { color: theme.colors.onSurfaceVariant }]}>
               Take a photo of your receipt to automatically extract expense details
             </Text>
             
             <View style={styles.buttonContainer}>
               <TouchableOpacity 
-                style={styles.scanButton}
+                style={[styles.scanButton, { backgroundColor: theme.colors.primary }]}
                 onPress={handleTakePhoto}
                 disabled={isScanning}
               >
-                <Ionicons name="camera" size={20} color="white" />
-                <Text style={styles.scanButtonText}>
+                <Ionicons name="camera" size={20} color={theme.colors.onPrimary} />
+                <Text style={[styles.scanButtonText, { color: theme.colors.onPrimary }]}>
                   {isScanning ? 'Scanning...' : 'Take Photo'}
                 </Text>
               </TouchableOpacity>
 
               <TouchableOpacity 
-                style={styles.pickButton}
+                style={[styles.pickButton, { backgroundColor: theme.colors.surfaceVariant }]}
                 onPress={handlePickImage}
                 disabled={isScanning}
               >
-                <Ionicons name="image" size={20} color="#8b5cf6" />
-                <Text style={styles.pickButtonText}>Choose from Gallery</Text>
+                <Ionicons name="image" size={20} color={theme.colors.primary} />
+                <Text style={[styles.pickButtonText, { color: theme.colors.primary }]}>Choose from Gallery</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -133,86 +135,89 @@ export default function ScanReceiptScreen({ navigation }: any) {
           <View style={styles.resultsContainer}>
             <View style={styles.imageContainer}>
               <Image source={{ uri: capturedImage }} style={styles.receiptImage} />
-              <TouchableOpacity style={styles.retakeButton} onPress={handleRetakePhoto}>
-                <Ionicons name="refresh" size={20} color="white" />
+              <TouchableOpacity style={[styles.retakeButton, { backgroundColor: 'rgba(0, 0, 0, 0.6)' }]} onPress={handleRetakePhoto}>
+                <Ionicons name="refresh" size={20} color={theme.colors.onPrimary} />
               </TouchableOpacity>
             </View>
 
             {scanResult && (
-              <View style={styles.ocrResults}>
-                <Text style={styles.resultsTitle}>Extracted Information</Text>
+              <Surface style={[styles.ocrResults, { backgroundColor: theme.colors.surfaceVariant }]} elevation={1}>
+                <Text style={[styles.resultsTitle, { color: theme.colors.onSurface }]}>Extracted Information</Text>
                 
                 <View style={styles.confidenceContainer}>
-                  <Text style={styles.confidenceText}>
+                  <Text style={[styles.confidenceText, { color: theme.colors.onSurfaceVariant }]}>
                     Confidence: {scanResult.confidence.toFixed(1)}%
                   </Text>
                   <View style={[
                     styles.confidenceBar,
-                    { width: `${scanResult.confidence}%` }
+                    { width: `${scanResult.confidence}%`, backgroundColor: theme.colors.primary }
                   ]} />
                 </View>
 
                 <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Amount *</Text>
+                  <Text style={[styles.label, { color: theme.colors.onSurface }]}>Amount *</Text>
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant, color: theme.colors.onSurface }]}
                     value={editingData.amount}
                     onChangeText={(value) => setEditingData(prev => ({ ...prev, amount: value }))}
                     placeholder="$ 0.00"
+                    placeholderTextColor={theme.colors.onSurfaceVariant}
                     keyboardType="numeric"
                   />
                 </View>
 
                 <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Description *</Text>
+                  <Text style={[styles.label, { color: theme.colors.onSurface }]}>Description *</Text>
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant, color: theme.colors.onSurface }]}
                     value={editingData.description}
                     onChangeText={(value) => setEditingData(prev => ({ ...prev, description: value }))}
                     placeholder="What did you buy?"
+                    placeholderTextColor={theme.colors.onSurfaceVariant}
                   />
                 </View>
 
                 <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Merchant</Text>
+                  <Text style={[styles.label, { color: theme.colors.onSurface }]}>Merchant</Text>
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant, color: theme.colors.onSurface }]}
                     value={editingData.merchant}
                     onChangeText={(value) => setEditingData(prev => ({ ...prev, merchant: value }))}
                     placeholder="Store name"
+                    placeholderTextColor={theme.colors.onSurfaceVariant}
                   />
                 </View>
 
                 {scanResult.tax && scanResult.tax > 0 && (
-                  <View style={styles.infoCard}>
-                    <Ionicons name="receipt-outline" size={16} color="#8b5cf6" />
-                    <Text style={styles.infoText}>Tax: ${scanResult.tax.toFixed(2)}</Text>
+                  <View style={[styles.infoCard, { backgroundColor: theme.colors.surfaceVariant }]}>
+                    <Ionicons name="receipt-outline" size={16} color={theme.colors.primary} />
+                    <Text style={[styles.infoText, { color: theme.colors.onSurface }]}>Tax: ${scanResult.tax.toFixed(2)}</Text>
                   </View>
                 )}
 
                 {scanResult.items && scanResult.items.length > 0 && (
-                  <View style={styles.itemsContainer}>
-                    <Text style={styles.itemsTitle}>Items Found ({scanResult.items.length}):</Text>
+                  <View style={[styles.itemsContainer, { backgroundColor: theme.colors.surface }]}>
+                    <Text style={[styles.itemsTitle, { color: theme.colors.onSurface }]}>Items Found ({scanResult.items.length}):</Text>
                     {scanResult.items.slice(0, 3).map((item, index) => (
                       <View key={index} style={styles.itemRow}>
-                        <Text style={styles.itemName}>{item.name}</Text>
-                        <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
+                        <Text style={[styles.itemName, { color: theme.colors.onSurfaceVariant }]}>{item.name}</Text>
+                        <Text style={[styles.itemPrice, { color: theme.colors.onSurface }]}>${item.price.toFixed(2)}</Text>
                       </View>
                     ))}
                     {scanResult.items.length > 3 && (
-                      <Text style={styles.moreItemsText}>+{scanResult.items.length - 3} more items</Text>
+                      <Text style={[styles.moreItemsText, { color: theme.colors.primary }]}>+{scanResult.items.length - 3} more items</Text>
                     )}
                   </View>
                 )}
 
                 {scanResult.provider && (
-                  <View style={styles.providerBadge}>
+                  <View style={[styles.providerBadge, { backgroundColor: theme.colors.surfaceVariant }]}>
                     <Ionicons 
                       name={scanResult.provider === 'google-vision' ? 'cloud' : 'document-text'} 
                       size={12} 
-                      color="#8b5cf6" 
+                      color={theme.colors.primary} 
                     />
-                    <Text style={styles.providerText}>
+                    <Text style={[styles.providerText, { color: theme.colors.primary }]}>
                       {scanResult.provider === 'google-vision' ? 'Google Vision' : 
                        scanResult.provider === 'aws-textract' ? 'AWS Textract' : 'Tesseract OCR'}
                     </Text>
@@ -225,31 +230,31 @@ export default function ScanReceiptScreen({ navigation }: any) {
                       style={styles.rawTextToggle}
                       onPress={() => setShowRawText(!showRawText)}
                     >
-                      <Text style={styles.rawTextTitle}>Raw OCR Text</Text>
+                      <Text style={[styles.rawTextTitle, { color: theme.colors.onSurface }]}>Raw OCR Text</Text>
                       <Ionicons 
                         name={showRawText ? "chevron-up" : "chevron-down"} 
                         size={20} 
-                        color="#8b5cf6" 
+                        color={theme.colors.primary} 
                       />
                     </TouchableOpacity>
                     {showRawText && (
-                      <ScrollView style={styles.rawTextView}>
-                        <Text style={styles.rawText}>{scanResult.rawText}</Text>
+                      <ScrollView style={[styles.rawTextView, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]}>
+                        <Text style={[styles.rawText, { color: theme.colors.onSurfaceVariant }]}>{scanResult.rawText}</Text>
                       </ScrollView>
                     )}
                   </View>
                 )}
-              </View>
+              </Surface>
             )}
 
             <View style={styles.actionButtons}>
               <TouchableOpacity 
-                style={styles.createButton}
+                style={[styles.createButton, { backgroundColor: theme.colors.primary }, (!editingData.amount || !editingData.description) && { opacity: 0.5 }]}
                 onPress={handleCreateExpense}
                 disabled={!editingData.amount || !editingData.description}
               >
-                <Ionicons name="checkmark" size={20} color="white" />
-                <Text style={styles.createButtonText}>Create Expense</Text>
+                <Ionicons name="checkmark" size={20} color={theme.colors.onPrimary} />
+                <Text style={[styles.createButtonText, { color: theme.colors.onPrimary }]}>Create Expense</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -262,7 +267,6 @@ export default function ScanReceiptScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
   },
   header: {
     flexDirection: 'row',
@@ -270,13 +274,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   title: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
   },
   content: {
     flex: 1,
@@ -291,13 +293,11 @@ const styles = StyleSheet.create({
   placeholderTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
     marginTop: 16,
     marginBottom: 8,
   },
   placeholderText: {
     fontSize: 16,
-    color: '#666',
     textAlign: 'center',
     marginBottom: 32,
     paddingHorizontal: 32,
@@ -308,28 +308,24 @@ const styles = StyleSheet.create({
   scanButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#8b5cf6',
     paddingHorizontal: 24,
     paddingVertical: 16,
     borderRadius: 12,
     gap: 8,
   },
   scanButtonText: {
-    color: 'white',
     fontSize: 16,
     fontWeight: '600',
   },
   pickButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f3f4f6',
     paddingHorizontal: 24,
     paddingVertical: 16,
     borderRadius: 12,
     gap: 8,
   },
   pickButtonText: {
-    color: '#8b5cf6',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -349,12 +345,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     right: 8,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     borderRadius: 20,
     padding: 8,
   },
   ocrResults: {
-    backgroundColor: '#f9fafb',
     padding: 16,
     borderRadius: 8,
     marginBottom: 24,
@@ -362,7 +356,6 @@ const styles = StyleSheet.create({
   resultsTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
     marginBottom: 16,
   },
   confidenceContainer: {
@@ -370,12 +363,10 @@ const styles = StyleSheet.create({
   },
   confidenceText: {
     fontSize: 14,
-    color: '#666',
     marginBottom: 8,
   },
   confidenceBar: {
     height: 4,
-    backgroundColor: '#8b5cf6',
     borderRadius: 2,
   },
   inputGroup: {
@@ -384,21 +375,17 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
     marginBottom: 8,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#d1d5db',
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    backgroundColor: '#fff',
   },
   infoCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
     padding: 12,
     borderRadius: 8,
     marginBottom: 12,
@@ -406,11 +393,9 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: 14,
-    color: '#333',
     fontWeight: '500',
   },
   itemsContainer: {
-    backgroundColor: '#F9FAFB',
     padding: 12,
     borderRadius: 8,
     marginBottom: 12,
@@ -418,7 +403,6 @@ const styles = StyleSheet.create({
   itemsTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
     marginBottom: 8,
   },
   itemRow: {
@@ -428,17 +412,14 @@ const styles = StyleSheet.create({
   },
   itemName: {
     fontSize: 13,
-    color: '#666',
     flex: 1,
   },
   itemPrice: {
     fontSize: 13,
-    color: '#333',
     fontWeight: '600',
   },
   moreItemsText: {
     fontSize: 12,
-    color: '#8b5cf6',
     marginTop: 4,
     fontStyle: 'italic',
   },
@@ -446,7 +427,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    backgroundColor: '#F3F4F6',
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 12,
@@ -455,7 +435,6 @@ const styles = StyleSheet.create({
   },
   providerText: {
     fontSize: 12,
-    color: '#8b5cf6',
     fontWeight: '500',
   },
   rawTextContainer: {
@@ -470,19 +449,15 @@ const styles = StyleSheet.create({
   rawTextTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
   },
   rawTextView: {
     maxHeight: 100,
     borderWidth: 1,
-    borderColor: '#d1d5db',
     borderRadius: 8,
     padding: 12,
-    backgroundColor: '#fff',
   },
   rawText: {
     fontSize: 12,
-    color: '#666',
     fontFamily: 'monospace',
   },
   actionButtons: {
@@ -492,13 +467,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#8b5cf6',
     paddingVertical: 16,
     borderRadius: 12,
     gap: 8,
   },
   createButtonText: {
-    color: 'white',
     fontSize: 16,
     fontWeight: '600',
   },

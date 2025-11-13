@@ -31,16 +31,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     checkAuthState();
     
     // Listen for auth state changes
-    const unsubscribe = authService.onAuthStateChanged((firebaseUser) => {
+    const unsubscribe = authService.onAuthStateChanged(async (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser);
         setIsGuest(false);
+        // Ensure guest mode is cleared when user logs in
+        await storage.setGuestMode(false);
+        // Trigger data reload by updating state
+        console.log('[AuthContext] Auth state changed - user logged in');
       } else {
         // Check if guest mode
-        storage.getGuestMode().then((isGuest) => {
-          setIsGuest(isGuest);
-          setUser(null);
-        });
+        const isGuest = await storage.getGuestMode();
+        setIsGuest(isGuest);
+        setUser(null);
+        console.log('[AuthContext] Auth state changed - user logged out, guest mode:', isGuest);
       }
     });
 

@@ -32,6 +32,7 @@ export default function HomeScreen({ navigation, route }: any) {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [statusFilter, setStatusFilter] = useState<TripStatus | "all">("all");
   const [searchQuery, setSearchQuery] = useState(route?.params?.returnSearchQuery || "");
+  const [isSearchVisible, setIsSearchVisible] = useState(false);
 
   useEffect(() => {
     if (route?.params?.returnSearchQuery !== undefined) {
@@ -276,10 +277,10 @@ export default function HomeScreen({ navigation, route }: any) {
                     size={18}
                     color={theme.colors.secondary}
                   />
-                  <Text style={[styles.statValue, { color: theme.colors.onSurface }]}>
+                  <Text style={[styles.statValue, { color: theme.colors.onSurface }]} numberOfLines={1}>
                     {trip.members?.length || 1}
                   </Text>
-                  <Text style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}>
+                  <Text style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]} numberOfLines={1}>
                     Members
                   </Text>
                 </View>
@@ -339,7 +340,18 @@ export default function HomeScreen({ navigation, route }: any) {
           <AnimatedButton
             mode="text"
             icon="search"
-            onPress={() => {}}
+            onPress={() => {
+              setIsSearchVisible(!isSearchVisible);
+              if (!isSearchVisible) {
+                // Focus search when opening
+                setTimeout(() => {
+                  // Searchbar will auto-focus when visible
+                }, 100);
+              } else {
+                // Clear search when closing
+                setSearchQuery("");
+              }
+            }}
             label=""
             style={styles.searchButton}
           />
@@ -347,7 +359,7 @@ export default function HomeScreen({ navigation, route }: any) {
       </Surface>
 
       {/* Search Bar */}
-      {searchQuery !== "" && (
+      {isSearchVisible && (
         <MotiView
           from={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 64 }}
@@ -358,65 +370,17 @@ export default function HomeScreen({ navigation, route }: any) {
             onChangeText={setSearchQuery}
             value={searchQuery}
             icon="magnify"
-            onClearIconPress={() => setSearchQuery("")}
+            onClearIconPress={() => {
+              setSearchQuery("");
+              setIsSearchVisible(false);
+            }}
             style={styles.searchbar}
+            autoFocus
           />
         </MotiView>
       )}
 
-      {/* Filter Chips */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.chipsContainer}
-      >
-        <Chip
-          label="All"
-          selected={statusFilter === "all"}
-          onPress={() => {
-            setStatusFilter("all");
-            if (Platform.OS !== "web") {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            }
-          }}
-          variant="flat"
-        />
-        <Chip
-          label="Active"
-          selected={statusFilter === "active"}
-          onPress={() => {
-            setStatusFilter("active");
-            if (Platform.OS !== "web") {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            }
-          }}
-          variant="flat"
-        />
-        <Chip
-          label="Upcoming"
-          selected={statusFilter === "upcoming"}
-          onPress={() => {
-            setStatusFilter("upcoming");
-            if (Platform.OS !== "web") {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            }
-          }}
-          variant="flat"
-        />
-        <Chip
-          label="Completed"
-          selected={statusFilter === "completed"}
-          onPress={() => {
-            setStatusFilter("completed");
-            if (Platform.OS !== "web") {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            }
-          }}
-          variant="flat"
-        />
-      </ScrollView>
-
-      {/* Trips List */}
+      {/* Combined ScrollView for Filters and Trips */}
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -430,6 +394,60 @@ export default function HomeScreen({ navigation, route }: any) {
         }
         showsVerticalScrollIndicator={false}
       >
+        {/* Filter Chips */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.chipsContainer}
+          style={styles.chipsScrollView}
+        >
+          <Chip
+            label="All"
+            selected={statusFilter === "all"}
+            onPress={() => {
+              setStatusFilter("all");
+              if (Platform.OS !== "web") {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }
+            }}
+            variant="flat"
+          />
+          <Chip
+            label="Active"
+            selected={statusFilter === "active"}
+            onPress={() => {
+              setStatusFilter("active");
+              if (Platform.OS !== "web") {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }
+            }}
+            variant="flat"
+          />
+          <Chip
+            label="Upcoming"
+            selected={statusFilter === "upcoming"}
+            onPress={() => {
+              setStatusFilter("upcoming");
+              if (Platform.OS !== "web") {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }
+            }}
+            variant="flat"
+          />
+          <Chip
+            label="Completed"
+            selected={statusFilter === "completed"}
+            onPress={() => {
+              setStatusFilter("completed");
+              if (Platform.OS !== "web") {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }
+            }}
+            variant="flat"
+          />
+        </ScrollView>
+
+        {/* Trips List */}
         {filteredTrips.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Ionicons
@@ -450,7 +468,9 @@ export default function HomeScreen({ navigation, route }: any) {
             />
           </View>
         ) : (
-          filteredTrips.map((trip, index) => renderTripCard(trip, index))
+          <View style={styles.tripsContainer}>
+            {filteredTrips.map((trip, index) => renderTripCard(trip, index))}
+          </View>
         )}
       </ScrollView>
 
@@ -500,6 +520,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     elevation: 0,
   },
+  chipsScrollView: {
+    maxHeight: 60,
+  },
   chipsContainer: {
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -509,11 +532,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: 16,
     paddingBottom: 100,
   },
+  tripsContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 0,
+    gap: 16,
+  },
   cardWrapper: {
-    marginBottom: 16,
+    width: '100%',
   },
   tripCard: {
     overflow: "hidden",
@@ -610,6 +637,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
+    gap: 8,
   },
   budgetLabel: {
     fontSize: 12,
@@ -636,12 +664,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-around",
     paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: "#F3F4F6",
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
   statItem: {
     alignItems: "center",
     gap: 4,
+    flex: 1,
+    minWidth: 0,
   },
   statValue: {
     fontSize: 16,

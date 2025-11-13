@@ -35,7 +35,11 @@ export default function OnboardingScreen({ navigation }: OnboardingScreenProps) 
   const handleContinueAsGuest = async () => {
     try {
       await setGuestMode();
-      navigation.replace('MainTabs');
+      // Navigation will happen automatically when guest mode is set
+      // Use navigate instead of replace to avoid navigation errors
+      if (navigation.canGoBack()) {
+        navigation.goBack();
+      }
     } catch (error) {
       console.error('Error setting guest mode:', error);
     }

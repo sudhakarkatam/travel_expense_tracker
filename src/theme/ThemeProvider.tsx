@@ -173,9 +173,13 @@ const fontConfig = {
   },
 };
 
+// Use default MD3 fonts to avoid configuration issues
+// Custom font configuration can cause "medium" property errors
+// The default MD3 fonts are properly structured and work with all components
 const lightTheme = {
   ...MD3LightTheme,
-  fonts: configureFonts({ config: fontConfig }),
+  // Don't override fonts - use MD3 defaults which are properly structured
+  // fonts: configuredFonts, // Commented out to use defaults
   colors: {
     ...MD3LightTheme.colors,
     primary: Colors.primary,
@@ -225,7 +229,8 @@ const lightTheme = {
 
 const darkTheme = {
   ...MD3DarkTheme,
-  fonts: configureFonts({ config: fontConfig }),
+  // Don't override fonts - use MD3 defaults which are properly structured
+  // fonts: configuredFonts, // Commented out to use defaults
   colors: {
     ...MD3DarkTheme.colors,
     primary: Colors.primaryLight,
@@ -245,6 +250,20 @@ const darkTheme = {
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
+
+  // Safety check: Ensure fonts are always defined
+  if (!theme.fonts || typeof theme.fonts !== 'object') {
+    console.error('Theme fonts are not properly defined, using MD3 defaults');
+    const safeTheme = {
+      ...theme,
+      fonts: colorScheme === 'dark' ? MD3DarkTheme.fonts : MD3LightTheme.fonts,
+    };
+    return (
+      <PaperProvider theme={safeTheme}>
+        {children}
+      </PaperProvider>
+    );
+  }
 
   return (
     <PaperProvider theme={theme}>

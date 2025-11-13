@@ -1,18 +1,20 @@
 pluginManagement {
+  // Determine project root - works for both local and EAS builds
+  def projectRoot = rootDir.getParentFile()
+  
   def reactNativeGradlePlugin = new File(
     providers.exec {
-      workingDir(rootDir)
-      commandLine("node", "--print", "require.resolve('@react-native/gradle-plugin/package.json', { paths: [require.resolve('react-native/package.json')] })")
+      workingDir(projectRoot)
+      commandLine("node", "-e", "console.log(require('path').dirname(require.resolve('@react-native/gradle-plugin/package.json', { paths: [require.resolve('react-native/package.json')] })));")
     }.standardOutput.asText.get().trim()
-  ).getParentFile().absolutePath
+  ).absolutePath
   includeBuild(reactNativeGradlePlugin)
   
   def expoPluginsPath = new File(
     providers.exec {
-      workingDir(rootDir)
-      commandLine("node", "--print", "require.resolve('expo-modules-autolinking/package.json', { paths: [require.resolve('expo/package.json')] })")
-    }.standardOutput.asText.get().trim(),
-    "../android/expo-gradle-plugin"
+      workingDir(projectRoot)
+      commandLine("node", "-e", "console.log(require('path').join(require('path').dirname(require.resolve('expo-modules-autolinking/package.json', { paths: [require.resolve('expo/package.json')] })), 'android', 'expo-gradle-plugin'));")
+    }.standardOutput.asText.get().trim()
   ).absolutePath
   includeBuild(expoPluginsPath)
 }
@@ -23,12 +25,15 @@ plugins {
 }
 
 extensions.configure(com.facebook.react.ReactSettingsExtension) { ex ->
+  // Autolinking configuration - use Expo's autolinking
   if (System.getenv('EXPO_USE_COMMUNITY_AUTOLINKING') == '1') {
     ex.autolinkLibrariesFromCommand()
   } else {
     ex.autolinkLibrariesFromCommand(expoAutolinking.rnConfigCommand)
   }
 }
+
+// Include Expo modules with autolinking
 expoAutolinking.useExpoModules()
 
 rootProject.name = 'Travel Expense Tracker'

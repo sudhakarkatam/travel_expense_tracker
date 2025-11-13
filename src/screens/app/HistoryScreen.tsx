@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, FlatList, Platform, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme, Surface } from 'react-native-paper';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useApp } from '@/contexts/AppContext';
 import { formatDateTime } from '@/utils/dateFormatter';
@@ -23,6 +24,7 @@ type ViewMode = 'timeline' | 'calendar';
 type PresetFilter = 'all' | 'today' | 'week' | 'month' | 'year' | 'custom';
 
 export default function HistoryScreen({ navigation }: any) {
+  const theme = useTheme();
   const { trips = [], expenses = [], settlements = [], auditLogs = [] } = useApp();
   const [activeTab, setActiveTab] = useState<'timeline' | 'audit'>('timeline');
   const [viewMode, setViewMode] = useState<ViewMode>('timeline');
@@ -51,7 +53,7 @@ export default function HistoryScreen({ navigation }: any) {
         date: expense.createdAt,
         tripName: trip?.name,
         icon: 'receipt',
-        color: '#8b5cf6',
+        color: theme.colors.primary,
       });
     });
 
@@ -65,7 +67,7 @@ export default function HistoryScreen({ navigation }: any) {
         date: trip.createdAt,
         tripName: trip.name,
         icon: 'airplane',
-        color: '#3b82f6',
+        color: theme.colors.info,
       });
     });
 
@@ -81,13 +83,13 @@ export default function HistoryScreen({ navigation }: any) {
         date: settlement.settledAt,
         tripName: trip?.name,
         icon: 'checkmark-circle',
-        color: '#22c55e',
+        color: theme.colors.success,
       });
     });
 
     // Sort by date (newest first)
     return items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [trips, expenses, settlements]);
+  }, [trips, expenses, settlements, theme]);
 
   const applyPresetFilter = (preset: PresetFilter) => {
     const now = new Date();
@@ -267,40 +269,45 @@ export default function HistoryScreen({ navigation }: any) {
   };
 
   const renderTimelineItem = ({ item }: { item: TimelineItem }) => (
-    <TouchableOpacity
-      style={styles.timelineItem}
-      onPress={() => handleTimelineItemPress(item)}
-      activeOpacity={0.7}
+    <Surface
+      style={[styles.timelineItem, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.outlineVariant }]}
+      elevation={1}
     >
-      <View style={[styles.timelineIcon, { backgroundColor: item.color }]}>
-        <Ionicons name={item.icon as any} size={20} color="white" />
-      </View>
-      
-      <View style={styles.timelineContent}>
-        <View style={styles.timelineHeader}>
-          <Text style={styles.timelineTitle}>{item.title}</Text>
-          {item.amount && (
-            <Text style={styles.timelineAmount}>
-              {formatCurrency(item.amount, { currency: 'USD' })}
+      <TouchableOpacity
+        style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}
+        onPress={() => handleTimelineItemPress(item)}
+        activeOpacity={0.7}
+      >
+        <View style={[styles.timelineIcon, { backgroundColor: item.color }]}>
+          <Ionicons name={item.icon as any} size={20} color={theme.colors.onPrimary} />
+        </View>
+        
+        <View style={styles.timelineContent}>
+          <View style={styles.timelineHeader}>
+            <Text style={[styles.timelineTitle, { color: theme.colors.onSurface }]}>{item.title}</Text>
+            {item.amount && (
+              <Text style={[styles.timelineAmount, { color: theme.colors.primary }]}>
+                {formatCurrency(item.amount, { currency: 'USD' })}
+              </Text>
+            )}
+          </View>
+          
+          <Text style={[styles.timelineDescription, { color: theme.colors.onSurfaceVariant }]}>{item.description}</Text>
+          
+          <View style={styles.timelineFooter}>
+            <Text style={[styles.timelineDate, { color: theme.colors.onSurfaceVariant }]}>
+              {formatDateTime(item.date)}
             </Text>
-          )}
+            {item.tripName && (
+              <View style={[styles.tripTag, { backgroundColor: theme.colors.surfaceVariant }]}>
+                <Text style={[styles.tripTagText, { color: theme.colors.onSurfaceVariant }]}>{item.tripName}</Text>
+              </View>
+            )}
+          </View>
         </View>
-        
-        <Text style={styles.timelineDescription}>{item.description}</Text>
-        
-        <View style={styles.timelineFooter}>
-          <Text style={styles.timelineDate}>
-            {formatDateTime(item.date)}
-          </Text>
-          {item.tripName && (
-            <View style={styles.tripTag}>
-              <Text style={styles.tripTagText}>{item.tripName}</Text>
-            </View>
-          )}
-        </View>
-      </View>
-      <Ionicons name="chevron-forward" size={20} color="#8E8E93" />
-    </TouchableOpacity>
+        <Ionicons name="chevron-forward" size={20} color={theme.colors.onSurfaceVariant} />
+      </TouchableOpacity>
+    </Surface>
   );
 
   const renderCalendarView = () => {
@@ -317,9 +324,9 @@ export default function HistoryScreen({ navigation }: any) {
               setSelectedMonth(prevMonth);
             }}
           >
-            <Ionicons name="chevron-back" size={24} color="#8b5cf6" />
+            <Ionicons name="chevron-back" size={24} color={theme.colors.primary} />
           </TouchableOpacity>
-          <Text style={styles.calendarMonthName}>{monthName}</Text>
+          <Text style={[styles.calendarMonthName, { color: theme.colors.onSurface }]}>{monthName}</Text>
           <TouchableOpacity
             onPress={() => {
               const nextMonth = new Date(selectedMonth);
@@ -327,14 +334,14 @@ export default function HistoryScreen({ navigation }: any) {
               setSelectedMonth(nextMonth);
             }}
           >
-            <Ionicons name="chevron-forward" size={24} color="#8b5cf6" />
+            <Ionicons name="chevron-forward" size={24} color={theme.colors.primary} />
           </TouchableOpacity>
         </View>
 
         <View style={styles.calendarGrid}>
           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
             <View key={day} style={styles.calendarDayHeader}>
-              <Text style={styles.calendarDayHeaderText}>{day}</Text>
+              <Text style={[styles.calendarDayHeaderText, { color: theme.colors.onSurfaceVariant }]}>{day}</Text>
             </View>
           ))}
 
@@ -349,7 +356,7 @@ export default function HistoryScreen({ navigation }: any) {
             return (
               <TouchableOpacity
                 key={date.toISOString()}
-                style={[styles.calendarDay, isToday && styles.calendarDayToday]}
+                style={[styles.calendarDay, isToday && [styles.calendarDayToday, { backgroundColor: theme.colors.surfaceVariant }]]}
                 onPress={() => {
                   if (itemsForDate.length > 0) {
                     setViewMode('timeline');
@@ -359,14 +366,14 @@ export default function HistoryScreen({ navigation }: any) {
                   }
                 }}
               >
-                <Text style={[styles.calendarDayNumber, isToday && styles.calendarDayNumberToday]}>
+                <Text style={[styles.calendarDayNumber, { color: theme.colors.onSurface }, isToday && { color: theme.colors.primary, fontWeight: 'bold' }]}>
                   {date.getDate()}
                 </Text>
                 {itemsForDate.length > 0 && (
                   <View style={styles.calendarDayIndicator}>
                     <View style={[styles.calendarDot, { backgroundColor: itemsForDate[0].color }]} />
                     {itemsForDate.length > 1 && (
-                      <Text style={styles.calendarDayCount}>+{itemsForDate.length - 1}</Text>
+                      <Text style={[styles.calendarDayCount, { color: theme.colors.onSurfaceVariant }]}>+{itemsForDate.length - 1}</Text>
                     )}
                   </View>
                 )}
@@ -377,9 +384,9 @@ export default function HistoryScreen({ navigation }: any) {
 
         {Object.keys(itemsByDate).length === 0 && (
           <View style={styles.emptyState}>
-            <Ionicons name="calendar-outline" size={48} color="#d1d5db" />
-            <Text style={styles.emptyTitle}>No Activity This Month</Text>
-            <Text style={styles.emptySubtitle}>Try selecting a different month or adjusting filters</Text>
+            <Ionicons name="calendar-outline" size={48} color={theme.colors.onSurfaceVariant} />
+            <Text style={[styles.emptyTitle, { color: theme.colors.onSurface }]}>No Activity This Month</Text>
+            <Text style={[styles.emptySubtitle, { color: theme.colors.onSurfaceVariant }]}>Try selecting a different month or adjusting filters</Text>
           </View>
         )}
       </ScrollView>
@@ -388,18 +395,18 @@ export default function HistoryScreen({ navigation }: any) {
 
   const renderAuditLogSection = (date: string, logs: any[]) => (
     <View key={date} style={styles.auditSection}>
-      <Text style={styles.auditDateHeader}>{date}</Text>
+      <Text style={[styles.auditDateHeader, { color: theme.colors.onSurface, borderBottomColor: theme.colors.outlineVariant }]}>{date}</Text>
       {logs.map(log => (
         <View key={log.id} style={styles.auditLogItem}>
           <View style={styles.auditLogIcon}>
-            <Ionicons name={getAuditLogIcon(log) as any} size={16} color="#666" />
+            <Ionicons name={getAuditLogIcon(log) as any} size={16} color={theme.colors.onSurfaceVariant} />
           </View>
           
           <View style={styles.auditLogContent}>
-            <Text style={styles.auditLogDescription}>
+            <Text style={[styles.auditLogDescription, { color: theme.colors.onSurface }]}>
               {getAuditLogDescription(log)}
             </Text>
-            <Text style={styles.auditLogTime}>
+            <Text style={[styles.auditLogTime, { color: theme.colors.onSurfaceVariant }]}>
               {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </Text>
           </View>
@@ -409,30 +416,30 @@ export default function HistoryScreen({ navigation }: any) {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
+      <Surface style={[styles.header, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.outlineVariant }]} elevation={1}>
         <TouchableOpacity 
           onPress={() => navigation.goBack()}
           style={styles.backButton}
         >
-          <Ionicons name="arrow-back" size={24} color="#333" />
+          <Ionicons name="arrow-back" size={24} color={theme.colors.onSurface} />
         </TouchableOpacity>
-        <Text style={styles.title}>History</Text>
+        <Text style={[styles.title, { color: theme.colors.onSurface }]}>History</Text>
         <TouchableOpacity
           onPress={() => navigation.navigate('AllExpenses', { tripId: null })}
           style={styles.showAllButton}
         >
-          <Text style={styles.showAllButtonText}>Show All</Text>
+          <Text style={[styles.showAllButtonText, { color: theme.colors.primary }]}>Show All</Text>
         </TouchableOpacity>
-      </View>
+      </Surface>
 
-      <View style={styles.searchContainer}>
-        <View style={styles.searchBar}>
-          <Ionicons name="search-outline" size={20} color="#8E8E93" style={styles.searchIcon} />
+      <View style={[styles.searchContainer, { borderBottomColor: theme.colors.outlineVariant }]}>
+        <View style={[styles.searchBar, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outlineVariant }]}>
+          <Ionicons name="search-outline" size={20} color={theme.colors.onSurfaceVariant} style={styles.searchIcon} />
           <TextInput
-            style={styles.searchInput}
+            style={[styles.searchInput, { color: theme.colors.onSurface }]}
             placeholder="Search history..."
-            placeholderTextColor="#8E8E93"
+            placeholderTextColor={theme.colors.onSurfaceVariant}
             value={searchQuery}
             onChangeText={setSearchQuery}
             returnKeyType="search"
@@ -442,30 +449,30 @@ export default function HistoryScreen({ navigation }: any) {
               onPress={() => setSearchQuery('')}
               style={styles.clearButton}
             >
-              <Ionicons name="close-circle" size={20} color="#8E8E93" />
+              <Ionicons name="close-circle" size={20} color={theme.colors.onSurfaceVariant} />
             </TouchableOpacity>
           )}
         </View>
       </View>
 
-      <View style={styles.tabContainer}>
+      <Surface style={[styles.tabContainer, { backgroundColor: theme.colors.surfaceVariant }]} elevation={0}>
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'timeline' && styles.activeTab]}
+          style={[styles.tab, activeTab === 'timeline' && [styles.activeTab, { backgroundColor: theme.colors.surface }]]}
           onPress={() => setActiveTab('timeline')}
         >
-          <Text style={[styles.tabText, activeTab === 'timeline' && styles.activeTabText]}>
+          <Text style={[styles.tabText, { color: theme.colors.onSurfaceVariant }, activeTab === 'timeline' && { color: theme.colors.primary }]}>
             Timeline
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'audit' && styles.activeTab]}
+          style={[styles.tab, activeTab === 'audit' && [styles.activeTab, { backgroundColor: theme.colors.surface }]]}
           onPress={() => setActiveTab('audit')}
         >
-          <Text style={[styles.tabText, activeTab === 'audit' && styles.activeTabText]}>
+          <Text style={[styles.tabText, { color: theme.colors.onSurfaceVariant }, activeTab === 'audit' && { color: theme.colors.primary }]}>
             Audit Log
           </Text>
         </TouchableOpacity>
-      </View>
+      </Surface>
 
       {activeTab === 'timeline' && (
         <>
@@ -477,7 +484,8 @@ export default function HistoryScreen({ navigation }: any) {
                   key={preset}
                   style={[
                     styles.presetFilterButton,
-                    presetFilter === preset && styles.activePresetFilterButton,
+                    { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant },
+                    presetFilter === preset && [styles.activePresetFilterButton, { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }],
                   ]}
                   onPress={() => {
                     if (preset === 'custom') {
@@ -489,7 +497,8 @@ export default function HistoryScreen({ navigation }: any) {
                 >
                   <Text style={[
                     styles.presetFilterText,
-                    presetFilter === preset && styles.activePresetFilterText,
+                    { color: theme.colors.onSurfaceVariant },
+                    presetFilter === preset && { color: theme.colors.onPrimary },
                   ]}>
                     {preset === 'all' ? 'All Time' :
                      preset === 'today' ? 'Today' :
@@ -503,26 +512,26 @@ export default function HistoryScreen({ navigation }: any) {
           </View>
 
           {/* View Mode Toggle */}
-          <View style={styles.viewModeContainer}>
+          <Surface style={[styles.viewModeContainer, { backgroundColor: theme.colors.surfaceVariant }]} elevation={0}>
             <TouchableOpacity
-              style={[styles.viewModeButton, viewMode === 'timeline' && styles.activeViewModeButton]}
+              style={[styles.viewModeButton, viewMode === 'timeline' && [styles.activeViewModeButton, { backgroundColor: theme.colors.primary }]]}
               onPress={() => setViewMode('timeline')}
             >
-              <Ionicons name="list" size={18} color={viewMode === 'timeline' ? '#fff' : '#8b5cf6'} />
-              <Text style={[styles.viewModeText, viewMode === 'timeline' && styles.activeViewModeText]}>
+              <Ionicons name="list" size={18} color={viewMode === 'timeline' ? theme.colors.onPrimary : theme.colors.primary} />
+              <Text style={[styles.viewModeText, { color: theme.colors.primary }, viewMode === 'timeline' && { color: theme.colors.onPrimary }]}>
                 List
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.viewModeButton, viewMode === 'calendar' && styles.activeViewModeButton]}
+              style={[styles.viewModeButton, viewMode === 'calendar' && [styles.activeViewModeButton, { backgroundColor: theme.colors.primary }]]}
               onPress={() => setViewMode('calendar')}
             >
-              <Ionicons name="calendar" size={18} color={viewMode === 'calendar' ? '#fff' : '#8b5cf6'} />
-              <Text style={[styles.viewModeText, viewMode === 'calendar' && styles.activeViewModeText]}>
+              <Ionicons name="calendar" size={18} color={viewMode === 'calendar' ? theme.colors.onPrimary : theme.colors.primary} />
+              <Text style={[styles.viewModeText, { color: theme.colors.primary }, viewMode === 'calendar' && { color: theme.colors.onPrimary }]}>
                 Calendar
               </Text>
             </TouchableOpacity>
-          </View>
+          </Surface>
 
           {/* Multi-select Type Filters */}
           <View style={styles.filterContainer}>
@@ -534,14 +543,16 @@ export default function HistoryScreen({ navigation }: any) {
                     key={type}
                     style={[
                       styles.multiSelectFilterButton,
-                      isSelected && styles.activeMultiSelectFilterButton,
+                      { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant },
+                      isSelected && [styles.activeMultiSelectFilterButton, { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }],
                     ]}
                     onPress={() => toggleTypeFilter(type)}
                   >
-                    {isSelected && <Ionicons name="checkmark-circle" size={16} color="#fff" style={{ marginRight: 4 }} />}
+                    {isSelected && <Ionicons name="checkmark-circle" size={16} color={theme.colors.onPrimary} style={{ marginRight: 4 }} />}
                     <Text style={[
                       styles.multiSelectFilterText,
-                      isSelected && styles.activeMultiSelectFilterText,
+                      { color: theme.colors.onSurfaceVariant },
+                      isSelected && { color: theme.colors.onPrimary },
                     ]}>
                       {type.charAt(0).toUpperCase() + type.slice(1)}s
                     </Text>
@@ -559,9 +570,9 @@ export default function HistoryScreen({ navigation }: any) {
             renderCalendarView()
           ) : filteredTimelineItems.length === 0 ? (
             <View style={styles.emptyState}>
-              <Ionicons name="time-outline" size={48} color="#d1d5db" />
-              <Text style={styles.emptyTitle}>No History Found</Text>
-              <Text style={styles.emptySubtitle}>
+              <Ionicons name="time-outline" size={48} color={theme.colors.onSurfaceVariant} />
+              <Text style={[styles.emptyTitle, { color: theme.colors.onSurface }]}>No History Found</Text>
+              <Text style={[styles.emptySubtitle, { color: theme.colors.onSurfaceVariant }]}>
                 {searchQuery || presetFilter !== 'all' ? 'Try adjusting your search or filters' : 'Your activity history will appear here'}
               </Text>
             </View>
@@ -577,9 +588,9 @@ export default function HistoryScreen({ navigation }: any) {
         ) : (
           Object.keys(groupedAuditLogs).length === 0 ? (
             <View style={styles.emptyState}>
-              <Ionicons name="document-text-outline" size={48} color="#d1d5db" />
-              <Text style={styles.emptyTitle}>No Audit Logs</Text>
-              <Text style={styles.emptySubtitle}>Activity logs will appear here</Text>
+              <Ionicons name="document-text-outline" size={48} color={theme.colors.onSurfaceVariant} />
+              <Text style={[styles.emptyTitle, { color: theme.colors.onSurface }]}>No Audit Logs</Text>
+              <Text style={[styles.emptySubtitle, { color: theme.colors.onSurfaceVariant }]}>Activity logs will appear here</Text>
             </View>
           ) : (
             <ScrollView 
@@ -602,24 +613,24 @@ export default function HistoryScreen({ navigation }: any) {
         onRequestClose={() => setShowFilterModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Custom Date Range</Text>
+          <Surface style={[styles.modalContent, { backgroundColor: theme.colors.surface }]} elevation={8}>
+            <View style={[styles.modalHeader, { borderBottomColor: theme.colors.outlineVariant }]}>
+              <Text style={[styles.modalTitle, { color: theme.colors.onSurface }]}>Custom Date Range</Text>
               <TouchableOpacity onPress={() => setShowFilterModal(false)}>
-                <Ionicons name="close" size={24} color="#333" />
+                <Ionicons name="close" size={24} color={theme.colors.onSurface} />
               </TouchableOpacity>
             </View>
 
             <View style={styles.datePickerContainer}>
-              <Text style={styles.datePickerLabel}>Start Date</Text>
+              <Text style={[styles.datePickerLabel, { color: theme.colors.onSurface }]}>Start Date</Text>
               <TouchableOpacity
-                style={styles.datePickerButton}
+                style={[styles.datePickerButton, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outlineVariant }]}
                 onPress={() => setShowStartDatePicker(true)}
               >
-                <Text style={styles.datePickerText}>
+                <Text style={[styles.datePickerText, { color: theme.colors.onSurface }]}>
                   {startDate ? startDate.toLocaleDateString() : 'Select start date'}
                 </Text>
-                <Ionicons name="calendar-outline" size={20} color="#8b5cf6" />
+                <Ionicons name="calendar-outline" size={20} color={theme.colors.primary} />
               </TouchableOpacity>
               {showStartDatePicker && (
                 <DateTimePicker
@@ -638,15 +649,15 @@ export default function HistoryScreen({ navigation }: any) {
             </View>
 
             <View style={styles.datePickerContainer}>
-              <Text style={styles.datePickerLabel}>End Date</Text>
+              <Text style={[styles.datePickerLabel, { color: theme.colors.onSurface }]}>End Date</Text>
               <TouchableOpacity
-                style={styles.datePickerButton}
+                style={[styles.datePickerButton, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outlineVariant }]}
                 onPress={() => setShowEndDatePicker(true)}
               >
-                <Text style={styles.datePickerText}>
+                <Text style={[styles.datePickerText, { color: theme.colors.onSurface }]}>
                   {endDate ? endDate.toLocaleDateString() : 'Select end date'}
                 </Text>
-                <Ionicons name="calendar-outline" size={20} color="#8b5cf6" />
+                <Ionicons name="calendar-outline" size={20} color={theme.colors.primary} />
               </TouchableOpacity>
               {showEndDatePicker && (
                 <DateTimePicker
@@ -666,23 +677,23 @@ export default function HistoryScreen({ navigation }: any) {
 
             <View style={styles.modalActions}>
               <TouchableOpacity
-                style={styles.clearDateButton}
+                style={[styles.clearDateButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]}
                 onPress={() => {
                   setStartDate(null);
                   setEndDate(null);
                   setPresetFilter('all');
                 }}
               >
-                <Text style={styles.clearDateText}>Clear</Text>
+                <Text style={[styles.clearDateText, { color: theme.colors.onSurfaceVariant }]}>Clear</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.applyDateButton}
+                style={[styles.applyDateButton, { backgroundColor: theme.colors.primary }]}
                 onPress={() => setShowFilterModal(false)}
               >
-                <Text style={styles.applyDateText}>Apply</Text>
+                <Text style={[styles.applyDateText, { color: theme.colors.onPrimary }]}>Apply</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </Surface>
         </View>
       </Modal>
     </SafeAreaView>
@@ -692,7 +703,6 @@ export default function HistoryScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
   },
   header: {
     flexDirection: 'row',
@@ -702,8 +712,6 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E5EA',
-    backgroundColor: '#FFFFFF',
   },
   backButton: {
     padding: 8,
@@ -716,34 +724,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
-    backgroundColor: '#F2F2F7',
   },
   showAllButtonText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#8b5cf6',
   },
   title: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: '600',
   },
   searchContainer: {
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E5EA',
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F2F2F7',
     borderRadius: 12,
     paddingHorizontal: 12,
     height: 44,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#E5E5EA',
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -762,7 +763,6 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 16,
-    color: '#000000',
     paddingVertical: 0,
   },
   clearButton: {
@@ -771,7 +771,6 @@ const styles = StyleSheet.create({
   },
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: '#f3f4f6',
     marginHorizontal: 16,
     marginBottom: 12,
     borderRadius: 8,
@@ -784,7 +783,6 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   activeTab: {
-    backgroundColor: 'white',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
@@ -794,10 +792,9 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#666',
   },
   activeTabText: {
-    color: '#8b5cf6',
+    // Color applied inline
   },
   presetFilterContainer: {
     paddingHorizontal: 16,
@@ -808,27 +805,22 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#d1d5db',
     marginRight: 8,
-    backgroundColor: '#fff',
   },
   activePresetFilterButton: {
-    backgroundColor: '#8b5cf6',
-    borderColor: '#8b5cf6',
+    // Colors applied inline
   },
   presetFilterText: {
     fontSize: 14,
-    color: '#666',
     fontWeight: '500',
   },
   activePresetFilterText: {
-    color: 'white',
+    // Color applied inline
   },
   viewModeContainer: {
     flexDirection: 'row',
     marginHorizontal: 16,
     marginBottom: 12,
-    backgroundColor: '#f3f4f6',
     borderRadius: 8,
     padding: 4,
   },
@@ -842,15 +834,14 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   activeViewModeButton: {
-    backgroundColor: '#8b5cf6',
+    // Colors applied inline
   },
   viewModeText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#8b5cf6',
   },
   activeViewModeText: {
-    color: '#fff',
+    // Color applied inline
   },
   filterContainer: {
     paddingHorizontal: 16,
@@ -863,21 +854,17 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#d1d5db',
     marginRight: 8,
-    backgroundColor: '#fff',
   },
   activeMultiSelectFilterButton: {
-    backgroundColor: '#8b5cf6',
-    borderColor: '#8b5cf6',
+    // Colors applied inline
   },
   multiSelectFilterText: {
     fontSize: 14,
-    color: '#666',
     fontWeight: '500',
   },
   activeMultiSelectFilterText: {
-    color: 'white',
+    // Color applied inline
   },
   content: {
     flex: 1,
@@ -898,8 +885,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#F2F2F7',
-    backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
     marginBottom: 8,
     borderRadius: 12,
@@ -936,17 +921,14 @@ const styles = StyleSheet.create({
   timelineTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
     flex: 1,
   },
   timelineAmount: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#8b5cf6',
   },
   timelineDescription: {
     fontSize: 14,
-    color: '#666',
     marginBottom: 8,
   },
   timelineFooter: {
@@ -956,17 +938,14 @@ const styles = StyleSheet.create({
   },
   timelineDate: {
     fontSize: 12,
-    color: '#999',
   },
   tripTag: {
-    backgroundColor: '#f3f4f6',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
   },
   tripTagText: {
     fontSize: 12,
-    color: '#666',
     fontWeight: '500',
   },
   calendarContainer: {
@@ -982,7 +961,6 @@ const styles = StyleSheet.create({
   calendarMonthName: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
   },
   calendarGrid: {
     flexDirection: 'row',
@@ -997,7 +975,6 @@ const styles = StyleSheet.create({
   calendarDayHeaderText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#666',
   },
   calendarDay: {
     width: '14.28%',
@@ -1007,16 +984,13 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   calendarDayToday: {
-    backgroundColor: '#F3F4F6',
     borderRadius: 8,
   },
   calendarDayNumber: {
     fontSize: 14,
-    color: '#333',
   },
   calendarDayNumberToday: {
-    fontWeight: 'bold',
-    color: '#8b5cf6',
+    // Colors applied inline
   },
   calendarDayIndicator: {
     position: 'absolute',
@@ -1032,7 +1006,6 @@ const styles = StyleSheet.create({
   },
   calendarDayCount: {
     fontSize: 8,
-    color: '#666',
     fontWeight: '600',
   },
   auditSection: {
@@ -1041,11 +1014,9 @@ const styles = StyleSheet.create({
   auditDateHeader: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#333',
     marginBottom: 12,
     paddingBottom: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
   },
   auditLogItem: {
     flexDirection: 'row',
@@ -1064,12 +1035,10 @@ const styles = StyleSheet.create({
   },
   auditLogDescription: {
     fontSize: 14,
-    color: '#333',
     marginBottom: 2,
   },
   auditLogTime: {
     fontSize: 12,
-    color: '#999',
   },
   emptyState: {
     flex: 1,
@@ -1080,13 +1049,11 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
     marginTop: 16,
     marginBottom: 8,
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#666',
     textAlign: 'center',
     paddingHorizontal: 32,
   },
@@ -1096,7 +1063,6 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#fff',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
@@ -1107,11 +1073,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 20,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingBottom: 16,
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
   },
   datePickerContainer: {
     marginBottom: 20,
@@ -1119,7 +1086,6 @@ const styles = StyleSheet.create({
   datePickerLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
     marginBottom: 8,
   },
   datePickerButton: {
@@ -1128,13 +1094,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderWidth: 1,
-    borderColor: '#d1d5db',
     borderRadius: 12,
-    backgroundColor: '#f9fafb',
   },
   datePickerText: {
     fontSize: 16,
-    color: '#333',
   },
   modalActions: {
     flexDirection: 'row',
@@ -1145,25 +1108,20 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#d1d5db',
     alignItems: 'center',
-    backgroundColor: '#fff',
   },
   clearDateText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#666',
   },
   applyDateButton: {
     flex: 1,
     padding: 16,
     borderRadius: 12,
-    backgroundColor: '#8b5cf6',
     alignItems: 'center',
   },
   applyDateText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
   },
 });

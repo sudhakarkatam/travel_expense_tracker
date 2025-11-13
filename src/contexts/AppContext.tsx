@@ -29,8 +29,9 @@ export const [AppProvider, useApp] = createContextHook(() => {
   const [isLoading, setIsLoading] = useState(true);
   
   // Get auth user to detect login changes
-  const { user: authUser } = useAuth();
+  const { user: authUser, isGuest } = useAuth();
   const previousAuthUserId = useRef<string | null>(null);
+  const previousIsGuest = useRef<boolean>(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -92,15 +93,31 @@ export const [AppProvider, useApp] = createContextHook(() => {
   }, [loadData]);
 
   // Reload data when user logs in (auth user changes from null to a user)
+  // Also reload when transitioning from guest mode to logged in
   useEffect(() => {
-    if (authUser && authUser.id !== previousAuthUserId.current) {
-      console.log('[AppContext] User logged in, reloading data...');
-      previousAuthUserId.current = authUser.id;
-      loadData();
-    } else if (!authUser) {
+    const authChanged = authUser && authUser.id !== previousAuthUserId.current;
+    const guestToLoggedIn = previousIsGuest.current && !isGuest && authUser;
+    
+    if (authChanged || guestToLoggedIn) {
+      console.log('[AppContext] User logged in, reloading data...', { authChanged, guestToLoggedIn });
+      previousAuthUserId.current = authUser?.id || null;
+      previousIsGuest.current = isGuest;
+      // Small delay to ensure storage is updated
+      setTimeout(() => {
+        loadData();
+      }, 100);
+    } else if (!authUser && previousAuthUserId.current !== null) {
+      // User logged out, reset previous user ID
+      console.log('[AppContext] User logged out, reloading data...');
       previousAuthUserId.current = null;
+      previousIsGuest.current = isGuest;
+      loadData();
+    } else {
+      // Update refs even if no reload needed
+      previousAuthUserId.current = authUser?.id || null;
+      previousIsGuest.current = isGuest;
     }
-  }, [authUser, loadData]);
+  }, [authUser, isGuest, loadData]);
 
   const logAction = useCallback(
     async (

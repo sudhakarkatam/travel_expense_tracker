@@ -15,6 +15,7 @@ interface AnimatedButtonProps {
   variant?: 'primary' | 'secondary' | 'success' | 'error' | 'warning';
   fullWidth?: boolean;
   style?: any;
+  labelStyle?: any;
 }
 
 export function AnimatedButton({
@@ -27,6 +28,7 @@ export function AnimatedButton({
   variant = 'primary',
   fullWidth = false,
   style,
+  labelStyle,
 }: AnimatedButtonProps) {
   const theme = useTheme();
   const [isPressed, setIsPressed] = React.useState(false);
@@ -76,7 +78,9 @@ export function AnimatedButton({
         onPressOut={handlePressOut}
         disabled={disabled || loading}
         loading={loading}
-        icon={icon}
+        icon={icon ? ({ size, color }) => (
+          <Ionicons name={icon} size={size} color={color} />
+        ) : undefined}
         buttonColor={mode === 'contained' ? getVariantColor() : undefined}
         textColor={
           mode === 'contained'
@@ -93,7 +97,7 @@ export function AnimatedButton({
             borderWidth: 1.5,
           },
         ]}
-        labelStyle={styles.label}
+        labelStyle={[styles.label, labelStyle]}
         contentStyle={styles.content}
       >
         {label}

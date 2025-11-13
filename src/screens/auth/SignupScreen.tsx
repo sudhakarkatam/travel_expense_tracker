@@ -52,7 +52,7 @@ export default function SignupScreen({ navigation }: any) {
       if (Platform.OS !== 'web') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
-      navigation.replace('MainTabs');
+      // Navigation will happen automatically when auth state changes
     } catch (error: any) {
       Alert.alert('Sign Up Failed', error.message || 'Please try again');
     } finally {
@@ -67,7 +67,7 @@ export default function SignupScreen({ navigation }: any) {
       if (Platform.OS !== 'web') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
-      navigation.replace('MainTabs');
+      // Navigation will happen automatically when auth state changes
     } catch (error: any) {
       if (!error.message?.includes('cancelled') && !error.message?.includes('dismissed')) {
         Alert.alert('Sign Up Failed', error.message || 'Please try again');

@@ -1,5 +1,5 @@
 import React from "react";
-import { Platform } from "react-native";
+import { Platform, Text } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createStackNavigator, TransitionPresets } from "@react-navigation/stack";
 import { Ionicons } from "@expo/vector-icons";
@@ -87,8 +87,34 @@ function MainTabs() {
         },
         tabBarLabelStyle: {
           fontSize: 12,
-          fontWeight: "600",
+          fontWeight: "600" as const,
           marginTop: -4,
+          // Ensure fontFamily is explicitly set to avoid undefined font access
+          fontFamily: Platform.select({
+            ios: 'System',
+            android: 'Roboto',
+            default: 'System',
+          }),
+        },
+        // Custom label renderer to avoid font property access issues
+        tabBarLabel: ({ focused, color, children }) => {
+          return (
+            <Text
+              style={{
+                fontSize: 12,
+                fontWeight: "600" as const,
+                color: color,
+                marginTop: -4,
+                fontFamily: Platform.select({
+                  ios: 'System',
+                  android: 'Roboto',
+                  default: 'System',
+                }),
+              }}
+            >
+              {children}
+            </Text>
+          );
         },
       })}
     >

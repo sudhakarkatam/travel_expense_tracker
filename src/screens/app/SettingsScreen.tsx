@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme, Surface, List, Divider, ActivityIndicator } from 'react-native-paper';
+import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import * as Haptics from 'expo-haptics';
 import * as Sharing from 'expo-sharing';
@@ -279,7 +280,7 @@ export default function SettingsScreen({ navigation }: any) {
               
               <List.Item
                 title="History & Audit Log"
-                left={(props) => <List.Icon {...props} icon="time-outline" />}
+                left={(props) => <Ionicons name="time-outline" size={24} color={props.color} style={{ marginLeft: 8 }} />}
                 right={(props) => <List.Icon {...props} icon="chevron-right" />}
                 onPress={() => {
                   navigation.navigate('History');
@@ -293,7 +294,7 @@ export default function SettingsScreen({ navigation }: any) {
               <List.Item
                 title="Export Trip Report"
                 description="Generate comprehensive PDF report"
-                left={(props) => <List.Icon {...props} icon="document-text-outline" color={theme.colors.primary} />}
+                left={(props) => <Ionicons name="document-text-outline" size={24} color={theme.colors.primary} style={{ marginLeft: 8 }} />}
                 right={() => isExporting ? (
                   <ActivityIndicator size="small" color={theme.colors.primary} />
                 ) : (

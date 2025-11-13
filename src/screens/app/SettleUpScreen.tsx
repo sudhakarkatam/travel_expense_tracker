@@ -15,6 +15,7 @@ import {
 import { Picker } from "@react-native-picker/picker";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { useTheme, Surface } from "react-native-paper";
 import { useApp } from "@/contexts/AppContext";
 import {
   calculateBalances,
@@ -31,6 +32,7 @@ const IS_IOS = Platform.OS === "ios";
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 export default function SettleUpScreen({ navigation, route }: any) {
+  const theme = useTheme();
   const { tripId } = route.params;
   const {
     getTrip,
@@ -309,27 +311,28 @@ export default function SettleUpScreen({ navigation, route }: any) {
         return null;
 
       return (
-        <View
+        <Surface
           key={`${balance.from}-${balance.to}-${index}`}
           style={styles.balanceCard}
+          elevation={2}
         >
           <View style={styles.balanceCardContent}>
             <View style={styles.balanceCardHeader}>
-              <View style={styles.balanceCardIcon}>
-                <Ionicons name="arrow-forward" size={20} color="#8b5cf6" />
+              <View style={[styles.balanceCardIcon, { backgroundColor: theme.colors.surfaceVariant }]}>
+                <Ionicons name="arrow-forward" size={20} color={theme.colors.primary} />
               </View>
               <View style={styles.balanceCardInfo}>
-                <Text style={styles.balanceCardFrom}>{fromName}</Text>
+                <Text style={[styles.balanceCardFrom, { color: theme.colors.onSurface }]}>{fromName}</Text>
                 <View style={styles.balanceCardArrow}>
-                  <Ionicons name="arrow-down" size={16} color="#8E8E93" />
+                  <Ionicons name="arrow-down" size={16} color={theme.colors.onSurfaceVariant} />
                 </View>
-                <Text style={styles.balanceCardTo}>{toName}</Text>
+                <Text style={[styles.balanceCardTo, { color: theme.colors.primary }]}>{toName}</Text>
               </View>
             </View>
             
-            <View style={styles.balanceCardAmount}>
-              <Text style={styles.balanceCardAmountLabel}>Amount</Text>
-              <Text style={styles.balanceCardAmountValue}>
+            <View style={[styles.balanceCardAmount, { backgroundColor: theme.colors.surfaceVariant }]}>
+              <Text style={[styles.balanceCardAmountLabel, { color: theme.colors.onSurfaceVariant }]}>Amount</Text>
+              <Text style={[styles.balanceCardAmountValue, { color: theme.colors.primary }]}>
                 {formatCurrency(balance.amount, { currency: balance.currency })}
               </Text>
             </View>
@@ -338,6 +341,7 @@ export default function SettleUpScreen({ navigation, route }: any) {
           <TouchableOpacity
             style={[
               styles.settleButtonCard,
+              { backgroundColor: theme.colors.tertiary },
               isSettling && styles.disabledSettleButtonCard,
             ]}
             onPress={() =>
@@ -350,15 +354,15 @@ export default function SettleUpScreen({ navigation, route }: any) {
             }
             disabled={isSettling}
           >
-            <Ionicons name="checkmark-circle" size={22} color="white" />
-            <Text style={styles.settleButtonText}>
+            <Ionicons name="checkmark-circle" size={22} color={theme.colors.onTertiary} />
+            <Text style={[styles.settleButtonText, { color: theme.colors.onTertiary }]}>
               {isSettling ? "Settling..." : "Mark as Paid"}
             </Text>
           </TouchableOpacity>
-        </View>
+        </Surface>
       );
     },
-    [getParticipantName, handleSettleUp, isSettling],
+    [getParticipantName, handleSettleUp, isSettling, theme],
   );
 
   const renderSettlementItem = useCallback(
@@ -367,32 +371,32 @@ export default function SettleUpScreen({ navigation, route }: any) {
       const toName = getParticipantName(settlement.to);
 
       return (
-        <View key={settlement.id} style={styles.settlementCard}>
+        <Surface key={settlement.id} style={styles.settlementCard} elevation={2}>
           <View style={styles.settlementCardHeader}>
-            <View style={styles.settlementCardIcon}>
-              <Ionicons name="checkmark-circle" size={24} color="#10b981" />
+            <View style={[styles.settlementCardIcon, { backgroundColor: theme.colors.tertiaryContainer }]}>
+              <Ionicons name="checkmark-circle" size={24} color={theme.colors.onTertiaryContainer} />
             </View>
             <View style={styles.settlementCardInfo}>
-              <Text style={styles.settlementCardTitle}>Payment Settled</Text>
-              <Text style={styles.settlementCardDescription}>
-                <Text style={styles.settlementCardFrom}>{fromName}</Text> paid{" "}
-                <Text style={styles.settlementCardTo}>{toName}</Text>
+              <Text style={[styles.settlementCardTitle, { color: theme.colors.onSurface }]}>Payment Settled</Text>
+              <Text style={[styles.settlementCardDescription, { color: theme.colors.onSurfaceVariant }]}>
+                <Text style={[styles.settlementCardFrom, { color: theme.colors.onSurface }]}>{fromName}</Text> paid{" "}
+                <Text style={[styles.settlementCardTo, { color: theme.colors.primary }]}>{toName}</Text>
               </Text>
             </View>
           </View>
           
           <View style={styles.settlementCardDetails}>
             <View style={styles.settlementCardAmountRow}>
-              <Text style={styles.settlementCardAmountLabel}>Amount</Text>
-              <Text style={styles.settlementCardAmountValue}>
+              <Text style={[styles.settlementCardAmountLabel, { color: theme.colors.onSurfaceVariant }]}>Amount</Text>
+              <Text style={[styles.settlementCardAmountValue, { color: theme.colors.onSurface }]}>
                 {formatCurrency(settlement.amount, {
                   currency: settlement.currency,
                 })}
               </Text>
             </View>
             <View style={styles.settlementCardDateRow}>
-              <Ionicons name="time-outline" size={14} color="#8E8E93" />
-              <Text style={styles.settlementCardDate}>
+              <Ionicons name="time-outline" size={14} color={theme.colors.onSurfaceVariant} />
+              <Text style={[styles.settlementCardDate, { color: theme.colors.onSurfaceVariant }]}>
                 {formatDateTime(settlement.settledAt)}
               </Text>
             </View>
@@ -403,21 +407,21 @@ export default function SettleUpScreen({ navigation, route }: any) {
               style={styles.settlementCardActionButton}
               onPress={() => handleEditSettlement(settlement)}
             >
-              <Ionicons name="pencil" size={18} color="#8b5cf6" />
-              <Text style={styles.settlementCardActionText}>Edit</Text>
+              <Ionicons name="pencil" size={18} color={theme.colors.primary} />
+              <Text style={[styles.settlementCardActionText, { color: theme.colors.primary }]}>Edit</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.settlementCardActionButton, styles.settlementCardActionButtonDanger]}
               onPress={() => handleDeleteSettlement(settlement.id)}
             >
-              <Ionicons name="trash" size={18} color="#ef4444" />
-              <Text style={[styles.settlementCardActionText, styles.settlementCardActionTextDanger]}>Delete</Text>
+              <Ionicons name="trash" size={18} color={theme.colors.error} />
+              <Text style={[styles.settlementCardActionText, styles.settlementCardActionTextDanger, { color: theme.colors.error }]}>Delete</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </Surface>
       );
     },
-    [getParticipantName, handleEditSettlement, handleDeleteSettlement],
+    [getParticipantName, handleEditSettlement, handleDeleteSettlement, theme],
   );
 
   const renderParticipantBalance = useCallback(
@@ -431,32 +435,33 @@ export default function SettleUpScreen({ navigation, route }: any) {
         participant.participantId === currentUserId;
 
       return (
-        <View
+        <Surface
           key={participant.participantId}
           style={[
             styles.participantBalanceItem,
             isCurrentUserParticipant &&
-              styles.highlightedParticipantBalanceItem,
+              [styles.highlightedParticipantBalanceItem, { backgroundColor: theme.colors.primaryContainer, borderLeftColor: theme.colors.primary }],
           ]}
+          elevation={isCurrentUserParticipant ? 2 : 1}
         >
           <View style={styles.participantInfoContainer}>
-            <View style={styles.participantAvatar}>
-              <Text style={styles.participantInitial}>
+            <View style={[styles.participantAvatar, { backgroundColor: theme.colors.primary }]}>
+              <Text style={[styles.participantInitial, { color: theme.colors.onPrimary }]}>
                 {participant.participantName.charAt(0).toUpperCase()}
               </Text>
             </View>
             <View style={styles.participantDetails}>
               <View style={styles.participantNameRow}>
-                <Text style={styles.participantName}>
+                <Text style={[styles.participantName, { color: theme.colors.onSurface }]}>
                   {participant.participantName}
                 </Text>
                 {isCurrentUserParticipant && (
-                  <View style={styles.currentUserBadge}>
-                    <Text style={styles.currentUserText}>You</Text>
+                  <View style={[styles.currentUserBadge, { backgroundColor: theme.colors.primary }]}>
+                    <Text style={[styles.currentUserText, { color: theme.colors.onPrimary }]}>You</Text>
                   </View>
                 )}
               </View>
-              <Text style={styles.participantSummaryText}>
+              <Text style={[styles.participantSummaryText, { color: theme.colors.onSurfaceVariant }]}>
                 Paid:{" "}
                 {formatCurrency(participant.totalPaid, {
                   currency: trip?.currency || "USD",
@@ -493,25 +498,25 @@ export default function SettleUpScreen({ navigation, route }: any) {
               {isCreditor ? "Gets Back" : isDebtor ? "Owes" : "Even"}
             </Text>
           </View>
-        </View>
+        </Surface>
       );
     },
-    [currentUserId, trip?.currency],
+    [currentUserId, trip?.currency, theme],
   );
 
   if (!trip) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <Surface style={[styles.header, { backgroundColor: theme.colors.surface }]} elevation={1}>
           <TouchableOpacity
             onPress={() => navigation.goBack()}
             style={styles.backButton}
           >
-            <Ionicons name="arrow-back" size={24} color="#333" />
+            <Ionicons name="arrow-back" size={24} color={theme.colors.onSurface} />
           </TouchableOpacity>
-          <Text style={styles.title}>Settle Up</Text>
+          <Text style={[styles.title, { color: theme.colors.onSurface }]}>Settle Up</Text>
           <View style={{ width: 24 }} />
-        </View>
+        </Surface>
         <EmptyState
           icon="alert-circle-outline"
           title="Trip Not Found"
@@ -522,56 +527,64 @@ export default function SettleUpScreen({ navigation, route }: any) {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
+      <Surface style={[styles.header, { backgroundColor: theme.colors.surface }]} elevation={1}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.backButton}
         >
-          <Ionicons name="arrow-back" size={24} color="#333" />
+          <Ionicons name="arrow-back" size={24} color={theme.colors.onSurface} />
         </TouchableOpacity>
-        <Text style={styles.title}>Settle Up</Text>
+        <Text style={[styles.title, { color: theme.colors.onSurface }]}>Settle Up</Text>
         <View style={{ width: 24 }} /> {/* Placeholder for right alignment */}
-      </View>
+      </Surface>
 
-      <View style={styles.tabContainer}>
+      <Surface style={[styles.tabContainer, { backgroundColor: theme.colors.surfaceVariant }]} elevation={0}>
         <TouchableOpacity
-          style={[styles.tab, activeTab === "balances" && styles.activeTab]}
+          style={[
+            styles.tab,
+            activeTab === "balances" && { backgroundColor: theme.colors.primary },
+          ]}
           onPress={() => setActiveTab("balances")}
         >
           <Text
             style={[
               styles.tabText,
-              activeTab === "balances" && styles.activeTabText,
+              { color: theme.colors.onSurfaceVariant },
+              activeTab === "balances" && { color: theme.colors.onPrimary },
             ]}
           >
             Balances
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.tab, activeTab === "history" && styles.activeTab]}
+          style={[
+            styles.tab,
+            activeTab === "history" && { backgroundColor: theme.colors.primary },
+          ]}
           onPress={() => setActiveTab("history")}
         >
           <Text
             style={[
               styles.tabText,
-              activeTab === "history" && styles.activeTabText,
+              { color: theme.colors.onSurfaceVariant },
+              activeTab === "history" && { color: theme.colors.onPrimary },
             ]}
           >
             History
           </Text>
         </TouchableOpacity>
-      </View>
+      </Surface>
 
       {activeTab === "balances" && tripParticipants.length > 0 && (
-        <View style={styles.memberFilterContainer}>
-          <Text style={styles.memberFilterLabel}>View balances for:</Text>
-          <View style={styles.pickerContainer}>
+        <View style={[styles.memberFilterContainer, { borderBottomColor: theme.colors.outlineVariant }]}>
+          <Text style={[styles.memberFilterLabel, { color: theme.colors.onSurface }]}>View balances for:</Text>
+          <View style={[styles.pickerContainer, { borderColor: theme.colors.outlineVariant }]}>
             <Picker
               selectedValue={selectedMemberId || ""}
               onValueChange={(value) => setSelectedMemberId(value)}
               style={styles.picker}
-              dropdownIconColor="#8b5cf6"
+              dropdownIconColor={theme.colors.primary}
             >
               {tripParticipants.map((participant) => (
                 <Picker.Item
@@ -593,7 +606,7 @@ export default function SettleUpScreen({ navigation, route }: any) {
           <>
             {selectedMemberId && (
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Individual Balance</Text>
+                <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>Individual Balance</Text>
                 {filteredParticipantSpending.length === 0 ? (
                   <EmptyState
                     icon="people-outline"
@@ -609,7 +622,7 @@ export default function SettleUpScreen({ navigation, route }: any) {
             )}
 
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>
+              <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
                 {selectedMemberId ? "Outstanding Payments" : "Simplified Payments"}
               </Text>
               {filteredBalances.length === 0 ? (
@@ -634,13 +647,13 @@ export default function SettleUpScreen({ navigation, route }: any) {
             {selectedMemberId && (
               <View style={styles.section}>
                 <View style={styles.sectionHeaderRow}>
-                  <Text style={styles.sectionTitle}>Related Expenses</Text>
+                  <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>Related Expenses</Text>
                   {relatedExpenses.length > 10 && (
                     <TouchableOpacity
                       onPress={() => setShowAllExpenses(!showAllExpenses)}
-                      style={styles.showAllButton}
+                      style={[styles.showAllButton, { backgroundColor: theme.colors.surfaceVariant }]}
                     >
-                      <Text style={styles.showAllButtonText}>
+                      <Text style={[styles.showAllButtonText, { color: theme.colors.primary }]}>
                         {showAllExpenses ? "Show Less" : `Show All (${relatedExpenses.length})`}
                       </Text>
                     </TouchableOpacity>
@@ -648,13 +661,13 @@ export default function SettleUpScreen({ navigation, route }: any) {
                 </View>
                 
                 {showAllExpenses && (
-                  <View style={styles.searchContainer}>
-                    <View style={styles.searchBar}>
-                      <Ionicons name="search-outline" size={20} color="#8E8E93" style={styles.searchIcon} />
+                  <Surface style={[styles.searchContainer, { backgroundColor: theme.colors.surface }]} elevation={0}>
+                    <View style={[styles.searchBar, { backgroundColor: theme.colors.surfaceVariant }]}>
+                      <Ionicons name="search-outline" size={20} color={theme.colors.onSurfaceVariant} style={styles.searchIcon} />
                       <TextInput
-                        style={styles.searchInput}
+                        style={[styles.searchInput, { color: theme.colors.onSurface }]}
                         placeholder="Search expenses..."
-                        placeholderTextColor="#8E8E93"
+                        placeholderTextColor={theme.colors.onSurfaceVariant}
                         value={expenseSearchQuery}
                         onChangeText={setExpenseSearchQuery}
                         returnKeyType="search"
@@ -664,11 +677,11 @@ export default function SettleUpScreen({ navigation, route }: any) {
                           onPress={() => setExpenseSearchQuery('')}
                           style={styles.clearButton}
                         >
-                          <Ionicons name="close-circle" size={20} color="#8E8E93" />
+                          <Ionicons name="close-circle" size={20} color={theme.colors.onSurfaceVariant} />
                         </TouchableOpacity>
                       )}
                     </View>
-                  </View>
+                  </Surface>
                 )}
 
                 {displayedExpenses.length === 0 ? (
@@ -678,21 +691,21 @@ export default function SettleUpScreen({ navigation, route }: any) {
                     subtitle={expenseSearchQuery ? `No expenses match "${expenseSearchQuery}"` : "No related expenses found."}
                   />
                 ) : (
-                  <View style={styles.listGroup}>
+                  <Surface style={styles.listGroup} elevation={1}>
                     {displayedExpenses.map((expense) => (
                       <TouchableOpacity
                         key={expense.id}
-                        style={styles.expenseItem}
+                        style={[styles.expenseItem, { borderBottomColor: theme.colors.outlineVariant }]}
                         onPress={() => navigation.navigate('ExpenseDetail', {
                           expenseId: expense.id,
                           tripId: trip.id,
                         })}
                       >
                         <View style={styles.expenseInfo}>
-                          <Text style={styles.expenseDescription}>
+                          <Text style={[styles.expenseDescription, { color: theme.colors.onSurface }]}>
                             {expense.description || 'No description'}
                           </Text>
-                          <Text style={styles.expenseDetails}>
+                          <Text style={[styles.expenseDetails, { color: theme.colors.onSurfaceVariant }]}>
                             {expense.paidBy === selectedMemberId
                               ? "You paid"
                               : `${getParticipantName(expense.paidBy) || 'Unknown'} paid`}{" "}
@@ -700,28 +713,28 @@ export default function SettleUpScreen({ navigation, route }: any) {
                               currency: expense.currency,
                             })}</Text>
                           </Text>
-                          <Text style={styles.expenseDate}>
+                          <Text style={[styles.expenseDate, { color: theme.colors.onSurfaceVariant }]}>
                             {formatDateTime(expense.createdAt || expense.date)}
                           </Text>
                         </View>
                         <View style={styles.expenseAmountContainer}>
-                          <Text style={styles.expenseAmount}>
+                          <Text style={[styles.expenseAmount, { color: theme.colors.primary }]}>
                             {formatCurrency(expense.amount, {
                               currency: expense.currency,
                             })}
                           </Text>
-                          <Ionicons name="chevron-forward" size={16} color="#8E8E93" />
+                          <Ionicons name="chevron-forward" size={16} color={theme.colors.onSurfaceVariant} />
                         </View>
                       </TouchableOpacity>
                     ))}
-                  </View>
+                  </Surface>
                 )}
               </View>
             )}
           </>
         ) : (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Settlement History</Text>
+            <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>Settlement History</Text>
             {tripSettlements.length === 0 ? (
               <EmptyState
                 icon="receipt-outline"
@@ -749,51 +762,51 @@ export default function SettleUpScreen({ navigation, route }: any) {
           style={styles.modalOverlay}
           onPress={() => setShowUserIdentificationModal(false)}
         >
-          <View style={styles.modalContent}>
-            {IS_IOS && <View style={styles.modalHandle} />}
+          <Surface style={[styles.modalContent, { backgroundColor: theme.colors.surface }]} elevation={8}>
+            {IS_IOS && <View style={[styles.modalHandle, { backgroundColor: theme.colors.onSurfaceVariant }]} />}
 
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Identify Yourself</Text>
+            <View style={[styles.modalHeader, { borderBottomColor: theme.colors.outlineVariant }]}>
+              <Text style={[styles.modalTitle, { color: theme.colors.onSurface }]}>Identify Yourself</Text>
               <TouchableOpacity
                 onPress={() => setShowUserIdentificationModal(false)}
                 style={styles.modalCloseButton}
               >
-                <Ionicons name="close" size={24} color="#8E8E93" />
+                <Ionicons name="close" size={24} color={theme.colors.onSurfaceVariant} />
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.participantList}>
-              <Text style={styles.modalDescription}>
+              <Text style={[styles.modalDescription, { color: theme.colors.onSurfaceVariant }]}>
                 Please select which member you are to properly track your
                 balances and settlements.
               </Text>
               {(trip?.participants || []).map((participant) => (
                 <TouchableOpacity
                   key={participant.id}
-                  style={styles.participantSelectionItem}
+                  style={[styles.participantSelectionItem, { borderBottomColor: theme.colors.outlineVariant }]}
                   onPress={() => handleIdentifyUser(participant.id)}
                 >
                   <View style={styles.participantSelectionInfo}>
-                    <View style={styles.participantSelectionAvatar}>
-                      <Text style={styles.participantSelectionInitial}>
+                    <View style={[styles.participantSelectionAvatar, { backgroundColor: theme.colors.primary }]}>
+                      <Text style={[styles.participantSelectionInitial, { color: theme.colors.onPrimary }]}>
                         {participant.name.charAt(0).toUpperCase()}
                       </Text>
                     </View>
                     <View style={styles.participantSelectionDetails}>
-                      <Text style={styles.participantSelectionName}>
+                      <Text style={[styles.participantSelectionName, { color: theme.colors.onSurface }]}>
                         {participant.name}
                       </Text>
                       {participant.email && (
-                        <Text style={styles.participantSelectionEmail}>
+                        <Text style={[styles.participantSelectionEmail, { color: theme.colors.onSurfaceVariant }]}>
                           {participant.email}
                         </Text>
                       )}
                     </View>
                   </View>
-                  <Ionicons name="chevron-forward" size={20} color="#666" />
+                  <Ionicons name="chevron-forward" size={20} color={theme.colors.onSurfaceVariant} />
                 </TouchableOpacity>
               ))}
             </ScrollView>
-          </View>
+          </Surface>
         </Pressable>
       </Modal>
     </SafeAreaView>
@@ -803,7 +816,6 @@ export default function SettleUpScreen({ navigation, route }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F2F2F7",
   },
   header: {
     flexDirection: "row",
@@ -813,19 +825,6 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#E5E5EA",
-    backgroundColor: "#FFFFFF",
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 0.5 },
-        shadowOpacity: 0.05,
-        shadowRadius: 1,
-      },
-      android: {
-        elevation: 1,
-      },
-    }),
   },
   backButton: {
     padding: 8,
@@ -836,44 +835,24 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 20,
-    fontWeight: "bold",
-    color: "#000000",
+    fontWeight: "600",
   },
   tabContainer: {
     flexDirection: "row",
     marginHorizontal: 16,
     marginTop: 12,
-    backgroundColor: "#E5E5EA",
     borderRadius: 12,
     overflow: "hidden",
     marginBottom: 0,
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
-      },
-      android: {
-        elevation: 1,
-      },
-    }),
   },
   tab: {
     flex: 1,
     paddingVertical: 12,
     alignItems: "center",
   },
-  activeTab: {
-    backgroundColor: "#8b5cf6",
-  },
   tabText: {
     fontSize: 15,
     fontWeight: "600",
-    color: "#8E8E93",
-  },
-  activeTabText: {
-    color: "#FFFFFF",
   },
   content: {
     flex: 1,
@@ -889,11 +868,9 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 17,
     fontWeight: "600",
-    color: "#000000",
     marginBottom: 12,
   },
   listGroup: {
-    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     overflow: "hidden",
     ...Platform.select({
@@ -909,7 +886,6 @@ const styles = StyleSheet.create({
     }),
   },
   balanceCard: {
-    backgroundColor: "#FFFFFF",
     borderRadius: 20,
     padding: 20,
     marginBottom: 16,
@@ -937,7 +913,6 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: "#F3F4F6",
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
@@ -948,7 +923,6 @@ const styles = StyleSheet.create({
   balanceCardFrom: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#000000",
     marginBottom: 4,
   },
   balanceCardArrow: {
@@ -957,17 +931,14 @@ const styles = StyleSheet.create({
   balanceCardTo: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#8b5cf6",
   },
   balanceCardAmount: {
-    backgroundColor: "#F9FAFB",
     borderRadius: 12,
     padding: 12,
     alignItems: "center",
   },
   balanceCardAmountLabel: {
     fontSize: 12,
-    color: "#8E8E93",
     marginBottom: 4,
     textTransform: "uppercase",
     fontWeight: "600",
@@ -976,10 +947,8 @@ const styles = StyleSheet.create({
   balanceCardAmountValue: {
     fontSize: 24,
     fontWeight: "700",
-    color: "#8b5cf6",
   },
   settleButtonCard: {
-    backgroundColor: "#10b981",
     paddingVertical: 14,
     paddingHorizontal: 20,
     borderRadius: 12,
@@ -1000,11 +969,9 @@ const styles = StyleSheet.create({
     }),
   },
   disabledSettleButtonCard: {
-    backgroundColor: "#a7f3d0",
     opacity: 0.7,
   },
   settleButtonText: {
-    color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "700",
   },
@@ -1027,7 +994,6 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: "#8b5cf6",
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
@@ -1044,7 +1010,6 @@ const styles = StyleSheet.create({
     }),
   },
   participantInitial: {
-    color: "#FFFFFF",
     fontSize: 18,
     fontWeight: "bold",
   },
@@ -1052,9 +1017,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   highlightedParticipantBalanceItem: {
-    backgroundColor: "#E8F4FD",
     borderLeftWidth: 4,
-    borderLeftColor: "#007AFF",
     borderRadius: 0,
     marginHorizontal: 0,
     paddingLeft: 16,
@@ -1067,11 +1030,9 @@ const styles = StyleSheet.create({
   participantName: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#000000",
     marginRight: 6,
   },
   currentUserBadge: {
-    backgroundColor: "#007AFF", // Blue for "You" badge
     borderRadius: 5,
     paddingHorizontal: 6,
     paddingVertical: 2,
@@ -1079,13 +1040,11 @@ const styles = StyleSheet.create({
     marginLeft: 10,
   },
   currentUserText: {
-    color: "#FFFFFF",
     fontSize: 11,
     fontWeight: "bold",
   },
   participantSummaryText: {
     fontSize: 13,
-    color: "#8E8E93",
   },
   netBalanceContainer: {
     alignItems: "flex-end",
@@ -1102,25 +1061,22 @@ const styles = StyleSheet.create({
     // Styles for netBalance < 0 (owes)
   },
   owedText: {
-    color: "#10b981", // Green for money to get back
+    // Green for money to get back - use success color
   },
   debtText: {
-    color: "#ef4444", // Red for money owed
+    // Red for money owed - use error color
   },
   netBalanceLabel: {
     fontSize: 12,
-    color: "#8E8E93",
     marginTop: 2,
   },
 
   // Settlement History Card
   settlementCard: {
-    backgroundColor: "#FFFFFF",
     borderRadius: 20,
     padding: 20,
     marginBottom: 16,
     borderLeftWidth: 4,
-    borderLeftColor: "#10b981",
     ...Platform.select({
       ios: {
         shadowColor: "#000",
@@ -1142,7 +1098,6 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: "#D1FAE5",
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
@@ -1153,23 +1108,18 @@ const styles = StyleSheet.create({
   settlementCardTitle: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#000000",
     marginBottom: 4,
   },
   settlementCardDescription: {
     fontSize: 15,
-    color: "#666666",
   },
   settlementCardFrom: {
     fontWeight: "600",
-    color: "#000000",
   },
   settlementCardTo: {
     fontWeight: "600",
-    color: "#8b5cf6",
   },
   settlementCardDetails: {
-    backgroundColor: "#F9FAFB",
     borderRadius: 12,
     padding: 12,
     marginBottom: 16,
@@ -1182,7 +1132,6 @@ const styles = StyleSheet.create({
   },
   settlementCardAmountLabel: {
     fontSize: 12,
-    color: "#8E8E93",
     textTransform: "uppercase",
     fontWeight: "600",
     letterSpacing: 0.5,
@@ -1190,7 +1139,6 @@ const styles = StyleSheet.create({
   settlementCardAmountValue: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#10b981",
   },
   settlementCardDateRow: {
     flexDirection: "row",
@@ -1199,7 +1147,6 @@ const styles = StyleSheet.create({
   },
   settlementCardDate: {
     fontSize: 13,
-    color: "#8E8E93",
   },
   settlementCardActions: {
     flexDirection: "row",
@@ -1213,19 +1160,17 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 10,
-    backgroundColor: "#F3F4F6",
     gap: 6,
   },
   settlementCardActionButtonDanger: {
-    backgroundColor: "#FEF2F2",
+    // Error background color
   },
   settlementCardActionText: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#8b5cf6",
   },
   settlementCardActionTextDanger: {
-    color: "#ef4444",
+    // Error text color
   },
 
   // Modal Styles
@@ -1235,7 +1180,6 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   modalContent: {
-    backgroundColor: "#FFFFFF",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingBottom: IS_IOS ? 34 : 20,
@@ -1245,7 +1189,6 @@ const styles = StyleSheet.create({
   modalHandle: {
     width: 36,
     height: 5,
-    backgroundColor: "#C7C7CC",
     borderRadius: 3,
     alignSelf: "center",
     marginTop: 8,
@@ -1257,20 +1200,17 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E5EA",
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: "bold",
-    color: "#000000",
+    fontWeight: "600",
   },
   modalCloseButton: {
     padding: 4,
   },
   modalDescription: {
     fontSize: 15,
-    color: "#333333",
     textAlign: "center",
     marginBottom: 20,
     paddingHorizontal: 20,
@@ -1284,8 +1224,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingVertical: 12,
     paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E5EA",
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   participantSelectionInfo: {
     flexDirection: "row",
@@ -1296,13 +1235,11 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#8b5cf6",
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
   },
   participantSelectionInitial: {
-    color: "#FFFFFF",
     fontSize: 18,
     fontWeight: "bold",
   },
@@ -1312,19 +1249,15 @@ const styles = StyleSheet.create({
   participantSelectionName: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#000000",
   },
   participantSelectionEmail: {
     fontSize: 13,
-    color: "#8E8E93",
     marginTop: 2,
   },
   memberFilterContainer: {
     paddingHorizontal: 16,
     paddingVertical: 16,
-    backgroundColor: "#FFFFFF",
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#E5E5EA",
     ...Platform.select({
       ios: {
         shadowColor: "#000",
@@ -1340,19 +1273,15 @@ const styles = StyleSheet.create({
   memberFilterLabel: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#000000",
     marginBottom: 8,
   },
   pickerContainer: {
-    backgroundColor: "#F2F2F7",
     borderRadius: 8,
     overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "#E5E5EA",
+    borderWidth: StyleSheet.hairlineWidth,
   },
   picker: {
     height: Platform.OS === "ios" ? 200 : 50,
-    backgroundColor: "#F2F2F7",
   },
   expenseItem: {
     flexDirection: "row",
@@ -1361,7 +1290,6 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#F2F2F7",
   },
   expenseInfo: {
     flex: 1,
@@ -1369,22 +1297,18 @@ const styles = StyleSheet.create({
   expenseDescription: {
     fontSize: 15,
     fontWeight: "600",
-    color: "#000000",
     marginBottom: 4,
   },
   expenseDetails: {
     fontSize: 13,
-    color: "#8E8E93",
     marginBottom: 2,
   },
   expenseDate: {
     fontSize: 12,
-    color: "#8E8E93",
   },
   expenseAmount: {
     fontSize: 16,
     fontWeight: "bold",
-    color: "#8b5cf6",
   },
   expenseAmountContainer: {
     flexDirection: "row",
@@ -1401,12 +1325,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
-    backgroundColor: "#F2F2F7",
   },
   showAllButtonText: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#8b5cf6",
   },
   searchContainer: {
     marginBottom: 12,
@@ -1414,12 +1336,10 @@ const styles = StyleSheet.create({
   searchBar: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
     borderRadius: 12,
     paddingHorizontal: 12,
     height: 44,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "#E5E5EA",
     ...Platform.select({
       ios: {
         shadowColor: "#000",
@@ -1438,7 +1358,6 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 16,
-    color: "#000000",
     paddingVertical: 0,
   },
   clearButton: {

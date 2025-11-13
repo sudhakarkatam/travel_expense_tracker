@@ -4,6 +4,9 @@ apply plugin: "com.facebook.react"
 
 def projectRoot = rootDir.getAbsoluteFile().getParentFile().getAbsolutePath()
 
+// Fix for react-native-reanimated worklets resolution
+project.ext.REACT_NATIVE_WORKLETS_NODE_MODULES_DIR = new File(projectRoot, "node_modules/react-native-worklets").absolutePath
+
 /**
  * This is the configuration block to customize your React Native Android app.
  * By default you don't need to apply any configuration, just uncomment the lines you need.
@@ -14,7 +17,6 @@ react {
     hermesCommand = new File(["node", "--print", "require.resolve('react-native/package.json')"].execute(null, rootDir).text.trim()).getParentFile().getAbsolutePath() + "/sdks/hermesc/%OS-BIN%/hermesc"
     codegenDir = new File(["node", "--print", "require.resolve('@react-native/codegen/package.json', { paths: [require.resolve('react-native/package.json')] })"].execute(null, rootDir).text.trim()).getParentFile().getAbsoluteFile()
 
-    enableBundleCompression = (findProperty('android.enableBundleCompression') ?: false).toBoolean()
     // Use Expo CLI to bundle the app, this ensures the Metro config
     // works correctly with Expo projects.
     cliFile = new File(["node", "--print", "require.resolve('@expo/cli', { paths: [require.resolve('expo/package.json')] })"].execute(null, rootDir).text.trim())
@@ -82,12 +84,19 @@ def enableMinifyInReleaseBuilds = (findProperty('android.enableMinifyInReleaseBu
 def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 
 android {
-    ndkVersion rootProject.ext.ndkVersion
+    // Override Expo's NDK version to use working NDK installation
+    // Expo expects 26.1.10909125 (corrupted), but we use 27.1.12297006 (working)
+    ndkVersion "27.1.12297006"
 
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
     namespace 'com.travel_expense_tracker'
+    
+    // Note: Removed custom buildDir to ensure EAS builds can find outputs in standard location
+    // Standard location: android/app/build/outputs/
+    // EAS expects: android/app/build/outputs/**/*.{apk,aab}
+    
     defaultConfig {
         applicationId 'com.travel_expense_tracker'
         minSdkVersion rootProject.ext.minSdkVersion
@@ -96,6 +105,21 @@ android {
         versionName "1.0.0"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
+        
+        // EAS builds will use arm64-v8a and armeabi-v7a by default
+        // For local development, you can override this in gradle.properties
+        // Note: EAS build will automatically set the correct ABIs
+        if (project.hasProperty('reactNativeArchitectures')) {
+            def architectures = project.property('reactNativeArchitectures').split(',')
+            ndk {
+                abiFilters architectures
+            }
+        } else {
+            // Default to arm64-v8a and armeabi-v7a for production builds
+            ndk {
+                abiFilters "arm64-v8a", "armeabi-v7a"
+            }
+        }
     }
     signingConfigs {
         debug {
@@ -129,6 +153,15 @@ android {
     }
     androidResources {
         ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:!CVS:!thumbs.db:!picasa.ini:!*~'
+    }
+    
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    
+    kotlinOptions {
+        jvmTarget = '17'
     }
 }
 

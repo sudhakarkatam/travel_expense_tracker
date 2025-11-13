@@ -57,7 +57,9 @@ export function FloatingActionButton({
       style={[styles.container, style]}
     >
       <FAB
-        icon={icon}
+        icon={({ size, color }) => (
+          <Ionicons name={icon} size={size} color={color} />
+        )}
         label={label}
         onPress={onPress}
         onPressIn={handlePressIn}
