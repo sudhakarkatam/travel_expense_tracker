@@ -34,6 +34,9 @@ import AllExpensesScreen from "../screens/app/AllExpensesScreen";
 import PlanningScreen from "../screens/app/PlanningScreen";
 import NotificationSettingsScreen from "../screens/app/NotificationSettingsScreen";
 import ProfileScreen from "../screens/app/ProfileScreen";
+import SpendingTrendsScreen from "../screens/app/SpendingTrendsScreen";
+import SpendingHeatmapScreen from "../screens/app/SpendingHeatmapScreen";
+import TripFiltersScreen from "../screens/app/TripFiltersScreen";
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -385,6 +388,36 @@ export default function AppNavigator() {
           <Stack.Screen 
             name="Profile" 
             component={ProfileScreen}
+            options={{ 
+              headerShown: false,
+              ...(Platform.OS === "ios" 
+                ? TransitionPresets.ModalPresentationIOS
+                : TransitionPresets.SlideFromRightIOS),
+            }}
+          />
+          <Stack.Screen 
+            name="SpendingTrends" 
+            component={SpendingTrendsScreen}
+            options={{ 
+              headerShown: false,
+              ...(Platform.OS === "ios" 
+                ? TransitionPresets.ModalPresentationIOS
+                : TransitionPresets.SlideFromRightIOS),
+            }}
+          />
+          <Stack.Screen 
+            name="SpendingHeatmap" 
+            component={SpendingHeatmapScreen}
+            options={{ 
+              headerShown: false,
+              ...(Platform.OS === "ios" 
+                ? TransitionPresets.ModalPresentationIOS
+                : TransitionPresets.SlideFromRightIOS),
+            }}
+          />
+          <Stack.Screen 
+            name="TripFilters" 
+            component={TripFiltersScreen}
             options={{ 
               headerShown: false,
               ...(Platform.OS === "ios" 

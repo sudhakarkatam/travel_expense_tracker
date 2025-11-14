@@ -58,7 +58,7 @@ export function FloatingActionButton({
     >
       <FAB
         icon={({ size, color }) => (
-          <Ionicons name={icon} size={size} color={color} />
+          <Ionicons name={icon} size={size * 0.85} color={color} />
         )}
         label={label}
         onPress={onPress}
@@ -71,7 +71,7 @@ export function FloatingActionButton({
           },
         ]}
         color="#FFFFFF"
-        size="large"
+        size="medium"
       />
     </MotiView>
   );

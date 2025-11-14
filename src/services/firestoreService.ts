@@ -6,6 +6,7 @@ import {
   getDocs,
   query,
   where,
+  orderBy,
   writeBatch,
   deleteDoc,
   Timestamp,
@@ -118,6 +119,9 @@ export const firestoreService = {
           ...(trip.inviteCode && { inviteCode: trip.inviteCode }),
           notificationsEnabled: trip.notificationsEnabled || false,
           ...(trip.notificationPreferences && { notificationPreferences: trip.notificationPreferences }),
+          // Include currency fields
+          ...(trip.tripCurrency && { tripCurrency: trip.tripCurrency }),
+          ...(trip.exchangeRateToDefault !== undefined && { exchangeRateToDefault: trip.exchangeRateToDefault }),
           createdAt: safeDateToTimestamp(trip.createdAt),
           startDate: safeDateToTimestamp(trip.startDate),
           endDate: safeDateToTimestamp(trip.endDate),
@@ -136,7 +140,8 @@ export const firestoreService = {
   async getTrips(userId: string): Promise<Trip[]> {
     try {
       const tripsRef = collection(db, 'users', userId, 'trips');
-      const snapshot = await getDocs(tripsRef);
+      const q = query(tripsRef, orderBy('createdAt', 'desc'));
+      const snapshot = await getDocs(q);
       return snapshot.docs.map((doc) => {
         try {
           const data = doc.data();
@@ -249,7 +254,8 @@ export const firestoreService = {
   async getExpenses(userId: string): Promise<Expense[]> {
     try {
       const expensesRef = collection(db, 'users', userId, 'expenses');
-      const snapshot = await getDocs(expensesRef);
+      const q = query(expensesRef, orderBy('date', 'desc'));
+      const snapshot = await getDocs(q);
       return snapshot.docs.map((doc) => {
         try {
           const data = doc.data();
@@ -654,6 +660,121 @@ export const firestoreService = {
     });
 
     return merged;
+  },
+
+  // ========== USER PREFERENCES ==========
+  async saveUserPreferences(
+    userId: string,
+    preferences: { themePreference?: string; defaultCurrency?: string; avatar?: string; name?: string }
+  ): Promise<void> {
+    try {
+      const userRef = doc(db, 'users', userId);
+      const preferencesRef = doc(db, 'users', userId, 'preferences', 'userPreferences');
+
+      // Update top-level user document
+      const userUpdate: any = {};
+      if (preferences.themePreference !== undefined) {
+        userUpdate.themePreference = preferences.themePreference;
+      }
+      if (preferences.defaultCurrency !== undefined) {
+        userUpdate.defaultCurrency = preferences.defaultCurrency;
+      }
+      if (preferences.avatar !== undefined) {
+        userUpdate.avatar = preferences.avatar;
+      }
+      if (preferences.name !== undefined) {
+        userUpdate.name = preferences.name;
+      }
+
+      if (Object.keys(userUpdate).length > 0) {
+        await setDoc(userRef, userUpdate, { merge: true });
+      }
+
+      // Update preferences subcollection
+      const preferencesUpdate = {
+        ...preferences,
+        updatedAt: serverTimestamp(),
+      };
+      await setDoc(preferencesRef, preferencesUpdate, { merge: true });
+    } catch (error) {
+      console.error('Error saving user preferences:', error);
+      throw error;
+    }
+  },
+
+  async getUserPreferences(userId: string): Promise<{
+    themePreference?: string;
+    defaultCurrency?: string;
+    avatar?: string;
+    name?: string;
+  } | null> {
+    try {
+      // Try to get from top-level user document first
+      const userRef = doc(db, 'users', userId);
+      const userSnap = await getDoc(userRef);
+
+      if (userSnap.exists()) {
+        const data = userSnap.data();
+        const preferences: any = {};
+        if (data.themePreference) {
+          preferences.themePreference = data.themePreference;
+        }
+        if (data.defaultCurrency) {
+          preferences.defaultCurrency = data.defaultCurrency;
+        }
+        if (data.avatar) {
+          preferences.avatar = data.avatar;
+        }
+        if (data.name) {
+          preferences.name = data.name;
+        }
+        if (Object.keys(preferences).length > 0) {
+          return preferences;
+        }
+      }
+
+      // Fallback to preferences subcollection
+      const preferencesRef = doc(db, 'users', userId, 'preferences', 'userPreferences');
+      const preferencesSnap = await getDoc(preferencesRef);
+
+      if (preferencesSnap.exists()) {
+        const data = preferencesSnap.data();
+        return {
+          themePreference: data.themePreference,
+          defaultCurrency: data.defaultCurrency,
+          avatar: data.avatar,
+          name: data.name,
+        };
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Error getting user preferences:', error);
+      return null;
+    }
+  },
+
+  async updateTripCurrency(
+    userId: string,
+    tripId: string,
+    tripCurrency: string,
+    exchangeRate: number
+  ): Promise<void> {
+    try {
+      const tripRef = doc(db, 'users', userId, 'trips', tripId);
+      await setDoc(
+        tripRef,
+        {
+          tripCurrency,
+          exchangeRateToDefault: exchangeRate,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    } catch (error) {
+      console.error('Error updating trip currency:', error);
+      throw error;
+    }
   },
 };
 

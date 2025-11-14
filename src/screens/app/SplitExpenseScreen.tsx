@@ -226,7 +226,15 @@ export default function SplitExpenseScreen({ navigation, route }: SplitExpenseSc
         <View style={{ width: 24 }} />
       </View>
 
-      <ScrollView style={styles.content}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <ScrollView 
+          style={styles.content}
+          keyboardShouldPersistTaps="handled"
+        >
         <View style={styles.form}>
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Amount *</Text>
@@ -411,7 +419,8 @@ export default function SplitExpenseScreen({ navigation, route }: SplitExpenseSc
             </Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -420,6 +429,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#fff",
+  },
+  keyboardView: {
+    flex: 1,
   },
   header: {
     flexDirection: "row",

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Image, ScrollView, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Image, ScrollView, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, Surface } from 'react-native-paper';
@@ -120,7 +120,15 @@ export default function ScanReceiptScreen({ navigation }: ScanReceiptScreenProps
         <View style={{ width: 24 }} />
       </Surface>
 
-      <ScrollView style={styles.content}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <ScrollView 
+          style={styles.content}
+          keyboardShouldPersistTaps="handled"
+        >
         {!capturedImage ? (
           <View style={styles.placeholder}>
             <Ionicons name="camera" size={64} color={safeTheme.colors.onSurfaceVariant} />
@@ -279,13 +287,17 @@ export default function ScanReceiptScreen({ navigation }: ScanReceiptScreenProps
             </View>
           </View>
         )}
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  keyboardView: {
     flex: 1,
   },
   header: {

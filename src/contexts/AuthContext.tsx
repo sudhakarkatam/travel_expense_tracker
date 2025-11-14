@@ -33,6 +33,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Listen for auth state changes
     const unsubscribe = authService.onAuthStateChanged(async (firebaseUser) => {
       if (firebaseUser) {
+        // Load user preferences from Firestore (including avatar)
+        try {
+          const preferences = await firestoreService.getUserPreferences(firebaseUser.id);
+          if (preferences?.avatar) {
+            // Update user with avatar from Firestore
+            firebaseUser = { ...firebaseUser, avatar: preferences.avatar };
+          }
+          if (preferences?.name) {
+            // Update user with name from Firestore
+            firebaseUser = { ...firebaseUser, name: preferences.name };
+          }
+        } catch (error) {
+          console.error('[AuthContext] Error loading user preferences:', error);
+        }
+        
         setUser(firebaseUser);
         setIsGuest(false);
         // Ensure guest mode is cleared when user logs in
@@ -105,6 +120,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const handleLoginWithSync = async (firebaseUser: AuthUser): Promise<void> => {
+    // Load user preferences from Firestore (including avatar and name)
+    try {
+      const preferences = await firestoreService.getUserPreferences(firebaseUser.id);
+      if (preferences?.avatar) {
+        firebaseUser = { ...firebaseUser, avatar: preferences.avatar };
+      }
+      if (preferences?.name) {
+        firebaseUser = { ...firebaseUser, name: preferences.name };
+      }
+    } catch (error) {
+      console.error('[AuthContext] Error loading user preferences:', error);
+    }
+    
     // Check if there's local guest data
     const localTrips = await storage.getTrips();
     const hasLocalData = localTrips.length > 0;

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Platform } from 'react-native';
-import { Provider as PaperProvider, MD3LightTheme, MD3DarkTheme, configureFonts } from 'react-native-paper';
-import { useColorScheme } from 'react-native';
+import { Provider as PaperProvider, MD3LightTheme, MD3DarkTheme } from 'react-native-paper';
+import { useThemeMode } from '@/contexts/ThemeContext';
 import { Colors } from '@/constants/designSystem';
 
 // Material Design 3 theme configuration
@@ -229,16 +229,49 @@ const lightTheme = {
 
 const darkTheme = {
   ...MD3DarkTheme,
-  // Don't override fonts - use MD3 defaults which are properly structured
-  // fonts: configuredFonts, // Commented out to use defaults
   colors: {
     ...MD3DarkTheme.colors,
-    primary: Colors.primaryLight,
-    primaryContainer: Colors.primaryDark,
-    secondary: Colors.secondary,
-    background: Colors.gray900,
-    surface: Colors.gray800,
-    error: Colors.error,
+    primary: '#a78bfa', // Lighter purple for dark mode
+    primaryContainer: '#6d28d9', // Darker purple container
+    onPrimary: '#FFFFFF',
+    onPrimaryContainer: '#e9d5ff',
+    secondary: '#60a5fa', // Lighter blue for dark mode
+    secondaryContainer: '#1e40af',
+    onSecondary: '#FFFFFF',
+    onSecondaryContainer: '#dbeafe',
+    tertiary: '#22d3ee', // Cyan
+    tertiaryContainer: '#155e75',
+    onTertiary: '#FFFFFF',
+    onTertiaryContainer: '#cffafe',
+    surface: '#1f2937', // gray800
+    surfaceVariant: '#374151', // gray700
+    onSurface: '#f9fafb', // gray50 - high contrast
+    onSurfaceVariant: '#d1d5db', // gray300
+    background: '#111827', // gray900
+    onBackground: '#f9fafb', // gray50
+    error: '#f87171', // Lighter red for dark mode
+    errorContainer: '#7f1d1d',
+    onError: '#FFFFFF',
+    onErrorContainer: '#fecaca',
+    outline: '#4b5563', // gray600
+    outlineVariant: '#374151', // gray700
+    shadow: '#000000',
+    scrim: '#000000',
+    inverseSurface: '#f9fafb', // gray50
+    inverseOnSurface: '#111827', // gray900
+    inversePrimary: '#6d28d9',
+    elevation: {
+      level0: 'transparent',
+      level1: '#1f2937',
+      level2: '#374151',
+      level3: '#4b5563',
+      level4: '#6b7280',
+      level5: '#9ca3af',
+    },
+    // Custom colors with proper contrast
+    success: '#34d399', // Lighter green for dark mode
+    warning: '#fbbf24', // Lighter amber for dark mode
+    info: '#22d3ee', // Cyan
   },
   roundness: Platform.select({
     ios: 12,
@@ -247,16 +280,16 @@ const darkTheme = {
   }),
 };
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const colorScheme = useColorScheme();
-  const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
+export function PaperThemeProvider({ children }: { children: React.ReactNode }) {
+  const { isDark } = useThemeMode();
+  const theme = isDark ? darkTheme : lightTheme;
 
   // Safety check: Ensure fonts are always defined
   if (!theme.fonts || typeof theme.fonts !== 'object') {
     console.error('Theme fonts are not properly defined, using MD3 defaults');
     const safeTheme = {
       ...theme,
-      fonts: colorScheme === 'dark' ? MD3DarkTheme.fonts : MD3LightTheme.fonts,
+      fonts: isDark ? MD3DarkTheme.fonts : MD3LightTheme.fonts,
     };
     return (
       <PaperProvider theme={safeTheme}>

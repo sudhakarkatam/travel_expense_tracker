@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Platform,
   TouchableOpacity,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme, Surface, Avatar, Divider, List, Switch, TextInput as PaperTextInput } from 'react-native-paper';
@@ -54,7 +55,19 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
     if (user) {
       setName(user.name || '');
       setEmail(user.email || '');
-      setProfilePhoto(user.avatar || null);
+      // Load profile photo from Firestore if not in user object
+      if (user.avatar) {
+        setProfilePhoto(user.avatar);
+      } else if (user.id) {
+        // Try to load from Firestore
+        firestoreService.getUserPreferences(user.id).then((prefs) => {
+          if (prefs?.avatar) {
+            setProfilePhoto(prefs.avatar);
+          }
+        }).catch((error) => {
+          console.error('Error loading profile photo from Firestore:', error);
+        });
+      }
     } else if (appUser) {
       setName(appUser.name || '');
       setProfilePhoto(appUser.avatar || null);
@@ -83,7 +96,12 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
         
         if (user) {
           try {
+            // Update Firebase Auth profile
             await authService.updateProfile({ avatar: imageUri });
+            
+            // Also save to Firestore for persistence
+            await firestoreService.saveUserPreferences(user.id, { avatar: imageUri });
+            
             if (Platform.OS !== 'web') {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             }
@@ -121,6 +139,8 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
     try {
       if (user) {
         await authService.updateProfile({ name: name.trim() });
+        // Also save to Firestore
+        await firestoreService.saveUserPreferences(user.id, { name: name.trim() });
         if (Platform.OS !== 'web') {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
@@ -520,7 +540,16 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
         />
       </Surface>
 
-      <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <ScrollView 
+          style={styles.content} 
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
         <MotiView
           from={{ opacity: 0, translateY: 20 }}
           animate={{ opacity: 1, translateY: 0 }}
@@ -534,18 +563,30 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
                 style={styles.profilePhotoContainer}
               >
                 {isUploadingPhoto ? (
-                  <ActivityIndicator size="large" color={theme.colors.primary} />
+                  <View style={[styles.profilePhotoPlaceholder, { backgroundColor: theme.colors.surfaceVariant }]}>
+                    <ActivityIndicator size="large" color={theme.colors.primary} />
+                  </View>
                 ) : profilePhoto ? (
-                  <Avatar.Image size={120} source={{ uri: profilePhoto }} />
+                  <Image
+                    source={{ uri: profilePhoto }}
+                    style={styles.profilePhotoImage}
+                    contentFit="cover"
+                    transition={200}
+                  />
                 ) : (
-                  <Avatar.Text size={120} label={name.charAt(0).toUpperCase() || 'U'} />
+                  <View style={[styles.profilePhotoPlaceholder, { backgroundColor: theme.colors.surfaceVariant }]}>
+                    <Ionicons name="camera-outline" size={32} color={theme.colors.onSurfaceVariant} />
+                    <Text style={[styles.profilePhotoHint, { color: theme.colors.onSurfaceVariant }]}>
+                      Profile Photo
+                    </Text>
+                  </View>
                 )}
                 {isEditing && (
                   <MotiView
                     from={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     transition={{ type: 'spring' }}
-                    style={styles.editPhotoBadge}
+                    style={[styles.editPhotoBadge, { backgroundColor: theme.colors.primary }]}
                   >
                     <Ionicons name="camera" size={20} color="#fff" />
                   </MotiView>
@@ -682,13 +723,17 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
             </List.Section>
           </AnimatedCard>
         </MotiView>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  keyboardView: {
     flex: 1,
   },
   header: {
@@ -762,6 +807,25 @@ const styles = StyleSheet.create({
   },
   profilePhotoContainer: {
     position: 'relative',
+  },
+  profilePhotoPlaceholder: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderStyle: 'dashed',
+  },
+  profilePhotoImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+  },
+  profilePhotoHint: {
+    fontSize: 10,
+    marginTop: 4,
+    textAlign: 'center',
   },
   editPhotoBadge: {
     position: 'absolute',

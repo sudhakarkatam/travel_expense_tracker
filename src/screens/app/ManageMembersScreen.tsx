@@ -145,7 +145,15 @@ export default function ManageMembersScreen({ navigation, route }: ManageMembers
         </TouchableOpacity>
       </Surface>
 
-      <ScrollView style={styles.content}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <ScrollView 
+          style={styles.content}
+          keyboardShouldPersistTaps="handled"
+        >
         <Surface style={[styles.inviteSection, { backgroundColor: safeTheme.colors.surface }]} elevation={1}>
           <View style={[styles.inviteCodeContainer, { backgroundColor: safeTheme.colors.surfaceVariant }]}>
             <Text style={[styles.inviteCodeLabel, { color: safeTheme.colors.onSurfaceVariant }]}>Invite Code</Text>
@@ -277,7 +285,8 @@ export default function ManageMembersScreen({ navigation, route }: ManageMembers
             </Surface>
           )}
         </View>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -286,6 +295,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
+  },
+  keyboardView: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',

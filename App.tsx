@@ -12,16 +12,20 @@ import 'react-native-reanimated';
 import AppNavigator from './src/navigation/AppNavigator';
 import { AppProvider } from './src/contexts/AppContext';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
-import { ThemeProvider } from './src/theme/ThemeProvider';
+import { ThemeProvider } from './src/contexts/ThemeContext';
+import { CurrencyProvider } from './src/contexts/CurrencyContext';
+import { PaperThemeProvider } from './src/theme/ThemeProvider';
+import { useThemeMode } from './src/contexts/ThemeContext';
 
 const queryClient = new QueryClient();
 
 function AppContent() {
   const { isLoading } = useAuth();
+  const { isDark } = useThemeMode();
 
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={[styles.loadingContainer, { backgroundColor: isDark ? '#111827' : '#FFFFFF' }]}>
         <ActivityIndicator size="large" color="#8b5cf6" />
       </View>
     );
@@ -30,19 +34,19 @@ function AppContent() {
   return (
     <NavigationContainer
       theme={{
-        dark: false,
+        dark: isDark,
         colors: {
           primary: '#8b5cf6',
-          background: '#ffffff',
-          card: '#ffffff',
-          text: '#111827',
-          border: '#e5e7eb',
+          background: isDark ? '#111827' : '#ffffff',
+          card: isDark ? '#1f2937' : '#ffffff',
+          text: isDark ? '#f9fafb' : '#111827',
+          border: isDark ? '#374151' : '#e5e7eb',
           notification: '#8b5cf6',
         },
       }}
     >
       <AppNavigator />
-      <StatusBar style={Platform.OS === 'ios' ? 'dark' : 'auto'} />
+      <StatusBar style={isDark ? 'light' : 'dark'} />
     </NavigationContainer>
   );
 }
@@ -50,15 +54,19 @@ function AppContent() {
 function App() {
   return (
     <SafeAreaProvider>
-      <ThemeProvider>
-        <QueryClientProvider client={queryClient}>
-          <AuthProvider>
-            <AppProvider>
-              <AppContent />
-            </AppProvider>
-          </AuthProvider>
-        </QueryClientProvider>
-      </ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <ThemeProvider>
+            <CurrencyProvider>
+              <PaperThemeProvider>
+                <AppProvider>
+                  <AppContent />
+                </AppProvider>
+              </PaperThemeProvider>
+            </CurrencyProvider>
+          </ThemeProvider>
+        </AuthProvider>
+      </QueryClientProvider>
     </SafeAreaProvider>
   );
 }
@@ -68,7 +76,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
   },
 });
 

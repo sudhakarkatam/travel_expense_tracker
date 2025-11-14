@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert, Image, Switch } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert, Image, Switch, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '@/contexts/AppContext';
@@ -325,7 +325,15 @@ export default function EditExpenseScreen({ navigation, route }: EditExpenseScre
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <ScrollView 
+          style={styles.content}
+          keyboardShouldPersistTaps="handled"
+        >
         <View style={styles.form}>
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Trip</Text>
@@ -598,7 +606,8 @@ export default function EditExpenseScreen({ navigation, route }: EditExpenseScre
             </Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -607,6 +616,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
+  },
+  keyboardView: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',

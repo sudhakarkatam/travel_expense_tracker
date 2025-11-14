@@ -9,6 +9,7 @@ interface AnimatedCardProps {
   children: React.ReactNode;
   onPress?: () => void;
   style?: ViewStyle;
+  contentStyle?: ViewStyle;
   elevation?: number;
   variant?: 'default' | 'outlined' | 'elevated';
 }
@@ -17,6 +18,7 @@ export function AnimatedCard({
   children,
   onPress,
   style,
+  contentStyle,
   elevation = 2,
   variant = 'default',
 }: AnimatedCardProps) {
@@ -55,7 +57,7 @@ export function AnimatedCard({
           },
           style,
         ]}
-        contentStyle={styles.content}
+        contentStyle={contentStyle || styles.content}
       >
         {children}
       </Card>

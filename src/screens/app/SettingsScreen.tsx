@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTheme, Surface, List, Divider, ActivityIndicator } from 'react-native-paper';
+import { useTheme, Surface, List, Divider, ActivityIndicator, Modal, Portal, Button, TouchableRipple } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import * as Haptics from 'expo-haptics';
@@ -10,7 +10,12 @@ import * as DocumentPicker from 'expo-document-picker';
 import { PDFExportService } from '@/services/pdfExport';
 import { CSVService } from '@/services/csvService';
 import { useApp } from '@/contexts/AppContext';
+import { useThemeMode } from '@/contexts/ThemeContext';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { AnimatedCard } from '@/components/ui/AnimatedCard';
+import ThemeSelectionModal from '@/components/modals/ThemeSelectionModal';
+import CurrencyBottomSheet from '@/components/modals/CurrencyBottomSheet';
+import { getCurrencyByCode } from '@/constants/currencies';
 
 interface SettingsScreenProps {
   navigation: any;
@@ -18,8 +23,15 @@ interface SettingsScreenProps {
 
 export default function SettingsScreen({ navigation }: SettingsScreenProps) {
   const theme = useTheme();
+  const { themeMode } = useThemeMode();
+  const { defaultCurrency } = useCurrency();
   const { trips, expenses, addTrip, addExpense, settlements, getTripBalances } = useApp();
   const [isExporting, setIsExporting] = useState(false);
+  const [showThemeModal, setShowThemeModal] = useState(false);
+  const [showCurrencyModal, setShowCurrencyModal] = useState(false);
+
+  const currencyInfo = getCurrencyByCode(defaultCurrency);
+  const currencyDisplay = currencyInfo ? `${currencyInfo.flag} ${currencyInfo.code}` : defaultCurrency;
 
   const handleExportComprehensiveTrip = async () => {
     if (trips.length === 0) {
@@ -199,6 +211,48 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
           animate={{ opacity: 1, translateY: 0 }}
           transition={{ type: 'timing', duration: 300 }}
         >
+          <AnimatedCard variant="elevated" elevation={2} style={styles.settingsCard}>
+            <List.Section>
+              <List.Subheader style={{ color: theme.colors.onSurfaceVariant }}>Appearance</List.Subheader>
+              
+              <List.Item
+                title="Theme"
+                description={
+                  themeMode === 'system' 
+                    ? 'System default' 
+                    : themeMode === 'light' 
+                    ? 'Light mode' 
+                    : 'Dark mode'
+                }
+                left={(props) => <Ionicons name="color-palette-outline" size={24} color={props.color} style={{ marginLeft: 8 }} />}
+                right={(props) => <List.Icon {...props} icon="chevron-right" />}
+                onPress={() => {
+                  setShowThemeModal(true);
+                  if (Platform.OS !== 'web') {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }
+                }}
+                titleStyle={{ color: theme.colors.onSurface }}
+                descriptionStyle={{ color: theme.colors.onSurfaceVariant }}
+              />
+
+              <List.Item
+                title="Default Currency"
+                description={currencyDisplay}
+                left={(props) => <Ionicons name="cash-outline" size={24} color={props.color} style={{ marginLeft: 8 }} />}
+                right={(props) => <List.Icon {...props} icon="chevron-right" />}
+                onPress={() => {
+                  setShowCurrencyModal(true);
+                  if (Platform.OS !== 'web') {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }
+                }}
+                titleStyle={{ color: theme.colors.onSurface }}
+                descriptionStyle={{ color: theme.colors.onSurfaceVariant }}
+              />
+            </List.Section>
+          </AnimatedCard>
+
           <AnimatedCard variant="elevated" elevation={2} style={styles.settingsCard}>
             <List.Section>
               <List.Item
@@ -389,6 +443,19 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
           </View>
         </MotiView>
       </ScrollView>
+
+      {/* Theme Selection Modal */}
+      <ThemeSelectionModal
+        visible={showThemeModal}
+        onDismiss={() => setShowThemeModal(false)}
+      />
+
+      {/* Currency Selection Bottom Sheet */}
+      <CurrencyBottomSheet
+        visible={showCurrencyModal}
+        onDismiss={() => setShowCurrencyModal(false)}
+        title="Choose Default Currency"
+      />
     </SafeAreaView>
   );
 }

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { useTheme } from 'react-native-paper';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -22,7 +23,19 @@ export default function DatePickerInput({
   mode = 'date',
   disabled = false,
 }: DatePickerInputProps) {
+  const theme = useTheme();
   const [showPicker, setShowPicker] = useState(false);
+
+  const safeTheme = {
+    colors: {
+      surface: theme?.colors?.surface || '#FFFFFF',
+      surfaceVariant: theme?.colors?.surfaceVariant || '#F5F5F5',
+      onSurface: theme?.colors?.onSurface || '#000000',
+      onSurfaceVariant: theme?.colors?.onSurfaceVariant || '#666666',
+      outline: theme?.colors?.outline || '#E5E5E5',
+      outlineVariant: theme?.colors?.outlineVariant || '#E5E5E5',
+    },
+  };
 
   const formatDate = (dateString: string): string => {
     if (!dateString) return '';
@@ -54,17 +67,41 @@ export default function DatePickerInput({
   return (
     <View style={styles.container}>
       <TouchableOpacity
-        style={[styles.input, disabled && styles.disabled]}
+        style={[
+          styles.input,
+          {
+            backgroundColor: safeTheme.colors.surfaceVariant,
+            borderColor: safeTheme.colors.outline,
+          },
+          disabled && {
+            backgroundColor: safeTheme.colors.surfaceVariant,
+            borderColor: safeTheme.colors.outlineVariant,
+          },
+        ]}
         onPress={openPicker}
         disabled={disabled}
       >
-        <Text style={[styles.text, !value && styles.placeholder]}>
+        <Text
+          style={[
+            styles.text,
+            {
+              color: disabled
+                ? safeTheme.colors.onSurfaceVariant
+                : safeTheme.colors.onSurface,
+            },
+            !value && { color: safeTheme.colors.onSurfaceVariant },
+          ]}
+        >
           {value ? formatDate(value) : placeholder}
         </Text>
-        <Ionicons 
-          name="calendar-outline" 
-          size={20} 
-          color={disabled ? '#999' : '#666'} 
+        <Ionicons
+          name="calendar-outline"
+          size={20}
+          color={
+            disabled
+              ? safeTheme.colors.onSurfaceVariant
+              : safeTheme.colors.onSurfaceVariant
+          }
         />
       </TouchableOpacity>
 
@@ -91,22 +128,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
+    borderRadius: 12,
     padding: 12,
-    backgroundColor: '#fff',
     minHeight: 48,
-  },
-  disabled: {
-    backgroundColor: '#f9fafb',
-    borderColor: '#e5e7eb',
   },
   text: {
     fontSize: 16,
-    color: '#333',
     flex: 1,
-  },
-  placeholder: {
-    color: '#999',
   },
 });

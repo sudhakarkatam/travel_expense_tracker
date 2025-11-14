@@ -153,7 +153,7 @@ export const DESTINATION_PACKING_TEMPLATES: DestinationTemplate[] = [
   {
     destination: "Mountain/Hill",
     country: "General",
-    icon: "mountain-outline",
+    icon: "location-outline",
     items: [
       { name: "Warm layers", category: "Clothes" },
       { name: "Hiking boots", category: "Clothes" },
@@ -296,7 +296,7 @@ export const CONDITION_PACKING_TEMPLATES: DestinationTemplate[] = [
   // Mountains/Hiking
   {
     destination: "Mountains/Hiking",
-    icon: "mountain-outline",
+    icon: "location-outline",
     items: [
       { name: "Hiking boots (broken in)", category: "Clothes" },
       { name: "Trekking poles", category: "Essentials" },

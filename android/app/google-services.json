@@ -1,0 +1,55 @@
+{
+    "project_info": {
+      "project_number": "476433030379",
+      "project_id": "travel-expense-tracker-9de91",
+      "storage_bucket": "travel-expense-tracker-9de91.firebasestorage.app"
+    },
+    "client": [
+      {
+        "client_info": {
+          "mobilesdk_app_id": "1:476433030379:android:d7d1fd735985e69b3cb2ae",
+          "android_client_info": {
+            "package_name": "com.travel_expense_tracker"
+          }
+        },
+        "oauth_client": [
+          {
+            "client_id": "476433030379-0utedsb09kg551n8af3iv5io8pnmkri0.apps.googleusercontent.com",
+            "client_type": 1,
+            "android_info": {
+              "package_name": "com.travel_expense_tracker",
+              "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+            }
+          },
+          {
+            "client_id": "476433030379-gdk7c6in9hub4d6osq92fh1q29pi85hi.apps.googleusercontent.com",
+            "client_type": 1,
+            "android_info": {
+              "package_name": "com.travel_expense_tracker",
+              "certificate_hash": "887c57a8c7dcb400bd6c3a4599a57196c4949893"
+            }
+          },
+          {
+            "client_id": "476433030379-0fkr9offkkujnmfg000et5apssavdphe.apps.googleusercontent.com",
+            "client_type": 3
+          }
+        ],
+        "api_key": [
+          {
+            "current_key": "AIzaSyAEQ6FvNrA9dFRbM28uSZ8i0uIX5lKh5Ek"
+          }
+        ],
+        "services": {
+          "appinvite_service": {
+            "other_platform_oauth_client": [
+              {
+                "client_id": "476433030379-0fkr9offkkujnmfg000et5apssavdphe.apps.googleusercontent.com",
+                "client_type": 3
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "configuration_version": "1"
+  }

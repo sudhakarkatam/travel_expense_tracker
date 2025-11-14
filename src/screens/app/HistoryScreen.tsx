@@ -433,13 +433,14 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
           onPress={() => navigation.navigate('AllExpenses', { tripId: null })}
           style={styles.showAllButton}
         >
-          <Text style={[styles.showAllButtonText, { color: theme.colors.primary }]}>Show All</Text>
+          <Ionicons name="search-outline" size={20} color={theme.colors.primary} />
         </TouchableOpacity>
       </Surface>
 
-      <View style={[styles.searchContainer, { borderBottomColor: theme.colors.outlineVariant }]}>
+      {/* Search Bar at Top */}
+      <View style={[styles.searchContainer, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.outlineVariant }]}>
         <View style={[styles.searchBar, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outlineVariant }]}>
-          <Ionicons name="search-outline" size={20} color={theme.colors.onSurfaceVariant} style={styles.searchIcon} />
+          <Ionicons name="search-outline" size={18} color={theme.colors.onSurfaceVariant} style={styles.searchIcon} />
           <TextInput
             style={[styles.searchInput, { color: theme.colors.onSurface }]}
             placeholder="Search history..."
@@ -453,7 +454,7 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
               onPress={() => setSearchQuery('')}
               style={styles.clearButton}
             >
-              <Ionicons name="close-circle" size={20} color={theme.colors.onSurfaceVariant} />
+              <Ionicons name="close-circle" size={18} color={theme.colors.onSurfaceVariant} />
             </TouchableOpacity>
           )}
         </View>
@@ -739,7 +740,7 @@ const styles = StyleSheet.create({
   },
   searchContainer: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   searchBar: {
@@ -747,17 +748,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 12,
     paddingHorizontal: 12,
-    height: 44,
+    height: 40,
     borderWidth: StyleSheet.hairlineWidth,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 4,
       },
       android: {
-        elevation: 1,
+        elevation: 2,
       },
     }),
   },
@@ -802,20 +803,46 @@ const styles = StyleSheet.create({
   },
   presetFilterContainer: {
     paddingHorizontal: 16,
+    paddingVertical: 8,
     marginBottom: 12,
+    borderRadius: 12,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 1,
+      },
+    }),
+  },
+  presetFilterScroll: {
+    paddingRight: 16,
   },
   presetFilterButton: {
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderRadius: 20,
-    borderWidth: 1,
     marginRight: 8,
+    backgroundColor: 'transparent',
   },
   activePresetFilterButton: {
-    // Colors applied inline
+    ...Platform.select({
+      ios: {
+        shadowColor: '#8b5cf6',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   presetFilterText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '500',
   },
   activePresetFilterText: {
@@ -890,15 +917,15 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 16,
-    marginBottom: 8,
-    borderRadius: 12,
+    marginBottom: 12,
+    borderRadius: 16,
     marginHorizontal: 0,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
+        shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.05,
-        shadowRadius: 2,
+        shadowRadius: 4,
       },
       android: {
         elevation: 1,

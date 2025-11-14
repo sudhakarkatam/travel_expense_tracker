@@ -13,27 +13,31 @@ import {
   Animated,
   Dimensions,
   BackHandler,
+  KeyboardAvoidingView,
 } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme, Surface } from "react-native-paper";
+import { useThemeMode } from "@/contexts/ThemeContext";
 import { useApp } from "@/contexts/AppContext";
 import { Trip, PackingItem, ActivityItem } from "@/types";
 import EmptyState from "@/components/EmptyState";
 import { getTemplatesForDestination, getDurationBasedSuggestions, getConditionTemplates } from "@/utils/destinationTemplates";
 import { TouchableNativeFeedback } from "react-native";
+import { MotiView } from "moti";
+import * as Haptics from "expo-haptics";
 
 const { width } = Dimensions.get("window");
 
 // Helper for unique IDs
 const generateId = () => Math.random().toString(36).substr(2, 9);
 
-// Packing templates
+// Packing templates with improved icons
 const PACKING_TEMPLATES = [
   {
     name: "Essentials",
-    icon: "star",
+    icon: "briefcase",
     items: [
       { name: "Passport", category: "Documents" },
       { name: "Wallet", category: "Essentials" },
@@ -55,7 +59,7 @@ const PACKING_TEMPLATES = [
   },
   {
     name: "Electronics",
-    icon: "laptop",
+    icon: "phone-portrait",
     items: [
       { name: "Laptop", category: "Electronics" },
       { name: "Camera", category: "Electronics" },
@@ -133,21 +137,23 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
   const theme = useTheme();
   
   // Safe defaults for theme colors to prevent runtime errors
+  const { isDark } = useThemeMode();
+  
   const safeTheme = {
     colors: {
-      background: theme?.colors?.background || '#FFFFFF',
-      surface: theme?.colors?.surface || '#FFFFFF',
-      surfaceVariant: theme?.colors?.surfaceVariant || '#F5F5F5',
-      onSurface: theme?.colors?.onSurface || '#000000',
-      onSurfaceVariant: theme?.colors?.onSurfaceVariant || '#666666',
+      background: theme?.colors?.background || (isDark ? '#111827' : '#FFFFFF'),
+      surface: theme?.colors?.surface || (isDark ? '#1f2937' : '#FFFFFF'),
+      surfaceVariant: theme?.colors?.surfaceVariant || (isDark ? '#374151' : '#F9FAFB'),
+      onSurface: theme?.colors?.onSurface || (isDark ? '#f9fafb' : '#111827'),
+      onSurfaceVariant: theme?.colors?.onSurfaceVariant || (isDark ? '#d1d5db' : '#6b7280'),
       primary: theme?.colors?.primary || '#8b5cf6',
       onPrimary: theme?.colors?.onPrimary || '#FFFFFF',
-      primaryContainer: theme?.colors?.primaryContainer || '#EDE9FE',
-      onPrimaryContainer: theme?.colors?.onPrimaryContainer || '#000000',
+      primaryContainer: theme?.colors?.primaryContainer || (isDark ? '#6d28d9' : '#EDE9FE'),
+      onPrimaryContainer: theme?.colors?.onPrimaryContainer || (isDark ? '#e9d5ff' : '#000000'),
       error: theme?.colors?.error || '#EF4444',
       onError: theme?.colors?.onError || '#FFFFFF',
-      outline: theme?.colors?.outline || '#E5E5E5',
-      outlineVariant: theme?.colors?.outlineVariant || '#E5E5E5',
+      outline: theme?.colors?.outline || (isDark ? '#4b5563' : '#E5E7EB'),
+      outlineVariant: theme?.colors?.outlineVariant || (isDark ? '#374151' : '#E5E7EB'),
     },
   };
   const {
@@ -507,34 +513,53 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
     return count;
   }, []);
 
-  const handleConfirmCopyItems = useCallback(() => {
+  const handleConfirmCopyItems = useCallback(async () => {
     if (!selectedTripId || !selectedCopyTrip || selectedCopyItems.size === 0) {
       return;
     }
-    const sourcePackingItems = getTripPackingItems(selectedCopyTrip.id);
-    let copiedCount = 0;
     
-    sourcePackingItems.forEach((item, index) => {
-      const itemKey = `copy_item_${index}`;
-      if (selectedCopyItems.has(itemKey)) {
-        // Generate unique ID for each copied item
-        const uniqueId = generateId();
-        const newItem: PackingItem = {
-          id: uniqueId,
-          tripId: selectedTripId,
-          name: item.name,
-          category: "Packing List",
-          packed: false,
-        };
-        addPackingItem(newItem);
-        copiedCount++;
+    try {
+      const sourcePackingItems = getTripPackingItems(selectedCopyTrip.id);
+      const existingItems = getTripPackingItems(selectedTripId);
+      const existingItemNames = new Set(existingItems.map(item => item.name.toLowerCase().trim()));
+      
+      const itemsToAdd: PackingItem[] = [];
+      
+      sourcePackingItems.forEach((item, index) => {
+        const itemKey = `copy_item_${index}`;
+        if (selectedCopyItems.has(itemKey)) {
+          // Check for duplicates
+          if (!existingItemNames.has(item.name.toLowerCase().trim())) {
+            const uniqueId = generateId();
+            itemsToAdd.push({
+              id: uniqueId,
+              tripId: selectedTripId,
+              name: item.name,
+              category: item.category || "Packing List",
+              packed: false,
+            });
+          }
+        }
+      });
+      
+      // Add all items sequentially
+      for (const item of itemsToAdd) {
+        await addPackingItem(item);
       }
-    });
-    
-    Alert.alert("Success", `Copied ${copiedCount} item${copiedCount > 1 ? 's' : ''} from ${selectedCopyTrip?.name || 'trip'}.`);
-    setShowCopyItemsModal(false);
-    setSelectedCopyTrip(null);
-    setSelectedCopyItems(new Set());
+      
+      const duplicateCount = selectedCopyItems.size - itemsToAdd.length;
+      const message = duplicateCount > 0
+        ? `Copied ${itemsToAdd.length} item${itemsToAdd.length > 1 ? 's' : ''} from ${selectedCopyTrip?.name || 'trip'}. ${duplicateCount} duplicate${duplicateCount > 1 ? 's' : ''} skipped.`
+        : `Copied ${itemsToAdd.length} item${itemsToAdd.length > 1 ? 's' : ''} from ${selectedCopyTrip?.name || 'trip'}.`;
+      
+      Alert.alert("Success", message);
+      setShowCopyItemsModal(false);
+      setSelectedCopyTrip(null);
+      setSelectedCopyItems(new Set());
+    } catch (error) {
+      console.error("Error copying items:", error);
+      Alert.alert("Error", "Failed to copy items. Please try again.");
+    }
   }, [selectedTripId, selectedCopyTrip, selectedCopyItems, getTripPackingItems, addPackingItem]);
 
   // Native button component with proper TypeScript interface
@@ -572,23 +597,24 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
 
   // Render trip selector
   const renderTripSelector = () => (
-    <View style={styles.tripSelectorWrapper}>
-      <Text style={styles.tripSelectorLabel}>Select Trip</Text>
-      <View style={styles.tripSelectorContainer}>
+        <View style={styles.tripSelectorWrapper}>
+          <Text style={[styles.tripSelectorLabel, { color: safeTheme.colors.onSurfaceVariant }]}>Select Trip</Text>
+          <Surface style={[styles.tripSelectorContainer, { backgroundColor: safeTheme.colors.surface }]} elevation={1}>
         <Picker
           selectedValue={selectedTripId}
           onValueChange={setSelectedTripId}
-          style={styles.tripPicker}
+          style={[styles.tripPicker, { color: safeTheme.colors.onSurface }]}
+          dropdownIconColor={safeTheme.colors.onSurfaceVariant}
         >
           {sortedTrips.map((trip) => (
-            <Picker.Item key={trip.id} label={trip.name} value={trip.id} />
+            <Picker.Item key={trip.id} label={trip.name} value={trip.id} color={safeTheme.colors.onSurface} />
           ))}
         </Picker>
-      </View>
+      </Surface>
     </View>
   );
 
-  // Render segmented control for tabs (iOS style)
+  // Render segmented control for tabs (iOS style) with Material 3 improvements
   const renderSegmentedControl = () => {
     const tabs = [
       { key: "packing", label: "Packing", icon: "bag-outline" },
@@ -597,29 +623,64 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
     ];
 
     return (
-      <View style={styles.segmentedControl}>
+      <Surface style={[styles.segmentedControl, { backgroundColor: safeTheme.colors.surfaceVariant }]} elevation={1}>
         {tabs.map((tab) => {
           const isActive = activeTab === tab.key;
           return (
-            <NativeButton
+            <MotiView
               key={tab.key}
-              onPress={() => setActiveTab(tab.key as any)}
-              variant={isActive ? "primary" : "secondary"}
-              style={[styles.segmentedButton, isActive && styles.segmentedButtonActive]}
+              from={{ scale: 1 }}
+              animate={{ 
+                scale: isActive ? 1.05 : 1,
+                opacity: isActive ? 1 : 0.7,
+              }}
+              transition={{ type: 'spring', damping: 15 }}
             >
-              <Ionicons
-                name={tab.icon as any}
-                size={18}
-                color={isActive ? safeTheme.colors.onPrimary : safeTheme.colors.primary}
-                style={styles.segmentedIcon}
-              />
-              <Text style={[styles.segmentedText, isActive && styles.segmentedTextActive]}>
-                {tab.label}
-              </Text>
-            </NativeButton>
+              <NativeButton
+                onPress={() => {
+                  if (Platform.OS !== 'web') {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }
+                  setActiveTab(tab.key as any);
+                }}
+                variant={isActive ? "primary" : "secondary"}
+                style={[
+                  styles.segmentedButton, 
+                  isActive && { 
+                    backgroundColor: safeTheme.colors.primary,
+                    ...Platform.select({
+                      ios: {
+                        shadowColor: safeTheme.colors.primary,
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.3,
+                        shadowRadius: 4,
+                      },
+                      android: {
+                        elevation: 4,
+                      },
+                    }),
+                  },
+                  !isActive && { backgroundColor: 'transparent' }
+                ]}
+              >
+                <Ionicons
+                  name={tab.icon as any}
+                  size={18}
+                  color={isActive ? safeTheme.colors.onPrimary : safeTheme.colors.onSurfaceVariant}
+                  style={styles.segmentedIcon}
+                />
+                <Text style={[
+                  styles.segmentedText, 
+                  { color: isActive ? safeTheme.colors.onPrimary : safeTheme.colors.onSurfaceVariant },
+                  isActive && styles.segmentedTextActive
+                ]}>
+                  {tab.label}
+                </Text>
+              </NativeButton>
+            </MotiView>
           );
         })}
-      </View>
+      </Surface>
     );
   };
 
@@ -637,31 +698,49 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
 
     return (
       <View style={styles.listContainer}>
-        {sortedPackingItems.map((item) => (
-          <NativeButton
+        {sortedPackingItems.map((item, index) => (
+          <MotiView
             key={item.id}
-            onPress={() => handleTogglePacked(item)}
-            variant="ghost"
-            style={styles.packingItemCard}
+            from={{ opacity: 0, translateY: 10 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ type: 'timing', duration: 200, delay: index * 30 }}
           >
-            <View style={styles.packingItemContent}>
-              <View style={[styles.checkbox, item.packed && styles.checkboxChecked]}>
-                {item.packed && (
-                  <Ionicons name="checkmark" size={16} color={safeTheme.colors.onPrimary} />
-                )}
-              </View>
-              <Text style={[styles.packingItemName, item.packed && styles.packingItemNameChecked]}>
-                {item.name}
-          </Text>
-            </View>
-            <TouchableOpacity
-              onPress={() => handleDeletePackingItem(item.id)}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              style={styles.deleteIconButton}
-            >
-              <Ionicons name="trash-outline" size={20} color={safeTheme.colors.error} />
-        </TouchableOpacity>
-          </NativeButton>
+            <Surface style={[styles.packingItemCard, { backgroundColor: safeTheme.colors.surface }]} elevation={1}>
+              <NativeButton
+                onPress={() => {
+                  if (Platform.OS !== 'web') {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }
+                  handleTogglePacked(item);
+                }}
+                variant="ghost"
+                style={styles.packingItemButton}
+              >
+                <View style={styles.packingItemContent}>
+                  <View style={[styles.checkbox, item.packed && styles.checkboxChecked, { backgroundColor: item.packed ? safeTheme.colors.primary : safeTheme.colors.surfaceVariant }]}>
+                    {item.packed && (
+                      <Ionicons name="checkmark" size={18} color={safeTheme.colors.onPrimary} />
+                    )}
+                  </View>
+                  <Text style={[styles.packingItemName, { color: safeTheme.colors.onSurface }, item.packed && styles.packingItemNameChecked]}>
+                    {item.name}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => {
+                    if (Platform.OS !== 'web') {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    }
+                    handleDeletePackingItem(item.id);
+                  }}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  style={styles.deleteIconButton}
+                >
+                  <Ionicons name="trash-outline" size={20} color={safeTheme.colors.error} />
+                </TouchableOpacity>
+              </NativeButton>
+            </Surface>
+          </MotiView>
         ))}
       </View>
     );
@@ -673,8 +752,8 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
       return (
         <View style={styles.emptyContainer}>
           <Ionicons name="calendar-outline" size={64} color={safeTheme.colors.onSurfaceVariant} />
-          <Text style={styles.emptyTitle}>No activities yet</Text>
-          <Text style={styles.emptySubtitle}>Tap the + button to add activities</Text>
+          <Text style={[styles.emptyTitle, { color: safeTheme.colors.onSurface }]}>No activities yet</Text>
+          <Text style={[styles.emptySubtitle, { color: safeTheme.colors.onSurfaceVariant }]}>Tap the + button to add activities</Text>
         </View>
       );
     }
@@ -683,34 +762,35 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
       <View style={styles.listContainer}>
         {groupedActivityItems.map((section) => (
           <View key={section.title} style={styles.activitySection}>
-            <Text style={styles.activitySectionTitle}>{section.title}</Text>
+            <Text style={[styles.activitySectionTitle, { color: safeTheme.colors.onSurfaceVariant }]}>{section.title}</Text>
             {section.data.map((item) => (
-              <NativeButton
-                key={item.id}
-                onPress={() => handleToggleActivityCompleted(item)}
-                variant="ghost"
-                style={styles.activityItemCard}
-              >
-                <View style={styles.activityItemContent}>
-                  <View style={[styles.checkbox, item.completed && styles.checkboxChecked]}>
-                    {item.completed && (
-                      <Ionicons name="checkmark" size={16} color={safeTheme.colors.onPrimary} />
-                    )}
-                  </View>
-                  <View style={styles.activityItemText}>
-                    <Text style={[styles.activityItemName, item.completed && styles.activityItemNameChecked]}>
-                      {item.description}
-        </Text>
-      </View>
-                </View>
-                <TouchableOpacity
-                  onPress={() => handleDeleteActivityItem(item.id)}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  style={styles.deleteIconButton}
+              <Surface key={item.id} style={[styles.activityItemCard, { backgroundColor: safeTheme.colors.surface }]} elevation={1}>
+                <NativeButton
+                  onPress={() => handleToggleActivityCompleted(item)}
+                  variant="ghost"
+                  style={styles.activityItemButton}
                 >
-                  <Ionicons name="trash-outline" size={20} color={safeTheme.colors.error} />
-      </TouchableOpacity>
-              </NativeButton>
+                  <View style={styles.activityItemContent}>
+                    <View style={[styles.checkbox, item.completed && styles.checkboxChecked, { backgroundColor: item.completed ? safeTheme.colors.primary : safeTheme.colors.surfaceVariant }]}>
+                      {item.completed && (
+                        <Ionicons name="checkmark" size={16} color={safeTheme.colors.onPrimary} />
+                      )}
+                    </View>
+                    <View style={styles.activityItemText}>
+                      <Text style={[styles.activityItemName, { color: safeTheme.colors.onSurface }, item.completed && styles.activityItemNameChecked]}>
+                        {item.description}
+                      </Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => handleDeleteActivityItem(item.id)}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    style={styles.deleteIconButton}
+                  >
+                    <Ionicons name="trash-outline" size={20} color={safeTheme.colors.error} />
+                  </TouchableOpacity>
+                </NativeButton>
+              </Surface>
             ))}
           </View>
         ))}
@@ -740,8 +820,8 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
       return (
         <View style={styles.emptyContainer}>
           <Ionicons name="map-outline" size={64} color={safeTheme.colors.onSurfaceVariant} />
-          <Text style={styles.emptyTitle}>Select a trip</Text>
-          <Text style={styles.emptySubtitle}>Choose a trip to view itinerary</Text>
+          <Text style={[styles.emptyTitle, { color: safeTheme.colors.onSurface }]}>Select a trip</Text>
+          <Text style={[styles.emptySubtitle, { color: safeTheme.colors.onSurfaceVariant }]}>Choose a trip to view itinerary</Text>
         </View>
       );
     }
@@ -750,8 +830,8 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
       return (
         <View style={styles.emptyContainer}>
           <Ionicons name="calendar-outline" size={64} color={safeTheme.colors.onSurfaceVariant} />
-          <Text style={styles.emptyTitle}>No Itinerary Days</Text>
-          <Text style={styles.emptySubtitle}>Set trip dates to generate itinerary</Text>
+          <Text style={[styles.emptyTitle, { color: safeTheme.colors.onSurface }]}>No Itinerary Days</Text>
+          <Text style={[styles.emptySubtitle, { color: safeTheme.colors.onSurfaceVariant }]}>Set trip dates to generate itinerary</Text>
         </View>
       );
     }
@@ -804,7 +884,11 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
                               </Text>
                             </View>
                             <View style={styles.itineraryActivityInfo}>
-                              <Text style={[styles.itineraryActivityDescription, activity.completed && styles.itineraryActivityCompleted]}>
+                              <Text style={[
+                                styles.itineraryActivityDescription, 
+                                { color: safeTheme.colors.onSurface },
+                                activity.completed && styles.itineraryActivityCompleted
+                              ]}>
                                 {activity.description}
                               </Text>
                               {activity.completed && (
@@ -857,22 +941,36 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
     if (activeTab === "packing") {
       return (
         <View style={styles.quickActionsContainer}>
-          <NativeButton
-            onPress={() => setShowPackingTemplatesModal(true)}
-            variant="secondary"
-            style={styles.quickActionButton}
-          >
-            <Ionicons name="layers-outline" size={20} color={safeTheme.colors.primary} />
-            <Text style={styles.quickActionText}>Templates</Text>
-          </NativeButton>
-          <NativeButton
-            onPress={() => setShowCopyModal(true)}
-            variant="secondary"
-            style={styles.quickActionButton}
-          >
-            <Ionicons name="copy-outline" size={20} color={safeTheme.colors.primary} />
-            <Text style={styles.quickActionText}>Copy List</Text>
-          </NativeButton>
+          <Surface style={[styles.quickActionButton, { backgroundColor: safeTheme.colors.surface }]} elevation={1}>
+            <NativeButton
+              onPress={() => {
+                setShowPackingTemplatesModal(true);
+                if (Platform.OS !== 'web') {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }
+              }}
+              variant="ghost"
+              style={styles.quickActionButtonInner}
+            >
+              <Ionicons name="layers-outline" size={20} color={safeTheme.colors.primary} />
+              <Text style={[styles.quickActionText, { color: safeTheme.colors.primary }]}>Templates</Text>
+            </NativeButton>
+          </Surface>
+          <Surface style={[styles.quickActionButton, { backgroundColor: safeTheme.colors.surface }]} elevation={1}>
+            <NativeButton
+              onPress={() => {
+                setShowCopyModal(true);
+                if (Platform.OS !== 'web') {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }
+              }}
+              variant="ghost"
+              style={styles.quickActionButtonInner}
+            >
+              <Ionicons name="copy-outline" size={20} color={safeTheme.colors.primary} />
+              <Text style={[styles.quickActionText, { color: safeTheme.colors.primary }]}>Copy List</Text>
+            </NativeButton>
+          </Surface>
         </View>
       );
     }
@@ -880,14 +978,21 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
     if (activeTab === "activities") {
       return (
         <View style={styles.quickActionsContainer}>
-          <NativeButton
-            onPress={() => setShowActivityTemplatesModal(true)}
-            variant="secondary"
-            style={styles.quickActionButton}
-          >
-            <Ionicons name="layers-outline" size={20} color={safeTheme.colors.primary} />
-            <Text style={styles.quickActionText}>Templates</Text>
-          </NativeButton>
+          <Surface style={[styles.quickActionButton, { backgroundColor: safeTheme.colors.surface }]} elevation={1}>
+            <NativeButton
+              onPress={() => {
+                setShowActivityTemplatesModal(true);
+                if (Platform.OS !== 'web') {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }
+              }}
+              variant="ghost"
+              style={styles.quickActionButtonInner}
+            >
+              <Ionicons name="layers-outline" size={20} color={safeTheme.colors.primary} />
+              <Text style={[styles.quickActionText, { color: safeTheme.colors.primary }]}>Templates</Text>
+            </NativeButton>
+          </Surface>
         </View>
       );
     }
@@ -952,13 +1057,25 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
 
       {/* Floating Add Button */}
       {!showAddInput && (
-          <TouchableOpacity
-          style={styles.fab}
-          onPress={() => setShowAddInput(true)}
-          activeOpacity={0.8}
+        <MotiView
+          from={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ type: 'spring', damping: 15 }}
+          style={styles.fabContainer}
         >
-          <Ionicons name="add" size={28} color={safeTheme.colors.onPrimary} />
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.fab, { backgroundColor: safeTheme.colors.primary }]}
+            onPress={() => {
+              setShowAddInput(true);
+              if (Platform.OS !== 'web') {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              }
+            }}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="add" size={24} color={safeTheme.colors.onPrimary} />
+          </TouchableOpacity>
+        </MotiView>
       )}
 
       {/* Add Input Modal */}
@@ -974,7 +1091,7 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
         }}
       >
         <Pressable
-          style={styles.modalOverlay}
+          style={[styles.modalOverlay, { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.5)' }]}
           onPress={() => {
             setShowAddInput(false);
             setNewPackingItemText("");
@@ -982,9 +1099,10 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
             setNewActivityItemDate("");
           }}
         >
-          <Pressable style={styles.addInputModal} onPress={(e) => e.stopPropagation()}>
-            <View style={styles.addInputHeader}>
-              <Text style={styles.addInputTitle}>
+          <Pressable style={[styles.addInputModal, { backgroundColor: safeTheme.colors.surface }]} onPress={(e) => e.stopPropagation()}>
+            {Platform.OS === "ios" && <View style={[styles.modalHandle, { backgroundColor: safeTheme.colors.onSurfaceVariant }]} />}
+            <View style={[styles.addInputHeader, { borderBottomColor: safeTheme.colors.outlineVariant }]}>
+              <Text style={[styles.addInputTitle, { color: safeTheme.colors.onSurface }]}>
                 {activeTab === "packing" ? "Add Packing Item" : "Add Activity"}
               </Text>
               <TouchableOpacity
@@ -1000,46 +1118,58 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.addInputContent}>
-              <View style={styles.inputWrapper}>
-            <Ionicons
-                  name={activeTab === "packing" ? "bag-outline" : "calendar-outline"}
-              size={20}
-                  color={safeTheme.colors.onSurfaceVariant}
-                  style={styles.inputIcon}
-                />
-                <TextInput
-                  style={styles.modernInput}
-                  placeholder={activeTab === "packing" ? "Item name..." : "Activity description..."}
-                  value={activeTab === "packing" ? newPackingItemText : newActivityItemText}
-                  onChangeText={activeTab === "packing" ? setNewPackingItemText : setNewActivityItemText}
-                  autoFocus
-                  returnKeyType="done"
-                  onSubmitEditing={activeTab === "packing" ? handleAddPackingItem : handleAddActivityItem}
-                />
-              </View>
-
-              {activeTab === "activities" && (
-                <View style={styles.inputWrapper}>
-                  <Ionicons name="calendar-outline" size={20} color={safeTheme.colors.onSurfaceVariant} style={styles.inputIcon} />
+            <KeyboardAvoidingView
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              style={styles.addInputContent}
+              keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+            >
+              <ScrollView
+                contentContainerStyle={styles.addInputScrollContent}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+              >
+                <View style={[styles.inputWrapper, { backgroundColor: safeTheme.colors.surfaceVariant, borderColor: safeTheme.colors.outline }]}>
+                  <Ionicons
+                    name={activeTab === "packing" ? "bag-outline" : "calendar-outline"}
+                    size={20}
+                    color={safeTheme.colors.onSurfaceVariant}
+                    style={styles.inputIcon}
+                  />
                   <TextInput
-                    style={styles.modernInput}
-                    placeholder="Date (YYYY-MM-DD)"
-                    value={newActivityItemDate}
-                    onChangeText={setNewActivityItemDate}
-                    keyboardType="numeric"
+                    style={[styles.modernInput, { color: safeTheme.colors.onSurface }]}
+                    placeholder={activeTab === "packing" ? "Item name..." : "Activity description..."}
+                    placeholderTextColor={safeTheme.colors.onSurfaceVariant}
+                    value={activeTab === "packing" ? newPackingItemText : newActivityItemText}
+                    onChangeText={activeTab === "packing" ? setNewPackingItemText : setNewActivityItemText}
+                    autoFocus
+                    returnKeyType="done"
+                    onSubmitEditing={activeTab === "packing" ? handleAddPackingItem : handleAddActivityItem}
                   />
                 </View>
-              )}
 
-              <NativeButton
-                onPress={activeTab === "packing" ? handleAddPackingItem : handleAddActivityItem}
-                variant="primary"
-                style={styles.addButton}
-              >
-                <Text style={styles.addButtonText}>Add</Text>
-              </NativeButton>
-            </View>
+                {activeTab === "activities" && (
+                  <View style={[styles.inputWrapper, { backgroundColor: safeTheme.colors.surfaceVariant, borderColor: safeTheme.colors.outline }]}>
+                    <Ionicons name="calendar-outline" size={20} color={safeTheme.colors.onSurfaceVariant} style={styles.inputIcon} />
+                    <TextInput
+                      style={[styles.modernInput, { color: safeTheme.colors.onSurface }]}
+                      placeholder="Date (YYYY-MM-DD)"
+                      placeholderTextColor={safeTheme.colors.onSurfaceVariant}
+                      value={newActivityItemDate}
+                      onChangeText={setNewActivityItemDate}
+                      keyboardType="numeric"
+                    />
+                  </View>
+                )}
+
+                <NativeButton
+                  onPress={activeTab === "packing" ? handleAddPackingItem : handleAddActivityItem}
+                  variant="primary"
+                  style={[styles.addButton, { backgroundColor: safeTheme.colors.primary }]}
+                >
+                  <Text style={[styles.addButtonText, { color: safeTheme.colors.onPrimary }]}>Add</Text>
+                </NativeButton>
+              </ScrollView>
+            </KeyboardAvoidingView>
           </Pressable>
         </Pressable>
       </Modal>
@@ -1052,10 +1182,10 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
         onRequestClose={() => setShowCopyModal(false)}
       >
         <Pressable style={styles.modalOverlay} onPress={() => setShowCopyModal(false)}>
-          <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
-            {Platform.OS === "ios" && <View style={styles.modalHandle} />}
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Copy Packing List</Text>
+          <Pressable style={[styles.modalContent, { backgroundColor: safeTheme.colors.surface }]} onPress={(e) => e.stopPropagation()}>
+            {Platform.OS === "ios" && <View style={[styles.modalHandle, { backgroundColor: safeTheme.colors.onSurfaceVariant }]} />}
+            <View style={[styles.modalHeader, { borderBottomColor: safeTheme.colors.outlineVariant }]}>
+              <Text style={[styles.modalTitle, { color: safeTheme.colors.onSurface }]}>Copy Packing List</Text>
               <TouchableOpacity onPress={() => setShowCopyModal(false)} style={styles.modalCloseButton}>
                 <Ionicons name="close" size={24} color={safeTheme.colors.onSurfaceVariant} />
               </TouchableOpacity>
@@ -1083,9 +1213,9 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
                       style={styles.modalListItem}
                     >
                       <View style={styles.modalListItemContent}>
-                        <Text style={styles.modalListItemTitle}>{trip.name}</Text>
-                        <Text style={styles.modalListItemSubtitle}>
-                          {sourceItems.length} item{sourceItems.length !== 1 ? 's' : ''} • {trip.destination || 'No destination'}
+                    <Text style={[styles.modalListItemTitle, { color: safeTheme.colors.onSurface }]}>{trip.name}</Text>
+                    <Text style={[styles.modalListItemSubtitle, { color: safeTheme.colors.onSurfaceVariant }]}>
+                      {sourceItems.length} item{sourceItems.length !== 1 ? 's' : ''} • {trip.destination || 'No destination'}
             </Text>
                       </View>
                       <Ionicons name="chevron-forward" size={20} color={safeTheme.colors.onSurfaceVariant} />
@@ -1095,8 +1225,8 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
               {sortedTrips.filter((trip) => trip.id !== selectedTripId && getTripPackingItems(trip.id).length > 0).length === 0 && (
                 <View style={styles.emptyContainer}>
                   <Ionicons name="bag-outline" size={48} color={safeTheme.colors.onSurfaceVariant} />
-                  <Text style={styles.emptyTitle}>No trips available</Text>
-                  <Text style={styles.emptySubtitle}>No trips with packing items to copy</Text>
+                  <Text style={[styles.emptyTitle, { color: safeTheme.colors.onSurface }]}>No trips available</Text>
+                  <Text style={[styles.emptySubtitle, { color: safeTheme.colors.onSurfaceVariant }]}>No trips with packing items to copy</Text>
                 </View>
               )}
             </ScrollView>
@@ -1123,9 +1253,9 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
             setSelectedCopyItems(new Set());
           }}
         >
-          <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
-            {Platform.OS === "ios" && <View style={styles.modalHandle} />}
-            <View style={styles.modalHeader}>
+          <Pressable style={[styles.modalContent, { backgroundColor: safeTheme.colors.surface }]} onPress={(e) => e.stopPropagation()}>
+            {Platform.OS === "ios" && <View style={[styles.modalHandle, { backgroundColor: safeTheme.colors.onSurfaceVariant }]} />}
+            <View style={[styles.modalHeader, { borderBottomColor: safeTheme.colors.outlineVariant }]}>
               <TouchableOpacity
                 onPress={() => {
                   setShowCopyItemsModal(false);
@@ -1137,7 +1267,7 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
               >
                 <Ionicons name="arrow-back" size={24} color={safeTheme.colors.onSurfaceVariant} />
           </TouchableOpacity>
-              <Text style={styles.modalTitle}>
+              <Text style={[styles.modalTitle, { color: safeTheme.colors.onSurface }]}>
                 Select Items from {selectedCopyTrip?.name || 'Trip'}
               </Text>
           <TouchableOpacity
@@ -1186,7 +1316,7 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
               size={20}
                   color={safeTheme.colors.primary} 
                 />
-                <Text style={styles.selectAllText}>
+                <Text style={[styles.selectAllText, { color: safeTheme.colors.primary }]}>
                   {selectedCopyTrip && getTripPackingItems(selectedCopyTrip.id).every((item, index) => {
                     const itemKey = `copy_item_${index}`;
                     return selectedCopyItems.has(itemKey);
@@ -1195,43 +1325,45 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
           </TouchableOpacity>
         </View>
 
-            <ScrollView 
-              style={styles.modalList}
-              contentContainerStyle={styles.modalListContent}
-              showsVerticalScrollIndicator={true}
-            >
-              {selectedCopyTrip && getTripPackingItems(selectedCopyTrip.id).map((item, index) => {
-                const itemKey = `copy_item_${index}`;
-                const isSelected = selectedCopyItems.has(itemKey);
-                return (
-                  <NativeButton
-                    key={item.id}
-                    onPress={() => {
-                      const newSelected = new Set(selectedCopyItems);
-                      if (isSelected) {
-                        newSelected.delete(itemKey);
-                      } else {
-                        newSelected.add(itemKey);
-                      }
-                      setSelectedCopyItems(newSelected);
-                    }}
-                    variant="ghost"
-                    style={[styles.templateItemRow, isSelected && styles.templateItemRowSelected]}
-                  >
-                    <View style={[styles.checkbox, isSelected && styles.checkboxChecked]}>
-                      {isSelected && <Ionicons name="checkmark" size={16} color={safeTheme.colors.onPrimary} />}
-                    </View>
-                    <View style={styles.modalListItemContent}>
-                      <Text style={styles.modalListItemTitle}>{item.name}</Text>
-                      {item.category && (
-                        <Text style={styles.modalListItemSubtitle}>{item.category}</Text>
-                      )}
-                    </View>
-                  </NativeButton>
-                );
-              })}
-            </ScrollView>
-            <View style={styles.templateItemsFooter}>
+            <View style={styles.modalListWrapper}>
+              <ScrollView 
+                style={styles.modalList}
+                contentContainerStyle={styles.modalListContent}
+                showsVerticalScrollIndicator={true}
+              >
+                {selectedCopyTrip && getTripPackingItems(selectedCopyTrip.id).map((item, index) => {
+                  const itemKey = `copy_item_${index}`;
+                  const isSelected = selectedCopyItems.has(itemKey);
+                  return (
+                    <NativeButton
+                      key={item.id}
+                      onPress={() => {
+                        const newSelected = new Set(selectedCopyItems);
+                        if (isSelected) {
+                          newSelected.delete(itemKey);
+                        } else {
+                          newSelected.add(itemKey);
+                        }
+                        setSelectedCopyItems(newSelected);
+                      }}
+                      variant="ghost"
+                      style={[styles.templateItemRow, isSelected && styles.templateItemRowSelected]}
+                    >
+                      <View style={[styles.checkbox, isSelected && styles.checkboxChecked]}>
+                        {isSelected && <Ionicons name="checkmark" size={16} color={safeTheme.colors.onPrimary} />}
+                      </View>
+                      <View style={styles.modalListItemContent}>
+                    <Text style={[styles.modalListItemTitle, { color: safeTheme.colors.onSurface }]}>{item.name}</Text>
+                    {item.category && (
+                      <Text style={[styles.modalListItemSubtitle, { color: safeTheme.colors.onSurfaceVariant }]}>{item.category}</Text>
+                    )}
+                      </View>
+                    </NativeButton>
+                  );
+                })}
+              </ScrollView>
+            </View>
+            <View style={[styles.templateItemsFooter, { borderTopColor: safeTheme.colors.outlineVariant, backgroundColor: safeTheme.colors.surface }]}>
               <NativeButton
                 onPress={handleConfirmCopyItems}
                 variant="primary"
@@ -1260,10 +1392,10 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
           setShowPackingTemplatesModal(false);
           setTemplateCategory("location");
         }}>
-          <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
-            {Platform.OS === "ios" && <View style={styles.modalHandle} />}
+          <Pressable style={[styles.modalContent, { backgroundColor: safeTheme.colors.surface }]} onPress={(e) => e.stopPropagation()}>
+            {Platform.OS === "ios" && <View style={[styles.modalHandle, { backgroundColor: safeTheme.colors.onSurfaceVariant }]} />}
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Packing Templates</Text>
+              <Text style={[styles.modalTitle, { color: safeTheme.colors.onSurface }]}>Packing Templates</Text>
               <TouchableOpacity onPress={() => {
                 setShowPackingTemplatesModal(false);
                 setTemplateCategory("location");
@@ -1352,8 +1484,8 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
                         <Ionicons name={template.icon as any} size={24} color={safeTheme.colors.primary} />
                       </View>
                       <View style={styles.modalListItemContent}>
-                        <Text style={styles.modalListItemTitle}>{template.destination}</Text>
-                        <Text style={styles.modalListItemSubtitle}>{template.items?.length || 0} items</Text>
+                        <Text style={[styles.modalListItemTitle, { color: safeTheme.colors.onSurface }]}>{template.destination}</Text>
+                        <Text style={[styles.modalListItemSubtitle, { color: safeTheme.colors.onSurfaceVariant }]}>{template.items?.length || 0} items</Text>
                       </View>
                       <Ionicons name="chevron-forward" size={20} color={safeTheme.colors.onSurfaceVariant} />
                     </NativeButton>
@@ -1396,8 +1528,8 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
                         <Ionicons name={template.icon as any} size={24} color={safeTheme.colors.primary} />
                       </View>
                       <View style={styles.modalListItemContent}>
-                        <Text style={styles.modalListItemTitle}>{template.destination}</Text>
-                        <Text style={styles.modalListItemSubtitle}>{template.items?.length || 0} items</Text>
+                        <Text style={[styles.modalListItemTitle, { color: safeTheme.colors.onSurface }]}>{template.destination}</Text>
+                        <Text style={[styles.modalListItemSubtitle, { color: safeTheme.colors.onSurfaceVariant }]}>{template.items?.length || 0} items</Text>
                       </View>
                       <Ionicons name="chevron-forward" size={20} color={safeTheme.colors.onSurfaceVariant} />
                     </NativeButton>
@@ -1445,8 +1577,8 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
                         <Ionicons name={template.icon as any} size={24} color={safeTheme.colors.primary} />
                       </View>
                       <View style={styles.modalListItemContent}>
-                        <Text style={styles.modalListItemTitle}>{template.name}</Text>
-                        <Text style={styles.modalListItemSubtitle}>{template.items.length} items</Text>
+                        <Text style={[styles.modalListItemTitle, { color: safeTheme.colors.onSurface }]}>{template.name}</Text>
+                        <Text style={[styles.modalListItemSubtitle, { color: safeTheme.colors.onSurfaceVariant }]}>{template.items.length} items</Text>
                       </View>
                       <Ionicons name="chevron-forward" size={20} color={safeTheme.colors.onSurfaceVariant} />
                     </NativeButton>
@@ -1459,8 +1591,8 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
                templateCategory !== "general" && (
                 <View style={styles.emptyContainer}>
                   <Ionicons name="layers-outline" size={48} color={safeTheme.colors.onSurfaceVariant} />
-                  <Text style={styles.emptyTitle}>No templates available</Text>
-                  <Text style={styles.emptySubtitle}>Try selecting a different category</Text>
+                  <Text style={[styles.emptyTitle, { color: safeTheme.colors.onSurface }]}>No templates available</Text>
+                  <Text style={[styles.emptySubtitle, { color: safeTheme.colors.onSurfaceVariant }]}>Try selecting a different category</Text>
                 </View>
               )}
             </ScrollView>
@@ -1475,11 +1607,11 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
         animationType="slide"
         onRequestClose={() => setShowActivityTemplatesModal(false)}
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setShowActivityTemplatesModal(false)}>
-          <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
-            {Platform.OS === "ios" && <View style={styles.modalHandle} />}
+        <Pressable style={[styles.modalOverlay, { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.5)' }]} onPress={() => setShowActivityTemplatesModal(false)}>
+          <Pressable style={[styles.modalContent, { backgroundColor: safeTheme.colors.surface }]} onPress={(e) => e.stopPropagation()}>
+            {Platform.OS === "ios" && <View style={[styles.modalHandle, { backgroundColor: safeTheme.colors.onSurfaceVariant }]} />}
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Activity Templates</Text>
+              <Text style={[styles.modalTitle, { color: safeTheme.colors.onSurface }]}>Activity Templates</Text>
               <TouchableOpacity onPress={() => setShowActivityTemplatesModal(false)} style={styles.modalCloseButton}>
                 <Ionicons name="close" size={24} color={safeTheme.colors.onSurfaceVariant} />
               </TouchableOpacity>
@@ -1570,16 +1702,16 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
         }}
       >
         <Pressable
-          style={styles.modalOverlay}
+          style={[styles.modalOverlay, { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.5)' }]}
           onPress={() => {
             setShowTemplateItemsModal(false);
             setSelectedTemplate(null);
             setSelectedTemplateItems(new Set());
           }}
         >
-          <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
-            {Platform.OS === "ios" && <View style={styles.modalHandle} />}
-            <View style={styles.modalHeader}>
+          <Pressable style={[styles.modalContent, { backgroundColor: safeTheme.colors.surface }]} onPress={(e) => e.stopPropagation()}>
+            {Platform.OS === "ios" && <View style={[styles.modalHandle, { backgroundColor: safeTheme.colors.onSurfaceVariant }]} />}
+            <View style={[styles.modalHeader, { borderBottomColor: safeTheme.colors.outlineVariant }]}>
               <TouchableOpacity
                 onPress={() => {
                   // Go back to previous modal state
@@ -1612,7 +1744,7 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
               >
                 <Ionicons name="arrow-back" size={24} color={safeTheme.colors.onSurfaceVariant} />
               </TouchableOpacity>
-              <Text style={styles.modalTitle}>{selectedTemplate?.destination || selectedTemplate?.name || 'Select Items'}</Text>
+              <Text style={[styles.modalTitle, { color: safeTheme.colors.onSurface }]}>{selectedTemplate?.destination || selectedTemplate?.name || 'Select Items'}</Text>
               <TouchableOpacity
                 onPress={() => {
                   setShowTemplateItemsModal(false);
@@ -1659,7 +1791,7 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
                   size={20} 
                   color={safeTheme.colors.primary} 
                 />
-                <Text style={styles.selectAllText}>
+                <Text style={[styles.selectAllText, { color: safeTheme.colors.primary }]}>
                   {selectedTemplate && (selectedTemplate.items || selectedTemplate.activities || []).every((item: any, index: number) => {
                     const itemKey = `item_${index}`;
                     return selectedTemplateItems.has(itemKey);
@@ -1667,12 +1799,13 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
                 </Text>
               </TouchableOpacity>
           </View>
-            <ScrollView 
-              style={styles.modalList}
-              contentContainerStyle={styles.modalListContent}
-              showsVerticalScrollIndicator={true}
-            >
-              {selectedTemplate?.items?.map((item: any, index: number) => {
+            <View style={styles.modalListWrapper}>
+              <ScrollView 
+                style={styles.modalList}
+                contentContainerStyle={styles.modalListContent}
+                showsVerticalScrollIndicator={true}
+              >
+                {selectedTemplate?.items?.map((item: any, index: number) => {
                 const itemKey = `item_${index}`;
                 const isSelected = selectedTemplateItems.has(itemKey);
                 return (
@@ -1688,15 +1821,25 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
                       setSelectedTemplateItems(newSelected);
                     }}
                     variant="ghost"
-                    style={[styles.templateItemRow, isSelected && styles.templateItemRowSelected]}
+                    style={[
+                      styles.templateItemRow, 
+                      { backgroundColor: safeTheme.colors.surfaceVariant, borderColor: safeTheme.colors.outline },
+                      isSelected && styles.templateItemRowSelected
+                    ]}
                   >
-                    <View style={[styles.checkbox, isSelected && styles.checkboxChecked]}>
+                    <View style={[
+                      styles.checkbox, 
+                      isSelected && styles.checkboxChecked,
+                      { backgroundColor: isSelected ? safeTheme.colors.primary : safeTheme.colors.surfaceVariant }
+                    ]}>
                       {isSelected && <Ionicons name="checkmark" size={16} color={safeTheme.colors.onPrimary} />}
                     </View>
                     <View style={styles.modalListItemContent}>
-                      <Text style={styles.modalListItemTitle}>{item.name || item.description}</Text>
+                      <Text style={[styles.modalListItemTitle, { color: safeTheme.colors.onSurface }]}>{item.name || item.description}</Text>
                       {item.category && (
-                        <Text style={styles.modalListItemSubtitle}>{item.category}</Text>
+                        <View style={styles.categoryTag}>
+                          <Text style={[styles.categoryTagText, { color: safeTheme.colors.primary }]}>{item.category}</Text>
+                        </View>
                       )}
                     </View>
                   </NativeButton>
@@ -1718,19 +1861,28 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
                       setSelectedTemplateItems(newSelected);
                     }}
                     variant="ghost"
-                    style={[styles.templateItemRow, isSelected && styles.templateItemRowSelected]}
+                    style={[
+                      styles.templateItemRow, 
+                      { backgroundColor: safeTheme.colors.surfaceVariant, borderColor: safeTheme.colors.outline },
+                      isSelected && styles.templateItemRowSelected
+                    ]}
                   >
-                    <View style={[styles.checkbox, isSelected && styles.checkboxChecked]}>
+                    <View style={[
+                      styles.checkbox, 
+                      isSelected && styles.checkboxChecked,
+                      { backgroundColor: isSelected ? safeTheme.colors.primary : safeTheme.colors.surfaceVariant }
+                    ]}>
                       {isSelected && <Ionicons name="checkmark" size={16} color={safeTheme.colors.onPrimary} />}
                     </View>
                     <View style={styles.modalListItemContent}>
-                      <Text style={styles.modalListItemTitle}>{activity.description}</Text>
+                      <Text style={[styles.modalListItemTitle, { color: safeTheme.colors.onSurface }]}>{activity.description}</Text>
                     </View>
                   </NativeButton>
                 );
               })}
-      </ScrollView>
-            <View style={styles.templateItemsFooter}>
+              </ScrollView>
+            </View>
+            <View style={[styles.templateItemsFooter, { borderTopColor: safeTheme.colors.outlineVariant, backgroundColor: safeTheme.colors.surface }]}>
               <NativeButton
                 onPress={() => {
                   if (selectedTemplateItems.size > 0 && selectedTemplate) {
@@ -1750,34 +1902,42 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
                       
                       // Add all selected items separately - ensure each item gets its own ID
                       if (itemsToAdd.length > 0 && selectedTripId) {
+                        // Get existing items to check for duplicates
+                        const existingItems = getTripPackingItems(selectedTripId);
+                        const existingItemNames = new Set(existingItems.map(item => item.name.toLowerCase().trim()));
+                        
+                        // Filter out duplicates
+                        const uniqueItemsToAdd = itemsToAdd.filter((item: any) => {
+                          return !existingItemNames.has(item.name.toLowerCase().trim());
+                        });
+                        
+                        if (uniqueItemsToAdd.length === 0) {
+                          Alert.alert("Info", "All selected items already exist in your packing list.");
+                          return;
+                        }
+                        
                         // Create all items first
-                        const allNewItems = itemsToAdd.map((item: any) => ({
+                        const allNewItems = uniqueItemsToAdd.map((item: any) => ({
                           id: generateId(),
                           tripId: selectedTripId,
                           name: item.name,
-                          category: "Packing List",
+                          category: item.category || "Packing List",
                           packed: false,
                         }));
                         
-                        // Add all items sequentially with proper async handling
-                        // Use a promise chain to ensure each item is added before the next
-                        const addItemsSequentially = async () => {
-                          for (const item of allNewItems) {
-                            await addPackingItem(item);
-                          }
-                        };
+                        // Optimistic UI: Add items immediately to local state
+                        allNewItems.forEach(item => {
+                          addPackingItem(item);
+                        });
                         
-                        addItemsSequentially().then(() => {
-                          Alert.alert("Success", `Added ${allNewItems.length} item${allNewItems.length > 1 ? 's' : ''} to your packing list.`);
+                        // Close modal after a brief delay to show the items were added
+                        const duplicateCount = itemsToAdd.length - uniqueItemsToAdd.length;
+                        setTimeout(() => {
                           setShowTemplateItemsModal(false);
                           setSelectedTemplate(null);
                           setSelectedTemplateItems(new Set());
-                          // Clear modal history after successful add
                           setModalHistory([]);
-                        }).catch((error) => {
-                          console.error("Error adding items:", error);
-                          Alert.alert("Error", "Failed to add some items. Please try again.");
-                        });
+                        }, 300);
                       } else if (itemsToAdd.length === 0) {
                         Alert.alert("Info", "No items selected. Please select items to add.");
                       }
@@ -1806,25 +1966,20 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
                           completed: false,
                         }));
                         
-                        // Add all activities sequentially with proper async handling
-                        // Use a promise chain to ensure each activity is added before the next
-                        const addActivitiesSequentially = async () => {
-                          for (const activity of allNewActivities) {
-                            await addActivityItem(activity);
-                          }
-                        };
-                        
-                        addActivitiesSequentially().then(() => {
-                          Alert.alert("Success", `Added ${allNewActivities.length} activit${allNewActivities.length > 1 ? 'ies' : 'y'} to your itinerary.`);
-                          setShowTemplateItemsModal(false);
-                          setSelectedTemplate(null);
-                          setSelectedTemplateItems(new Set());
-                          // Clear modal history after successful add
-                          setModalHistory([]);
-                        }).catch((error) => {
-                          console.error("Error adding activities:", error);
-                          Alert.alert("Error", "Failed to add some activities. Please try again.");
-                        });
+                        // Add all activities in parallel for better performance
+                        Promise.all(allNewActivities.map(activity => addActivityItem(activity)))
+                          .then(() => {
+                            Alert.alert("Success", `Added ${allNewActivities.length} activit${allNewActivities.length > 1 ? 'ies' : 'y'} to your itinerary.`);
+                            setShowTemplateItemsModal(false);
+                            setSelectedTemplate(null);
+                            setSelectedTemplateItems(new Set());
+                            // Clear modal history after successful add
+                            setModalHistory([]);
+                          })
+                          .catch((error) => {
+                            console.error("Error adding activities:", error);
+                            Alert.alert("Error", "Failed to add some activities. Please try again.");
+                          });
                       } else if (activitiesToAdd.length === 0) {
                         Alert.alert("Info", "No activities selected. Please select activities to add.");
                       }
@@ -1853,18 +2008,15 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F9FAFB",
   },
   header: {
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 12,
-    backgroundColor: "#FFFFFF",
   },
   headerTitle: {
     fontSize: 32,
     fontWeight: "700",
-    color: "#111827",
     letterSpacing: -0.5,
   },
   scrollView: {
@@ -1881,15 +2033,14 @@ const styles = StyleSheet.create({
   tripSelectorLabel: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#6B7280",
     textTransform: "uppercase",
     letterSpacing: 0.5,
     marginBottom: 8,
   },
   tripSelectorContainer: {
-    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     overflow: "hidden",
+    backgroundColor: "transparent",
     ...Platform.select({
       ios: {
         shadowColor: "#000",
@@ -1904,11 +2055,9 @@ const styles = StyleSheet.create({
   },
   tripPicker: {
     height: Platform.OS === "ios" ? 200 : 50,
-    backgroundColor: "#FFFFFF",
   },
   segmentedControl: {
     flexDirection: "row",
-    backgroundColor: "#FFFFFF",
     marginHorizontal: 20,
     marginBottom: 20,
     borderRadius: 16,
@@ -1917,7 +2066,7 @@ const styles = StyleSheet.create({
       ios: {
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
+        shadowOpacity: 0.08,
         shadowRadius: 8,
       },
       android: {
@@ -1931,23 +2080,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     borderRadius: 12,
-    backgroundColor: "transparent",
-  },
-  segmentedButtonActive: {
-    backgroundColor: "#8b5cf6",
+    minHeight: 44,
   },
   segmentedIcon: {
     marginRight: 6,
   },
   segmentedText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "600",
-    color: "#8b5cf6",
   },
   segmentedTextActive: {
-    color: "#FFFFFF",
+    fontWeight: "700",
   },
   contentSection: {
     paddingHorizontal: 20,
@@ -1964,32 +2109,23 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: "600",
-    color: "#374151",
     marginTop: 16,
   },
   emptySubtitle: {
     fontSize: 15,
-    color: "#9CA3AF",
     marginTop: 8,
   },
   packingItemCard: {
+    borderRadius: 18,
+    marginBottom: 12,
+    overflow: 'hidden',
+  },
+  packingItemButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
     padding: 16,
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
+    width: '100%',
   },
   packingItemContent: {
     flexDirection: "row",
@@ -2001,30 +2137,28 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: 6,
     borderWidth: 2,
-    borderColor: "#D1D5DB",
-    marginRight: 12,
+    marginRight: 14,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#FFFFFF",
   },
   checkboxChecked: {
-    backgroundColor: "#8b5cf6",
-    borderColor: "#8b5cf6",
+    borderColor: "transparent",
   },
   packingItemName: {
     fontSize: 16,
     fontWeight: "500",
-    color: "#111827",
     flex: 1,
+    lineHeight: 22,
   },
   packingItemNameChecked: {
     textDecorationLine: "line-through",
-    color: "#9CA3AF",
     opacity: 0.6,
   },
   deleteIconButton: {
     padding: 8,
     marginLeft: 8,
+    borderRadius: 20,
+    backgroundColor: "rgba(239, 68, 68, 0.1)",
   },
   activitySection: {
     marginBottom: 24,
@@ -2032,31 +2166,22 @@ const styles = StyleSheet.create({
   activitySectionTitle: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#6B7280",
     textTransform: "uppercase",
     letterSpacing: 0.5,
     marginBottom: 12,
     paddingHorizontal: 4,
   },
   activityItemCard: {
+    borderRadius: 18,
+    marginBottom: 12,
+    overflow: 'hidden',
+  },
+  activityItemButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
     padding: 16,
-    marginBottom: 12,
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
+    width: '100%',
   },
   activityItemContent: {
     flexDirection: "row",
@@ -2069,12 +2194,22 @@ const styles = StyleSheet.create({
   activityItemName: {
     fontSize: 16,
     fontWeight: "500",
-    color: "#111827",
   },
   activityItemNameChecked: {
     textDecorationLine: "line-through",
-    color: "#9CA3AF",
     opacity: 0.6,
+  },
+  categoryTag: {
+    marginTop: 4,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: "rgba(139, 92, 246, 0.1)",
+  },
+  categoryTagText: {
+    fontSize: 12,
+    fontWeight: "600",
   },
   quickActionsContainer: {
     flexDirection: "row",
@@ -2084,27 +2219,36 @@ const styles = StyleSheet.create({
   },
   quickActionButton: {
     flex: 1,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  quickActionButtonInner: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 14,
     paddingHorizontal: 20,
-    borderRadius: 16,
     gap: 8,
+    width: '100%',
   },
   quickActionText: {
     fontSize: 15,
     fontWeight: "600",
-    color: "#8b5cf6",
   },
-  fab: {
+  fabContainer: {
     position: "absolute",
     right: 20,
-    bottom: 20,
+    bottom: Platform.select({
+      ios: 100,
+      android: 20,
+      default: 20,
+    }),
+    zIndex: 1000,
+  },
+  fab: {
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: "#8b5cf6",
     alignItems: "center",
     justifyContent: "center",
     ...Platform.select({
@@ -2112,7 +2256,7 @@ const styles = StyleSheet.create({
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
-        shadowRadius: 8,
+        shadowRadius: 12,
       },
       android: {
         elevation: 8,
@@ -2121,15 +2265,27 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
     justifyContent: "flex-end",
   },
   addInputModal: {
-    backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     paddingBottom: Platform.OS === "ios" ? 34 : 20,
-    maxHeight: "60%",
+    height: "70%",
+    maxHeight: "70%",
+    minHeight: "50%",
+    backgroundColor: "#FFFFFF", // Will be overridden by safeTheme
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 16,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
   },
   addInputHeader: {
     flexDirection: "row",
@@ -2138,29 +2294,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   addInputTitle: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#111827",
   },
   closeButton: {
     padding: 4,
   },
   addInputContent: {
+    flex: 1,
+  },
+  addInputScrollContent: {
     padding: 20,
+    paddingBottom: 40,
   },
   inputWrapper: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F9FAFB",
     borderRadius: 12,
     paddingHorizontal: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    minHeight: 52,
   },
   inputIcon: {
     marginRight: 12,
@@ -2168,50 +2325,58 @@ const styles = StyleSheet.create({
   modernInput: {
     flex: 1,
     fontSize: 16,
-    color: "#111827",
     paddingVertical: 14,
   },
   addButton: {
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: "center",
+    marginTop: 8,
   },
   addButtonText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#FFFFFF",
   },
   modalContent: {
-    backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     paddingBottom: Platform.OS === "ios" ? 34 : 20,
-    maxHeight: "90%",
+    maxHeight: "70%",
+    height: "70%",
     minHeight: "50%",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 16,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
   },
   modalHandle: {
-    width: 36,
-    height: 5,
-    backgroundColor: "#D1D5DB",
-    borderRadius: 3,
+    width: 40,
+    height: 4,
+    borderRadius: 2,
     alignSelf: "center",
     marginTop: 12,
-    marginBottom: 8,
+    marginBottom: 12,
   },
   modalHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     paddingTop: 20,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
+    paddingBottom: 20,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: "700",
-    color: "#111827",
+    letterSpacing: -0.5,
   },
   modalCloseButton: {
     padding: 4,
@@ -2225,7 +2390,6 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
   },
   selectAllButton: {
     flexDirection: "row",
@@ -2234,29 +2398,42 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 12,
-    backgroundColor: "#F9FAFB",
     gap: 12,
   },
   selectAllText: {
     fontSize: 15,
     fontWeight: "600",
-    color: "#8b5cf6",
+  },
+  modalListWrapper: {
+    flex: 1,
+    position: 'relative',
   },
   modalList: {
     flex: 1,
-    maxHeight: Dimensions.get('window').height * 0.7,
   },
   modalListContent: {
     padding: 20,
-    paddingBottom: 40,
+    paddingBottom: 100, // Extra padding for fixed footer
   },
   modalListItem: {
     flexDirection: "row",
     alignItems: "center",
     padding: 16,
-    borderRadius: 12,
-    marginBottom: 8,
-    backgroundColor: "#F9FAFB",
+    borderRadius: 18,
+    marginBottom: 12,
+    borderWidth: 1,
+    backgroundColor: "transparent",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   modalListItemContent: {
     flex: 1,
@@ -2265,25 +2442,22 @@ const styles = StyleSheet.create({
   modalListItemTitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#111827",
     marginBottom: 4,
   },
   modalListItemSubtitle: {
     fontSize: 14,
-    color: "#6B7280",
   },
   templateItemIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#EDE9FE",
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "rgba(139, 92, 246, 0.1)",
     alignItems: "center",
     justifyContent: "center",
   },
   templateSectionHeader: {
     fontSize: 13,
     fontWeight: "700",
-    color: "#8b5cf6",
     marginTop: 20,
     marginBottom: 12,
     textTransform: "uppercase",
@@ -2293,17 +2467,35 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 16,
     marginBottom: 8,
-    backgroundColor: "#F9FAFB",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "transparent",
   },
   templateItemRowSelected: {
-    backgroundColor: "#EDE9FE",
+    borderColor: "rgba(139, 92, 246, 0.3)",
+    backgroundColor: "rgba(139, 92, 246, 0.1)",
   },
   templateItemsFooter: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     padding: 20,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
     borderTopWidth: 1,
-    borderTopColor: "#F3F4F6",
+    backgroundColor: "transparent",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
   },
   templateItemsAddButton: {
     paddingVertical: 16,
@@ -2316,16 +2508,15 @@ const styles = StyleSheet.create({
   templateItemsAddButtonText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#FFFFFF",
   },
   templateItemsAddButtonTextDisabled: {
-    color: "#9CA3AF",
+    opacity: 0.5,
   },
   templateTabsContainer: {
     flexDirection: "row",
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 8,
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 12,
     gap: 8,
   },
   templateTab: {
@@ -2333,13 +2524,24 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    gap: 6,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    gap: 8,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 1,
+      },
+    }),
   },
   templateTabText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "600",
     color: "#8b5cf6",
   },
@@ -2350,7 +2552,6 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   itineraryDayCard: {
-    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     padding: 16,
     ...Platform.select({
@@ -2372,7 +2573,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
   },
   itineraryDayInfo: {
     flex: 1,
@@ -2380,12 +2580,10 @@ const styles = StyleSheet.create({
   itineraryDayNumber: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#111827",
     marginBottom: 4,
   },
   itineraryDayDate: {
     fontSize: 14,
-    color: "#6B7280",
   },
   todayBadge: {
     backgroundColor: "#8b5cf6",
@@ -2396,7 +2594,6 @@ const styles = StyleSheet.create({
   todayBadgeText: {
     fontSize: 12,
     fontWeight: "600",
-    color: "#FFFFFF",
   },
   emptyDayActivities: {
     flexDirection: "row",
@@ -2407,7 +2604,6 @@ const styles = StyleSheet.create({
   },
   emptyDayActivitiesText: {
     fontSize: 14,
-    color: "#9CA3AF",
   },
   dayActivitiesList: {
     gap: 8,
@@ -2457,12 +2653,10 @@ const styles = StyleSheet.create({
   itineraryActivityDescription: {
     fontSize: 15,
     fontWeight: "500",
-    color: "#111827",
     marginBottom: 4,
   },
   itineraryActivityCompleted: {
     textDecorationLine: "line-through",
-    color: "#9CA3AF",
     opacity: 0.6,
   },
   completedBadge: {

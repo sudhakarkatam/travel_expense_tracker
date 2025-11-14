@@ -293,17 +293,23 @@ export default function CurrencyConverterScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
-      <ScrollView
-        style={styles.content}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={handleRefresh}
-            tintColor={theme.colors.primary}
-            colors={[theme.colors.primary]}
-          />
-        }
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
+        <ScrollView
+          style={styles.content}
+          keyboardShouldPersistTaps="handled"
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={handleRefresh}
+              tintColor={theme.colors.primary}
+              colors={[theme.colors.primary]}
+            />
+          }
+        >
         <Surface style={[styles.header, { backgroundColor: theme.colors.surface }]} elevation={0}>
           <Text style={[styles.title, { color: theme.colors.onSurface }]}>Currency Converter</Text>
           <Text style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}>Real-time exchange rates</Text>
@@ -453,7 +459,8 @@ export default function CurrencyConverterScreen() {
             </Text>
           </View>
         </Surface>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* Currency Pickers */}
       {showFromPicker &&
@@ -470,6 +477,9 @@ export default function CurrencyConverterScreen() {
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  keyboardView: {
     flex: 1,
   },
   content: {

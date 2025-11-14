@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert, Platform, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert, Platform, TouchableOpacity, KeyboardAvoidingView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme, Surface, Switch, TextInput, Divider } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,11 +7,14 @@ import { MotiView } from 'moti';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { useApp } from '@/contexts/AppContext';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import DatePickerInput from '@/components/DatePickerInput';
 import { pickImage, saveImage, deleteImage } from '@/utils/imageStorage';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
 import { AnimatedCard } from '@/components/ui/AnimatedCard';
 import { AnimatedInput } from '@/components/ui/AnimatedInput';
+import CurrencyBottomSheet from '@/components/modals/CurrencyBottomSheet';
+import { getCurrencyByCode } from '@/constants/currencies';
 
 interface EditTripScreenProps {
   navigation: any;
@@ -39,6 +42,7 @@ export default function EditTripScreen({ navigation, route }: EditTripScreenProp
     },
   };
   const { updateTrip, deleteTrip, getTrip } = useApp();
+  const { defaultCurrency } = useCurrency();
   const { tripId } = route.params;
   const trip = getTrip(tripId);
 
@@ -48,27 +52,33 @@ export default function EditTripScreen({ navigation, route }: EditTripScreenProp
     startDate: '',
     endDate: '',
     budget: '',
-    currency: 'USD',
+    currency: defaultCurrency || 'INR',
+    tripCurrency: defaultCurrency || 'INR',
+    exchangeRateToDefault: '',
     isGroupTrip: false,
     coverImage: '',
   });
 
   const [isLoading, setIsLoading] = useState(false);
+  const [showCurrencyModal, setShowCurrencyModal] = useState(false);
 
   useEffect(() => {
     if (trip) {
+      const tripCurrency = trip.tripCurrency || trip.currency || defaultCurrency || 'INR';
       setFormData({
         name: trip.name,
         destination: trip.destination,
         startDate: trip.startDate,
         endDate: trip.endDate,
         budget: trip.budget.toString(),
-        currency: trip.currency,
+        currency: tripCurrency,
+        tripCurrency: tripCurrency,
+        exchangeRateToDefault: trip.exchangeRateToDefault?.toString() || '',
         isGroupTrip: trip.isGroup || false,
         coverImage: trip.coverImage || '',
       });
     }
-  }, [trip]);
+  }, [trip, defaultCurrency]);
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -78,6 +88,14 @@ export default function EditTripScreen({ navigation, route }: EditTripScreenProp
     if (!formData.name.trim() || !formData.destination.trim() || !formData.budget.trim()) {
       Alert.alert('Error', 'Please fill in all required fields.');
       return;
+    }
+
+    // Validate exchange rate if currency differs from default
+    if (formData.tripCurrency !== defaultCurrency) {
+      if (!formData.exchangeRateToDefault || parseFloat(formData.exchangeRateToDefault) <= 0) {
+        Alert.alert('Error', 'Please enter a valid exchange rate to your default currency.');
+        return;
+      }
     }
 
     setIsLoading(true);
@@ -97,7 +115,11 @@ export default function EditTripScreen({ navigation, route }: EditTripScreenProp
         startDate: formData.startDate,
         endDate: formData.endDate,
         budget: parseFloat(formData.budget),
-        currency: formData.currency,
+        currency: formData.tripCurrency,
+        tripCurrency: formData.tripCurrency,
+        exchangeRateToDefault: formData.tripCurrency !== defaultCurrency && formData.exchangeRateToDefault
+          ? parseFloat(formData.exchangeRateToDefault)
+          : undefined,
         isGroup: formData.isGroupTrip,
         coverImage: coverImagePath,
       });
@@ -193,12 +215,17 @@ export default function EditTripScreen({ navigation, route }: EditTripScreenProp
         />
       </Surface>
 
-      <ScrollView 
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
+        <ScrollView 
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
         <MotiView
           from={{ opacity: 0, translateY: 20 }}
           animate={{ opacity: 1, translateY: 0 }}
@@ -284,16 +311,30 @@ export default function EditTripScreen({ navigation, route }: EditTripScreenProp
                   style={styles.input}
                 />
               </View>
-              <View style={styles.currencyInput}>
-                <AnimatedInput
-                  label="Currency"
-                  value={formData.currency}
-                  onChangeText={(value) => handleInputChange('currency', value)}
-                  maxLength={3}
-                  left={<TextInput.Icon icon={() => <Ionicons name="cash-outline" size={20} />} />}
-                  style={styles.input}
-                />
-              </View>
+              <TouchableOpacity
+                style={styles.currencyInput}
+                onPress={() => {
+                  setShowCurrencyModal(true);
+                  if (Platform.OS !== 'web') {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }
+                }}
+              >
+                <View style={[styles.currencyButton, { backgroundColor: safeTheme.colors.surfaceVariant, borderColor: safeTheme.colors.outlineVariant }]}>
+                  {(() => {
+                    const currency = getCurrencyByCode(formData.tripCurrency);
+                    return (
+                      <>
+                        <Text style={styles.currencyFlag}>{currency?.flag || '💱'}</Text>
+                        <Text style={[styles.currencyCodeText, { color: safeTheme.colors.onSurface }]}>
+                          {currency?.code || formData.tripCurrency}
+                        </Text>
+                        <Ionicons name="chevron-down" size={16} color={safeTheme.colors.onSurfaceVariant} style={styles.currencyChevron} />
+                      </>
+                    );
+                  })()}
+                </View>
+              </TouchableOpacity>
             </View>
 
             <Divider style={styles.divider} />
@@ -344,7 +385,27 @@ export default function EditTripScreen({ navigation, route }: EditTripScreenProp
             />
           </View>
         </MotiView>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      {/* Currency Selection Bottom Sheet */}
+      <CurrencyBottomSheet
+        visible={showCurrencyModal}
+        onDismiss={() => setShowCurrencyModal(false)}
+        onSelect={(currencyCode) => {
+          handleInputChange('tripCurrency', currencyCode);
+          handleInputChange('currency', currencyCode);
+          if (currencyCode === defaultCurrency) {
+            handleInputChange('exchangeRateToDefault', '');
+          }
+        }}
+        title="Choose Trip Currency"
+        selectedCurrency={formData.tripCurrency}
+        showExchangeRate={true}
+        defaultCurrency={defaultCurrency}
+        exchangeRate={formData.exchangeRateToDefault}
+        onExchangeRateChange={(rate) => handleInputChange('exchangeRateToDefault', rate)}
+      />
     </SafeAreaView>
   );
 }
@@ -358,7 +419,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingTop: 8,
+    paddingBottom: 8,
+    minHeight: 50,
   },
   backButton: {
     minWidth: 40,
@@ -370,19 +433,24 @@ const styles = StyleSheet.create({
   deleteButton: {
     minWidth: 40,
   },
+  keyboardView: {
+    flex: 1,
+  },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 32,
+    paddingBottom: 100,
+    paddingTop: 8,
   },
   card: {
-    marginBottom: 16,
+    marginBottom: 12,
     padding: 16,
+    borderRadius: 16,
   },
   inputGroup: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   label: {
     fontSize: 14,
@@ -395,7 +463,7 @@ const styles = StyleSheet.create({
   dateRow: {
     flexDirection: 'row',
     gap: 12,
-    marginBottom: 20,
+    marginBottom: 16,
   },
   dateInput: {
     flex: 1,
@@ -403,13 +471,34 @@ const styles = StyleSheet.create({
   budgetRow: {
     flexDirection: 'row',
     gap: 12,
-    marginBottom: 20,
+    marginBottom: 16,
   },
   budgetInput: {
     flex: 2,
   },
   currencyInput: {
     flex: 1,
+  },
+  currencyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    minHeight: 56,
+    gap: 8,
+  },
+  currencyFlag: {
+    fontSize: 20,
+  },
+  currencyCodeText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  currencyChevron: {
+    marginLeft: 4,
   },
   divider: {
     marginVertical: 16,

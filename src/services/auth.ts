@@ -191,9 +191,12 @@ export const authService = {
     try {
       // Sign out from Google Sign-In if signed in with Google
       try {
-        const isSignedIn = await GoogleSignin.isSignedIn();
-        if (isSignedIn) {
-          await GoogleSignin.signOut();
+        // Check if GoogleSignin.isSignedIn method exists before calling
+        if (GoogleSignin && typeof GoogleSignin.isSignedIn === 'function') {
+          const isSignedIn = await GoogleSignin.isSignedIn();
+          if (isSignedIn) {
+            await GoogleSignin.signOut();
+          }
         }
       } catch (googleError) {
         // Ignore Google Sign-In sign out errors (user might not be signed in with Google)

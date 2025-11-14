@@ -41,6 +41,8 @@ export interface Trip {
   endDate: string;
   budget: number;
   currency: string;
+  tripCurrency?: string;
+  exchangeRateToDefault?: number;
   coverImage?: string;
   isGroup: boolean;
   participants: Participant[];
@@ -92,6 +94,8 @@ export interface User {
   isPro: boolean;
   proExpiresAt?: string;
   proUsage?: ProUsage;
+  themePreference?: 'system' | 'light' | 'dark';
+  defaultCurrency?: string;
 }
 
 export interface ProUsage {
@@ -154,4 +158,11 @@ export interface ActivityItem {
   description: string;
   date: string; // YYYY-MM-DD
   completed: boolean;
+}
+
+export interface Currency {
+  code: string;
+  symbol: string;
+  name: string;
+  flag: string;
 }

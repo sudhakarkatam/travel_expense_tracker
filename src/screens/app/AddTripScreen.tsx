@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert, Platform, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert, Platform, TouchableOpacity, KeyboardAvoidingView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme, Surface, Switch, TextInput, Divider } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,11 +7,14 @@ import { MotiView } from 'moti';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { useApp } from '@/contexts/AppContext';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import DatePickerInput from '@/components/DatePickerInput';
 import { pickImage, saveImage } from '@/utils/imageStorage';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
 import { AnimatedCard } from '@/components/ui/AnimatedCard';
 import { AnimatedInput } from '@/components/ui/AnimatedInput';
+import CurrencyBottomSheet from '@/components/modals/CurrencyBottomSheet';
+import { getCurrencyByCode } from '@/constants/currencies';
 
 interface AddTripScreenProps {
   navigation: any;
@@ -33,24 +36,29 @@ export default function AddTripScreen({ navigation }: AddTripScreenProps) {
       primaryContainer: theme?.colors?.primaryContainer || '#EDE9FE',
       onPrimaryContainer: theme?.colors?.onPrimaryContainer || '#000000',
       error: theme?.colors?.error || '#EF4444',
+      errorContainer: theme?.colors?.errorContainer || '#FFEBEE',
       outline: theme?.colors?.outline || '#E5E5E5',
       outlineVariant: theme?.colors?.outlineVariant || '#E5E5E5',
     },
   };
   const { addTrip } = useApp();
+  const { defaultCurrency } = useCurrency();
   const [formData, setFormData] = useState({
     name: '',
     destination: '',
     startDate: new Date().toISOString().split('T')[0],
     endDate: new Date().toISOString().split('T')[0],
     budget: '',
-    currency: 'INR',
+    currency: defaultCurrency || 'INR',
+    tripCurrency: defaultCurrency || 'INR',
+    exchangeRateToDefault: '',
     isGroupTrip: false,
     coverImage: '',
     notificationsEnabled: true,
   });
   const [addSelfAsMember, setAddSelfAsMember] = useState(false);
   const [selfMemberName, setSelfMemberName] = useState('');
+  const [showCurrencyModal, setShowCurrencyModal] = useState(false);
   const [notificationPreferences, setNotificationPreferences] = useState({
     budgetAlerts: true,
     dailySummaries: false,
@@ -66,6 +74,14 @@ export default function AddTripScreen({ navigation }: AddTripScreenProps) {
     if (!formData.name.trim() || !formData.destination.trim() || !formData.budget.trim()) {
       Alert.alert('Error', 'Please fill in all required fields.');
       return;
+    }
+
+    // Validate exchange rate if currency differs from default
+    if (formData.tripCurrency !== defaultCurrency) {
+      if (!formData.exchangeRateToDefault || parseFloat(formData.exchangeRateToDefault) <= 0) {
+        Alert.alert('Error', 'Please enter a valid exchange rate to your default currency.');
+        return;
+      }
     }
 
     if (formData.isGroupTrip && addSelfAsMember && !selfMemberName.trim()) {
@@ -99,7 +115,11 @@ export default function AddTripScreen({ navigation }: AddTripScreenProps) {
         startDate: formData.startDate,
         endDate: formData.endDate,
         budget: parseFloat(formData.budget),
-        currency: formData.currency,
+        currency: formData.tripCurrency,
+        tripCurrency: formData.tripCurrency,
+        exchangeRateToDefault: formData.tripCurrency !== defaultCurrency && formData.exchangeRateToDefault
+          ? parseFloat(formData.exchangeRateToDefault)
+          : undefined,
         isGroupTrip: formData.isGroupTrip,
         coverImage: coverImagePath,
         participants: participants,
@@ -137,7 +157,7 @@ export default function AddTripScreen({ navigation }: AddTripScreenProps) {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
-      <Surface style={styles.header} elevation={1}>
+      <Surface style={[styles.header, { backgroundColor: theme.colors.surface }]} elevation={1}>
         <AnimatedButton
           mode="text"
           icon="arrow-back"
@@ -154,12 +174,17 @@ export default function AddTripScreen({ navigation }: AddTripScreenProps) {
         <View style={styles.backButton} />
       </Surface>
 
-      <ScrollView 
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
+        <ScrollView 
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
         <MotiView
           from={{ opacity: 0, translateY: 20 }}
           animate={{ opacity: 1, translateY: 0 }}
@@ -177,10 +202,10 @@ export default function AddTripScreen({ navigation }: AddTripScreenProps) {
                 >
                   <Image source={{ uri: formData.coverImage }} style={styles.coverImage} contentFit="cover" />
                   <TouchableOpacity 
-                    style={[styles.removeImageButton, { backgroundColor: theme.colors.errorContainer }]} 
+                    style={[styles.removeImageButton, { backgroundColor: safeTheme.colors.errorContainer || '#FFEBEE' }]} 
                     onPress={handleRemoveCoverImage}
                   >
-                    <Ionicons name="close-circle" size={24} color={theme.colors.error} />
+                    <Ionicons name="close-circle" size={24} color={safeTheme.colors.error} />
                   </TouchableOpacity>
                 </MotiView>
               ) : (
@@ -245,16 +270,30 @@ export default function AddTripScreen({ navigation }: AddTripScreenProps) {
                   style={styles.input}
                 />
               </View>
-              <View style={styles.currencyInput}>
-                <AnimatedInput
-                  label="Currency"
-                  value={formData.currency}
-                  onChangeText={(value) => handleInputChange('currency', value)}
-                  maxLength={3}
-                  left={<TextInput.Icon icon={() => <Ionicons name="cash-outline" size={20} />} />}
-                  style={styles.input}
-                />
-              </View>
+              <TouchableOpacity
+                style={styles.currencyInput}
+                onPress={() => {
+                  setShowCurrencyModal(true);
+                  if (Platform.OS !== 'web') {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }
+                }}
+              >
+                <View style={[styles.currencyButton, { backgroundColor: safeTheme.colors.surfaceVariant, borderColor: safeTheme.colors.outlineVariant }]}>
+                  {(() => {
+                    const currency = getCurrencyByCode(formData.tripCurrency);
+                    return (
+                      <>
+                        <Text style={styles.currencyFlag}>{currency?.flag || '💱'}</Text>
+                        <Text style={[styles.currencyCodeText, { color: safeTheme.colors.onSurface }]}>
+                          {currency?.code || formData.tripCurrency}
+                        </Text>
+                        <Ionicons name="chevron-down" size={16} color={safeTheme.colors.onSurfaceVariant} style={styles.currencyChevron} />
+                      </>
+                    );
+                  })()}
+                </View>
+              </TouchableOpacity>
             </View>
 
             <Divider style={styles.divider} />
@@ -420,6 +459,7 @@ export default function AddTripScreen({ navigation }: AddTripScreenProps) {
               }}
               variant="secondary"
               style={styles.cancelButton}
+              labelStyle={styles.cancelButtonLabel}
             />
 
             <AnimatedButton
@@ -427,18 +467,39 @@ export default function AddTripScreen({ navigation }: AddTripScreenProps) {
               label="Create Trip"
               onPress={handleCreateTrip}
               variant="primary"
-              fullWidth
               style={styles.createButton}
             />
           </View>
         </MotiView>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      {/* Currency Selection Bottom Sheet */}
+      <CurrencyBottomSheet
+        visible={showCurrencyModal}
+        onDismiss={() => setShowCurrencyModal(false)}
+        onSelect={(currencyCode) => {
+          handleInputChange('tripCurrency', currencyCode);
+          if (currencyCode === defaultCurrency) {
+            handleInputChange('exchangeRateToDefault', '');
+          }
+        }}
+        title="Choose Trip Currency"
+        selectedCurrency={formData.tripCurrency}
+        showExchangeRate={true}
+        defaultCurrency={defaultCurrency}
+        exchangeRate={formData.exchangeRateToDefault}
+        onExchangeRateChange={(rate) => handleInputChange('exchangeRateToDefault', rate)}
+      />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  keyboardView: {
     flex: 1,
   },
   header: {
@@ -495,6 +556,27 @@ const styles = StyleSheet.create({
   },
   currencyInput: {
     flex: 1,
+  },
+  currencyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    minHeight: 56,
+    gap: 8,
+  },
+  currencyFlag: {
+    fontSize: 20,
+  },
+  currencyCodeText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  currencyChevron: {
+    marginLeft: 4,
   },
   divider: {
     marginVertical: 16,
@@ -559,11 +641,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     marginTop: 8,
+    width: '100%',
   },
   cancelButton: {
     flex: 1,
+    minWidth: 100,
+  },
+  cancelButtonLabel: {
+    fontSize: 16,
+    fontWeight: '600',
   },
   createButton: {
-    flex: 2,
+    flex: 1,
+    minWidth: 120,
   },
 });

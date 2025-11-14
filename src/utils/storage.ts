@@ -21,6 +21,8 @@ const KEYS = {
   PACKING_ITEMS: "@tripwallet_packing_items",
   ACTIVITY_ITEMS: "@tripwallet_activity_items",
   GUEST_MODE: "@tripwallet_guest_mode",
+  THEME_PREFERENCE: "@travel_expense_tracker_theme_preference",
+  DEFAULT_CURRENCY: "@travel_expense_tracker_default_currency",
 } as const;
 
 export const storage = {
@@ -236,6 +238,46 @@ export const storage = {
       ]);
     } catch (error) {
       console.error("Error clearing all data:", error);
+    }
+  },
+
+  // Theme preference
+  async getThemePreference(): Promise<'system' | 'light' | 'dark' | null> {
+    try {
+      const data = await AsyncStorage.getItem(KEYS.THEME_PREFERENCE);
+      if (data && (data === 'system' || data === 'light' || data === 'dark')) {
+        return data as 'system' | 'light' | 'dark';
+      }
+      return null;
+    } catch (error) {
+      console.error("Error loading theme preference:", error);
+      return null;
+    }
+  },
+
+  async saveThemePreference(theme: 'system' | 'light' | 'dark'): Promise<void> {
+    try {
+      await AsyncStorage.setItem(KEYS.THEME_PREFERENCE, theme);
+    } catch (error) {
+      console.error("Error saving theme preference:", error);
+    }
+  },
+
+  // Default currency
+  async getDefaultCurrency(): Promise<string | null> {
+    try {
+      return await AsyncStorage.getItem(KEYS.DEFAULT_CURRENCY);
+    } catch (error) {
+      console.error("Error loading default currency:", error);
+      return null;
+    }
+  },
+
+  async saveDefaultCurrency(currency: string): Promise<void> {
+    try {
+      await AsyncStorage.setItem(KEYS.DEFAULT_CURRENCY, currency);
+    } catch (error) {
+      console.error("Error saving default currency:", error);
     }
   },
 };

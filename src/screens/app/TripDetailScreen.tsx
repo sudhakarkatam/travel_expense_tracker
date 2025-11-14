@@ -1,17 +1,19 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, Platform, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTheme, Surface, ProgressBar, Divider, List, ActivityIndicator } from 'react-native-paper';
+import { useTheme, Surface, ProgressBar, Divider, List, ActivityIndicator, Switch } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { useApp } from '@/contexts/AppContext';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { generateTripSummary } from '@/utils/tripSummary';
 import { PDFExportService } from '@/services/pdfExport';
 import { formatDateTime } from '@/utils/dateFormatter';
 import { formatCurrency } from '@/utils/currencyFormatter';
+import { formatCurrencyWithConversion } from '@/utils/currencyConverter';
 import * as Sharing from 'expo-sharing';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
 import { AnimatedCard } from '@/components/ui/AnimatedCard';
@@ -44,10 +46,16 @@ export default function TripDetailScreen({ navigation, route }: TripDetailScreen
     },
   };
   const { trips, expenses, deleteExpense, settlements, getTripBalances } = useApp();
+  const { defaultCurrency } = useCurrency();
   const { tripId } = route.params;
   const trip = trips.find(t => t.id === tripId);
   const summary = trip ? generateTripSummary(trip, expenses) : null;
   const [isExporting, setIsExporting] = useState(false);
+  const [showInDefaultCurrency, setShowInDefaultCurrency] = useState(false);
+
+  // Get trip currency and exchange rate
+  const tripCurrency = trip?.tripCurrency || trip?.currency || defaultCurrency || 'INR';
+  const exchangeRate = trip?.exchangeRateToDefault;
 
   const handleExportTrip = async () => {
     if (!trip || !summary) return;
@@ -108,9 +116,9 @@ export default function TripDetailScreen({ navigation, route }: TripDetailScreen
     );
   }
 
-  const progressPercentage = Math.min((summary.totalSpent / trip.budget) * 100, 100);
+  const progressPercentage = (summary.totalSpent / trip.budget) * 100;
   const isOverBudget = summary.totalSpent > trip.budget;
-  const isNearBudget = progressPercentage > 80;
+  const isNearBudget = progressPercentage > 80 && !isOverBudget;
 
   const renderExpenseItem = (expense: any, index: number) => {
     return (
@@ -146,7 +154,13 @@ export default function TripDetailScreen({ navigation, route }: TripDetailScreen
             )}
             right={() => (
               <Text style={[styles.expenseAmount, { color: safeTheme.colors.onSurface }]}>
-                {formatCurrency(expense.amount, trip.currency)}
+                {formatCurrencyWithConversion(
+                  expense.amount,
+                  tripCurrency,
+                  exchangeRate || 1,
+                  defaultCurrency || 'INR',
+                  showInDefaultCurrency
+                ).formatted}
               </Text>
             )}
             titleStyle={{ color: safeTheme.colors.onSurface, fontWeight: '600' }}
@@ -245,6 +259,34 @@ export default function TripDetailScreen({ navigation, route }: TripDetailScreen
             </LinearGradient>
           )}
 
+          {/* Currency Toggle - Compact */}
+          {tripCurrency !== defaultCurrency && exchangeRate && exchangeRate > 0 && (
+            <View style={[styles.currencyToggleCard, { backgroundColor: safeTheme.colors.surfaceVariant }]}>
+              <View style={styles.currencyToggleRow}>
+                <Ionicons 
+                  name="swap-horizontal" 
+                  size={16} 
+                  color={safeTheme.colors.primary} 
+                />
+                <Text style={[styles.currencyToggleLabel, { color: safeTheme.colors.onSurface }]}>
+                  {showInDefaultCurrency 
+                    ? `Showing in ${defaultCurrency}` 
+                    : `Showing in ${tripCurrency}`}
+                </Text>
+                <Switch
+                  value={showInDefaultCurrency}
+                  onValueChange={(value) => {
+                    setShowInDefaultCurrency(value);
+                    if (Platform.OS !== 'web') {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }
+                  }}
+                  color={safeTheme.colors.primary}
+                />
+              </View>
+            </View>
+          )}
+
           {/* Budget Card */}
           <AnimatedCard variant="elevated" elevation={2} style={styles.budgetCard}>
             <LinearGradient
@@ -256,7 +298,13 @@ export default function TripDetailScreen({ navigation, route }: TripDetailScreen
               <View style={styles.budgetSection}>
                 <Text style={styles.budgetLabel}>Spent</Text>
                 <Text style={styles.budgetAmount}>
-                  {formatCurrency(summary.totalSpent, trip.currency)}
+                  {formatCurrencyWithConversion(
+                    summary.totalSpent,
+                    tripCurrency,
+                    exchangeRate || 1,
+                    defaultCurrency || 'INR',
+                    showInDefaultCurrency
+                  ).formatted}
                 </Text>
               </View>
               <View style={styles.budgetDivider} />
@@ -266,7 +314,13 @@ export default function TripDetailScreen({ navigation, route }: TripDetailScreen
                   styles.budgetAmount,
                   summary.remainingBudget < 0 && { color: safeTheme.colors.error }
                 ]}>
-                  {formatCurrency(summary.remainingBudget, trip.currency)}
+                  {formatCurrencyWithConversion(
+                    summary.remainingBudget,
+                    tripCurrency,
+                    exchangeRate || 1,
+                    defaultCurrency || 'INR',
+                    showInDefaultCurrency
+                  ).formatted}
                 </Text>
               </View>
             </LinearGradient>
@@ -288,11 +342,11 @@ export default function TripDetailScreen({ navigation, route }: TripDetailScreen
                     : safeTheme.colors.primary 
                 }
               ]}>
-                {progressPercentage.toFixed(0)}%
+                {progressPercentage.toFixed(0)}% {isOverBudget ? 'used' : ''}
               </Text>
             </View>
             <ProgressBar
-              progress={progressPercentage / 100}
+              progress={Math.min(progressPercentage / 100, 1)}
               color={
                 isOverBudget 
                   ? safeTheme.colors.error 
@@ -303,7 +357,13 @@ export default function TripDetailScreen({ navigation, route }: TripDetailScreen
               style={styles.progressBar}
             />
             <Text style={[styles.progressText, { color: safeTheme.colors.onSurfaceVariant }]}>
-              {formatCurrency(trip.budget, trip.currency)} total budget
+              {formatCurrencyWithConversion(
+                trip.budget,
+                tripCurrency,
+                exchangeRate || 1,
+                defaultCurrency || 'INR',
+                showInDefaultCurrency
+              ).formatted} total budget
             </Text>
           </AnimatedCard>
 
@@ -355,9 +415,9 @@ export default function TripDetailScreen({ navigation, route }: TripDetailScreen
             </View>
 
             {summary.expenses.length === 0 ? (
-              <AnimatedCard variant="outlined" style={styles.emptyCard}>
+              <View style={[styles.emptyCard, { backgroundColor: safeTheme.colors.surface, borderColor: safeTheme.colors.outlineVariant }]}>
                 <View style={styles.emptyExpenses}>
-                  <Ionicons name="trending-up-outline" size={64} color={safeTheme.colors.onSurfaceVariant} />
+                  <Ionicons name="receipt-outline" size={48} color={safeTheme.colors.onSurfaceVariant} />
                   <Text style={[styles.emptyText, { color: safeTheme.colors.onSurface }]}>
                     No expenses yet
                   </Text>
@@ -378,7 +438,7 @@ export default function TripDetailScreen({ navigation, route }: TripDetailScreen
                     style={styles.emptyButton}
                   />
                 </View>
-              </AnimatedCard>
+              </View>
             ) : (
               <View style={styles.expensesList}>
                 {summary.expenses.slice(0, 5).map((expense, index) => renderExpenseItem(expense, index))}
@@ -445,7 +505,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingTop: 8,
+    paddingBottom: 8,
+    minHeight: 50,
   },
   backButton: {
     minWidth: 40,
@@ -468,11 +530,12 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: 100,
+    paddingTop: 8,
   },
   coverImageContainer: {
     position: 'relative',
-    height: 250,
-    marginBottom: 16,
+    height: 220,
+    marginBottom: 12,
   },
   coverImage: {
     width: '100%',
@@ -507,10 +570,10 @@ const styles = StyleSheet.create({
     textShadowRadius: 2,
   },
   coverImagePlaceholder: {
-    height: 250,
+    height: 220,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
     borderRadius: 0,
   },
   placeholderTitle: {
@@ -526,12 +589,12 @@ const styles = StyleSheet.create({
   },
   budgetCard: {
     marginHorizontal: 16,
-    marginBottom: 16,
+    marginBottom: 12,
     overflow: 'hidden',
   },
   budgetGradient: {
     flexDirection: 'row',
-    padding: 20,
+    padding: 16,
     borderRadius: 16,
   },
   budgetSection: {
@@ -545,9 +608,10 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   budgetAmount: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '700',
     color: '#FFFFFF',
+    flexShrink: 1,
   },
   budgetDivider: {
     width: 1,
@@ -556,7 +620,7 @@ const styles = StyleSheet.create({
   },
   progressCard: {
     marginHorizontal: 16,
-    marginBottom: 16,
+    marginBottom: 12,
     padding: 16,
   },
   progressHeader: {
@@ -584,7 +648,7 @@ const styles = StyleSheet.create({
   },
   summaryCard: {
     marginHorizontal: 16,
-    marginBottom: 16,
+    marginBottom: 12,
     padding: 16,
   },
   summaryRow: {
@@ -611,7 +675,7 @@ const styles = StyleSheet.create({
   },
   expensesSection: {
     marginHorizontal: 16,
-    marginBottom: 24,
+    marginBottom: 16,
   },
   expensesHeader: {
     flexDirection: 'row',
@@ -633,8 +697,58 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
   },
+  currencyToggleCard: {
+    marginHorizontal: 16,
+    marginBottom: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 1,
+      },
+    }),
+  },
+  currencyToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  currencyToggleInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  currencyToggleIcon: {
+    marginRight: 8,
+  },
+  currencyToggleLabel: {
+    fontSize: 13,
+    fontWeight: '500',
+    flex: 1,
+  },
   emptyCard: {
-    padding: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 24,
+    marginBottom: 16,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 1,
+      },
+    }),
   },
   emptyExpenses: {
     alignItems: 'center',

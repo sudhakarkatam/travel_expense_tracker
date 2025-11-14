@@ -9,6 +9,8 @@ import {
   Alert,
   Switch,
   Image,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -305,7 +307,15 @@ export default function AddExpenseScreen({ navigation, route }: AddExpenseScreen
         <View style={{ width: 24 }} />
       </View>
 
-      <ScrollView style={styles.content}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <ScrollView 
+          style={styles.content}
+          keyboardShouldPersistTaps="handled"
+        >
         <View style={styles.form}>
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Trip</Text>
@@ -675,6 +685,7 @@ export default function AddExpenseScreen({ navigation, route }: AddExpenseScreen
           </View>
         </View>
       )}
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

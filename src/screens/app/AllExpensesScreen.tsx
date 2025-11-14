@@ -5,6 +5,7 @@ import EmptyState from '@/components/EmptyState';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '@/contexts/AppContext';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { generateTripSummary } from '@/utils/tripSummary';
 import { formatCurrency } from '@/utils/currencyFormatter';
 import { formatDateTime } from '@/utils/dateFormatter';
@@ -16,6 +17,7 @@ interface AllExpensesScreenProps {
 
 export default function AllExpensesScreen({ navigation, route }: AllExpensesScreenProps) {
   const { trips, expenses, deleteExpense, categories } = useApp();
+  const { defaultCurrency } = useCurrency();
   const { tripId } = route.params || {};
   const trip = tripId ? trips.find(t => t.id === tripId) : null;
   const showAllTrips = !tripId || tripId === null;
@@ -141,6 +143,7 @@ export default function AllExpensesScreen({ navigation, route }: AllExpensesScre
           tripId: expense.tripId 
         })}
         onLongPress={handleLongPress}
+        activeOpacity={0.7}
       >
         <View style={styles.expenseIcon}>
           <View style={[styles.categoryIcon, { backgroundColor: getCategoryColor(expense.category) }]}>
@@ -169,7 +172,7 @@ export default function AllExpensesScreen({ navigation, route }: AllExpensesScre
         
         <View style={styles.expenseAmount}>
           <Text style={styles.amountText}>
-            {formatCurrency(expense.amount, { currency: expense.currency || expenseTrip?.currency || 'INR' })}
+            {formatCurrency(expense.amount, { currency: expense.currency || expenseTrip?.currency || defaultCurrency || 'INR' })}
           </Text>
           {expense.splitBetween && expense.splitBetween.length > 0 && (
             <View style={styles.splitIndicator}>
@@ -396,6 +399,17 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: '#E5E5EA',
     overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   picker: {
     height: 50,
@@ -511,6 +525,7 @@ const styles = StyleSheet.create({
       },
       android: {
         elevation: 3,
+        rippleColor: 'rgba(139, 92, 246, 0.1)',
       },
     }),
   },
