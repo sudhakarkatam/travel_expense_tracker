@@ -51,7 +51,6 @@ export function FloatingActionButton({
         scale: isPressed ? 0.9 : 1,
       }}
       transition={{
-        type: 'timing',
         duration: 150,
       }}
       style={[styles.container, style]}
@@ -61,9 +60,11 @@ export function FloatingActionButton({
           <Ionicons name={icon} size={size * 0.85} color={color} />
         )}
         label={label}
-        onPress={onPress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
+        onPress={() => {
+          handlePressIn();
+          onPress();
+          setTimeout(() => handlePressOut(), 150);
+        }}
         style={[
           styles.fab,
           {

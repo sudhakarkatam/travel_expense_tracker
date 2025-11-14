@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform, Dimensions } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, Dimensions, Animated } from 'react-native';
 import { FAB, useTheme } from 'react-native-paper';
 import { MotiView } from 'moti';
 import * as Haptics from 'expo-haptics';
@@ -26,7 +26,38 @@ interface FABMenuProps {
 export function FABMenu({ items, mainIcon = 'add', mainLabel, variant = 'primary', style }: FABMenuProps) {
   const theme = useTheme();
   const [isOpen, setIsOpen] = useState(false);
-  const [isPressed, setIsPressed] = useState(false);
+  const animValues = useRef(
+    items.map(() => ({
+      opacity: new Animated.Value(0),
+      translateY: new Animated.Value(20),
+    }))
+  ).current;
+
+  useEffect(() => {
+    if (isOpen) {
+      animValues.forEach((anim, index) => {
+        Animated.parallel([
+          Animated.timing(anim.opacity, {
+            toValue: 1,
+            duration: 300,
+            delay: index * 50,
+            useNativeDriver: true,
+          }),
+          Animated.spring(anim.translateY, {
+            toValue: 0,
+            damping: 15,
+            delay: index * 50,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      });
+    } else {
+      animValues.forEach((anim) => {
+        anim.opacity.setValue(0);
+        anim.translateY.setValue(20);
+      });
+    }
+  }, [isOpen]);
 
   const handleMainPress = () => {
     setIsOpen(!isOpen);
@@ -43,14 +74,6 @@ export function FABMenu({ items, mainIcon = 'add', mainLabel, variant = 'primary
     item.onPress();
   };
 
-  const handlePressIn = () => {
-    setIsPressed(true);
-  };
-
-  const handlePressOut = () => {
-    setIsPressed(false);
-  };
-
   const getVariantColor = (itemVariant?: 'primary' | 'secondary' | 'tertiary') => {
     const v = itemVariant || variant;
     switch (v) {
@@ -63,20 +86,13 @@ export function FABMenu({ items, mainIcon = 'add', mainLabel, variant = 'primary
     }
   };
 
-  const getVariantColorLight = (itemVariant?: 'primary' | 'secondary' | 'tertiary') => {
-    const color = getVariantColor(itemVariant);
-    // Add opacity for lighter version
-    return color + '20';
-  };
-
   return (
     <>
-      {/* Background dim/blur overlay */}
       {isOpen && (
         <MotiView
           from={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ type: 'timing', duration: 200 }}
+          transition={{ duration: 200 }}
           style={styles.backdrop}
         >
           {Platform.OS === 'ios' ? (
@@ -93,46 +109,27 @@ export function FABMenu({ items, mainIcon = 'add', mainLabel, variant = 'primary
       )}
 
       <View style={[styles.container, style]}>
-        {/* Menu Items */}
         {isOpen && (
           <View style={styles.menuContainer} pointerEvents="box-none">
-            {items.map((item, index) => (
-              <MotiView
-                key={index}
-                from={{ opacity: 0, translateY: 20, scale: 0.8 }}
-                animate={{ opacity: 1, translateY: 0, scale: 1 }}
-                transition={{
-                  type: 'spring',
-                  damping: 15,
-                  delay: index * 50,
-                }}
-                style={styles.menuItemWrapper}
-              >
-                <View style={styles.menuItemRow}>
-                  {/* Mini Icon Button */}
+            {items.map((item, index) => {
+              const anim = animValues[index];
+              return (
+                <Animated.View
+                  key={index}
+                  style={[
+                    styles.menuItemWrapper,
+                    {
+                      opacity: anim.opacity,
+                      transform: [{ translateY: anim.translateY }],
+                    },
+                  ]}
+                >
                   <TouchableOpacity
                     onPress={() => handleItemPress(item)}
-                    style={[
-                      styles.menuItemButton,
-                      {
-                        backgroundColor: getVariantColor(item.variant || variant),
-                      }
-                    ]}
                     activeOpacity={0.8}
+                    style={[styles.menuItemLabel, { backgroundColor: theme.colors.surface }]}
                   >
-                    <Ionicons
-                      name={item.icon}
-                      size={20}
-                      color="#FFFFFF"
-                    />
-                  </TouchableOpacity>
-                  {/* Label Text */}
-                  <TouchableOpacity
-                    onPress={() => handleItemPress(item)}
-                    style={styles.menuItemLabel}
-                    activeOpacity={0.8}
-                  >
-                    <Text 
+                    <Text
                       style={[styles.menuItemText, { color: theme.colors.onSurface }]}
                       numberOfLines={1}
                       allowFontScaling={false}
@@ -140,22 +137,17 @@ export function FABMenu({ items, mainIcon = 'add', mainLabel, variant = 'primary
                       {item.label}
                     </Text>
                   </TouchableOpacity>
-                </View>
-              </MotiView>
-            ))}
+                </Animated.View>
+              );
+            })}
           </View>
         )}
 
-        {/* Main FAB Button - Show + when closed, close icon when open */}
         <MotiView
           animate={{
-            scale: isPressed ? 0.9 : 1,
             rotate: isOpen ? '45deg' : '0deg',
           }}
-          transition={{
-            type: 'timing',
-            duration: 200,
-          }}
+          transition={{ duration: 200 }}
           style={styles.fabContainer}
         >
           <FAB
@@ -163,12 +155,10 @@ export function FABMenu({ items, mainIcon = 'add', mainLabel, variant = 'primary
               <Ionicons name={isOpen ? 'close' : mainIcon} size={size * 0.85} color={color} />
             )}
             onPress={handleMainPress}
-            onPressIn={handlePressIn}
-            onPressOut={handlePressOut}
             style={[
               styles.fab,
               {
-                backgroundColor: getVariantColor(variant),
+                backgroundColor: getVariantColor(),
               },
             ]}
             color="#FFFFFF"
@@ -206,43 +196,41 @@ const styles = StyleSheet.create({
   menuItemWrapper: {
     marginBottom: 12,
     flexShrink: 0,
+    alignItems: 'flex-end',
+    alignSelf: 'flex-end',
   },
-  menuItemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  menuItemButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-  },
+
+  /** FIXED → Horizontal label */
   menuItemLabel: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
     borderRadius: 20,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.15,
     shadowRadius: 2,
+
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    minHeight: 40,
+    minWidth: 120,      // ← IMPORTANT: Forces horizontal layout
+    maxWidth: 200,
   },
+
   menuItemText: {
     fontSize: 14,
     fontWeight: '600',
-    includeFontPadding: false,
-    textAlignVertical: 'center',
+    textAlign: 'center',
+    width: '100%',       // ← prevents text wrapping vertically
   },
+
   fabContainer: {
     position: 'relative',
   },
+
   fab: {
     borderRadius: 28,
     elevation: 6,
@@ -252,4 +240,3 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
   },
 });
-

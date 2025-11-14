@@ -25,6 +25,7 @@ interface TripFiltersScreenProps {
 }
 
 type SortOption =
+  | 'default'
   | 'date-newest'
   | 'date-oldest'
   | 'budget-high'
@@ -42,7 +43,7 @@ export default function TripFiltersScreen({
   // Get initial filter values from route params or defaults
   const initialFilters = route?.params?.filters || {
     status: 'all' as TripStatus | 'all',
-    sortBy: 'date-newest' as SortOption,
+    sortBy: 'default' as SortOption,
     destination: '',
     startDate: '',
     endDate: '',
@@ -75,7 +76,7 @@ export default function TripFiltersScreen({
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
     setStatusFilter('all');
-    setSortBy('date-newest');
+    setSortBy('default');
     setDestination('');
     setStartDate('');
     setEndDate('');
@@ -103,10 +104,7 @@ export default function TripFiltersScreen({
         },
       });
     }
-    // Small delay to ensure navigation completes
-    setTimeout(() => {
-      navigation.goBack();
-    }, 100);
+    navigation.goBack();
   };
 
   const safeTheme = {
@@ -236,11 +234,13 @@ export default function TripFiltersScreen({
           <View style={styles.sortGrid}>
             {(
               [
+                { value: 'default', label: 'Default (Active → Upcoming → Completed)' },
                 { value: 'date-newest', label: 'Date (newest)' },
-                { value: 'budget-high', label: 'Budget (high → low)' },
-                { value: 'spent-high', label: 'Spent % (high → low)' },
                 { value: 'date-oldest', label: 'Date (oldest)' },
+                { value: 'budget-high', label: 'Budget (high → low)' },
                 { value: 'budget-low', label: 'Budget (low → high)' },
+                { value: 'spent-high', label: 'Spent % (high → low)' },
+                { value: 'spent-low', label: 'Spent % (low → high)' },
               ] as { value: SortOption; label: string }[]
             ).map((option) => (
               <TouchableOpacity

@@ -33,6 +33,7 @@ const GRID_GAP = 12;
 const GRID_CARD_WIDTH = (SCREEN_WIDTH - GRID_GAP) / 2;
 
 type SortOption =
+  | "default"
   | "date-newest"
   | "date-oldest"
   | "budget-high"
@@ -65,7 +66,7 @@ export default function HomeScreen({ navigation, route }: HomeScreenProps) {
     year: string;
   }>({
     status: "all",
-    sortBy: "date-newest",
+    sortBy: "default", // Use default status-based sorting
     destination: "",
     startDate: "",
     endDate: "",
@@ -183,7 +184,7 @@ export default function HomeScreen({ navigation, route }: HomeScreenProps) {
         return aPercentage - bPercentage;
       });
     } else {
-      // Default: Priority: Active > Upcoming > Completed (then by date if same status)
+      // Default: Priority: Active > Upcoming > Completed (then by latest date within each status)
       filtered.sort((a, b) => {
         const aSummary = generateTripSummary(a, expenses);
         const bSummary = generateTripSummary(b, expenses);
@@ -677,7 +678,7 @@ export default function HomeScreen({ navigation, route }: HomeScreenProps) {
                 setSearchQuery("");
                 setFilters({
                   status: "all",
-                  sortBy: "date-newest",
+                  sortBy: "default",
                   destination: "",
                   startDate: "",
                   endDate: "",
