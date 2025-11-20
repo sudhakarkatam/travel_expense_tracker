@@ -221,55 +221,79 @@ export function calculateBalances(
   settlements: Settlement[],
   participants: Participant[],
 ): Balance[] {
+  // Map<Debtor, Map<Creditor, Amount>>
   const balanceMap = new Map<string, Map<string, number>>();
 
+  // Helper to update balance
+  const updateBalance = (from: string, to: string, amount: number) => {
+    if (!balanceMap.has(from)) {
+      balanceMap.set(from, new Map());
+    }
+    const userBalances = balanceMap.get(from)!;
+    const currentBalance = userBalances.get(to) || 0;
+    userBalances.set(to, currentBalance + amount);
+  };
+
   expenses.forEach((expense) => {
-    const { paidBy, splitBetween, currency } = expense;
+    const { paidBy, splitBetween } = expense;
 
     splitBetween.forEach((participant) => {
       if (participant.userId === paidBy) return;
-
-      if (!balanceMap.has(participant.userId)) {
-        balanceMap.set(participant.userId, new Map());
-      }
-
-      const userBalances = balanceMap.get(participant.userId)!;
-      const currentBalance = userBalances.get(paidBy) || 0;
-      userBalances.set(paidBy, currentBalance + participant.amount);
+      // participant.userId owes paidBy participant.amount
+      updateBalance(participant.userId, paidBy, participant.amount);
     });
   });
 
   settlements.forEach((settlement) => {
     const { from, to, amount } = settlement;
-
-    if (balanceMap.has(from)) {
-      const userBalances = balanceMap.get(from)!;
-      const currentBalance = userBalances.get(to) || 0;
-      const newBalance = currentBalance - amount;
-
-      if (Math.abs(newBalance) < 0.01) {
-        userBalances.delete(to);
-      } else {
-        userBalances.set(to, newBalance);
-      }
-    }
+    // Settlement reduces the amount 'from' owes 'to'
+    // Effectively, it's like 'to' owing 'from' the settlement amount, canceling out the debt
+    updateBalance(from, to, -amount);
   });
 
   const balances: Balance[] = [];
   const defaultCurrency = expenses[0]?.currency || "USD";
 
-  balanceMap.forEach((userBalances, from) => {
-    userBalances.forEach((amount, to) => {
-      if (amount > 0.01) {
+  // Normalize balances
+  // If A owes B -20, it means B owes A 20
+  const allUsers = new Set([...balanceMap.keys()]);
+  balanceMap.forEach((map) => map.forEach((_, key) => allUsers.add(key)));
+
+  // We need to consolidate. 
+  // If A owes B 50 and B owes A 20, net is A owes B 30.
+  // If A owes B -20, net is B owes A 20.
+
+  // Let's flatten to a single list of net debts
+  // We can use a canonical ordering of IDs to avoid double counting
+  const userIds = Array.from(allUsers).sort();
+
+  for (let i = 0; i < userIds.length; i++) {
+    for (let j = i + 1; j < userIds.length; j++) {
+      const userA = userIds[i];
+      const userB = userIds[j];
+
+      const aOwesB = balanceMap.get(userA)?.get(userB) || 0;
+      const bOwesA = balanceMap.get(userB)?.get(userA) || 0;
+
+      const netAOwesB = aOwesB - bOwesA;
+
+      if (netAOwesB > 0.01) {
         balances.push({
-          from,
-          to,
-          amount: Math.round(amount * 100) / 100,
+          from: userA,
+          to: userB,
+          amount: Math.round(netAOwesB * 100) / 100,
+          currency: defaultCurrency,
+        });
+      } else if (netAOwesB < -0.01) {
+        balances.push({
+          from: userB,
+          to: userA,
+          amount: Math.round(-netAOwesB * 100) / 100,
           currency: defaultCurrency,
         });
       }
-    });
-  });
+    }
+  }
 
   return balances;
 }

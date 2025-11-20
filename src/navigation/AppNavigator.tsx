@@ -38,9 +38,8 @@ import SpendingTrendsScreen from "../screens/app/SpendingTrendsScreen";
 import SpendingHeatmapScreen from "../screens/app/SpendingHeatmapScreen";
 import TripFiltersScreen from "../screens/app/TripFiltersScreen";
 
-const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
-
+const Tab = createBottomTabNavigator();
 function MainTabs() {
   const theme = useTheme();
 
@@ -91,15 +90,13 @@ function MainTabs() {
         tabBarLabelStyle: {
           fontSize: 12,
           fontWeight: "600" as const,
-          marginTop: -4,
-          // Ensure fontFamily is explicitly set to avoid undefined font access
+          marginBottom: 4,
           fontFamily: Platform.select({
             ios: 'System',
             android: 'Roboto',
             default: 'System',
           }),
         },
-        // Custom label renderer to avoid font property access issues
         tabBarLabel: ({ focused, color, children }) => {
           return (
             <Text
@@ -107,7 +104,7 @@ function MainTabs() {
                 fontSize: 12,
                 fontWeight: "600" as const,
                 color: color,
-                marginTop: -4,
+                marginBottom: 4,
                 fontFamily: Platform.select({
                   ios: 'System',
                   android: 'Roboto',
@@ -155,9 +152,9 @@ export default function AppNavigator() {
                 {
                   scale: next
                     ? next.progress.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [1, 0.95],
-                      })
+                      inputRange: [0, 1],
+                      outputRange: [1, 0.95],
+                    })
                     : 1,
                 },
               ],
@@ -180,22 +177,22 @@ export default function AppNavigator() {
         // Auth Stack
         <>
           <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-          <Stack.Screen 
-            name="Login" 
+          <Stack.Screen
+            name="Login"
             component={LoginScreen}
-            options={{ 
+            options={{
               presentation: 'card',
-              ...(Platform.OS === "ios" 
+              ...(Platform.OS === "ios"
                 ? TransitionPresets.ModalPresentationIOS
                 : TransitionPresets.SlideFromRightIOS),
             }}
           />
-          <Stack.Screen 
-            name="Signup" 
+          <Stack.Screen
+            name="Signup"
             component={SignupScreen}
-            options={{ 
+            options={{
               presentation: 'card',
-              ...(Platform.OS === "ios" 
+              ...(Platform.OS === "ios"
                 ? TransitionPresets.ModalPresentationIOS
                 : TransitionPresets.SlideFromRightIOS),
             }}
@@ -209,95 +206,95 @@ export default function AppNavigator() {
             component={MainTabs}
             options={{ headerShown: false }}
           />
-          <Stack.Screen 
-            name="AddExpense" 
+          <Stack.Screen
+            name="AddExpense"
             component={AddExpenseScreen}
             options={{
-              ...(Platform.OS === "ios" 
+              ...(Platform.OS === "ios"
                 ? TransitionPresets.ModalPresentationIOS
                 : TransitionPresets.SlideFromRightIOS),
             }}
           />
-          <Stack.Screen 
-            name="AddTrip" 
+          <Stack.Screen
+            name="AddTrip"
             component={AddTripScreen}
             options={{
-              ...(Platform.OS === "ios" 
+              ...(Platform.OS === "ios"
                 ? TransitionPresets.ModalPresentationIOS
                 : TransitionPresets.SlideFromRightIOS),
             }}
           />
-          <Stack.Screen 
-            name="EditTrip" 
+          <Stack.Screen
+            name="EditTrip"
             component={EditTripScreen}
             options={{
-              ...(Platform.OS === "ios" 
+              ...(Platform.OS === "ios"
                 ? TransitionPresets.ModalPresentationIOS
                 : TransitionPresets.SlideFromRightIOS),
             }}
           />
-          <Stack.Screen 
-            name="EditExpense" 
+          <Stack.Screen
+            name="EditExpense"
             component={EditExpenseScreen}
             options={{
-              ...(Platform.OS === "ios" 
+              ...(Platform.OS === "ios"
                 ? TransitionPresets.ModalPresentationIOS
                 : TransitionPresets.SlideFromRightIOS),
             }}
           />
-          <Stack.Screen 
-            name="ManageMembers" 
+          <Stack.Screen
+            name="ManageMembers"
             component={ManageMembersScreen}
-            options={{ 
+            options={{
               headerShown: false,
-              ...(Platform.OS === "ios" 
+              ...(Platform.OS === "ios"
                 ? TransitionPresets.ModalPresentationIOS
                 : TransitionPresets.SlideFromRightIOS),
             }}
           />
-          <Stack.Screen 
-            name="SplitExpense" 
+          <Stack.Screen
+            name="SplitExpense"
             component={SplitExpenseScreen}
             options={{
-              ...(Platform.OS === "ios" 
+              ...(Platform.OS === "ios"
                 ? TransitionPresets.ModalPresentationIOS
                 : TransitionPresets.SlideFromRightIOS),
             }}
           />
-          <Stack.Screen 
-            name="SettleUp" 
+          <Stack.Screen
+            name="SettleUp"
             component={SettleUpScreen}
-            options={{ 
+            options={{
               headerShown: false,
-              ...(Platform.OS === "ios" 
+              ...(Platform.OS === "ios"
                 ? TransitionPresets.ModalPresentationIOS
                 : TransitionPresets.SlideFromRightIOS),
             }}
           />
-          <Stack.Screen 
-            name="History" 
+          <Stack.Screen
+            name="History"
             component={HistoryScreen}
             options={{
-              ...(Platform.OS === "ios" 
+              ...(Platform.OS === "ios"
                 ? TransitionPresets.ModalPresentationIOS
                 : TransitionPresets.SlideFromRightIOS),
             }}
           />
-          <Stack.Screen 
-            name="TripDetail" 
+          <Stack.Screen
+            name="TripDetail"
             component={TripDetailScreen}
-            options={{ 
+            options={{
               headerShown: false,
-              ...(Platform.OS === "ios" 
+              ...(Platform.OS === "ios"
                 ? TransitionPresets.ModalPresentationIOS
                 : TransitionPresets.SlideFromRightIOS),
             }}
           />
-          <Stack.Screen 
-            name="Balance" 
+          <Stack.Screen
+            name="Balance"
             component={BalanceScreen}
             options={{
-              ...(Platform.OS === "ios" 
+              ...(Platform.OS === "ios"
                 ? TransitionPresets.ModalPresentationIOS
                 : TransitionPresets.SlideFromRightIOS),
             }}
@@ -306,43 +303,43 @@ export default function AppNavigator() {
             name="CurrencyConverter"
             component={CurrencyConverterScreen}
             options={{
-              ...(Platform.OS === "ios" 
+              ...(Platform.OS === "ios"
                 ? TransitionPresets.ModalPresentationIOS
                 : TransitionPresets.SlideFromRightIOS),
             }}
           />
-          <Stack.Screen 
-            name="Insights" 
+          <Stack.Screen
+            name="Insights"
             component={InsightsScreen}
             options={{
-              ...(Platform.OS === "ios" 
+              ...(Platform.OS === "ios"
                 ? TransitionPresets.ModalPresentationIOS
                 : TransitionPresets.SlideFromRightIOS),
             }}
           />
-          <Stack.Screen 
-            name="JoinTrip" 
+          <Stack.Screen
+            name="JoinTrip"
             component={JoinTripScreen}
             options={{
-              ...(Platform.OS === "ios" 
+              ...(Platform.OS === "ios"
                 ? TransitionPresets.ModalPresentationIOS
                 : TransitionPresets.SlideFromRightIOS),
             }}
           />
-          <Stack.Screen 
-            name="Premium" 
+          <Stack.Screen
+            name="Premium"
             component={PremiumScreen}
             options={{
-              ...(Platform.OS === "ios" 
+              ...(Platform.OS === "ios"
                 ? TransitionPresets.ModalPresentationIOS
                 : TransitionPresets.SlideFromRightIOS),
             }}
           />
-          <Stack.Screen 
-            name="ScanReceipt" 
+          <Stack.Screen
+            name="ScanReceipt"
             component={ScanReceiptScreen}
             options={{
-              ...(Platform.OS === "ios" 
+              ...(Platform.OS === "ios"
                 ? TransitionPresets.ModalPresentationIOS
                 : TransitionPresets.SlideFromRightIOS),
             }}
@@ -351,76 +348,76 @@ export default function AppNavigator() {
             name="ManageCategories"
             component={ManageCategoriesScreen}
             options={{
-              ...(Platform.OS === "ios" 
+              ...(Platform.OS === "ios"
                 ? TransitionPresets.ModalPresentationIOS
                 : TransitionPresets.SlideFromRightIOS),
             }}
           />
-          <Stack.Screen 
-            name="ExpenseDetail" 
+          <Stack.Screen
+            name="ExpenseDetail"
             component={ExpenseDetailScreen}
             options={{
-              ...(Platform.OS === "ios" 
+              ...(Platform.OS === "ios"
                 ? TransitionPresets.ModalPresentationIOS
                 : TransitionPresets.SlideFromRightIOS),
             }}
           />
-          <Stack.Screen 
-            name="AllExpenses" 
+          <Stack.Screen
+            name="AllExpenses"
             component={AllExpensesScreen}
-            options={{ 
+            options={{
               headerShown: false,
-              ...(Platform.OS === "ios" 
+              ...(Platform.OS === "ios"
                 ? TransitionPresets.ModalPresentationIOS
                 : TransitionPresets.SlideFromRightIOS),
             }}
           />
-          <Stack.Screen 
-            name="NotificationSettings" 
+          <Stack.Screen
+            name="NotificationSettings"
             component={NotificationSettingsScreen}
-            options={{ 
+            options={{
               headerShown: false,
-              ...(Platform.OS === "ios" 
+              ...(Platform.OS === "ios"
                 ? TransitionPresets.ModalPresentationIOS
                 : TransitionPresets.SlideFromRightIOS),
             }}
           />
-          <Stack.Screen 
-            name="Profile" 
+          <Stack.Screen
+            name="Profile"
             component={ProfileScreen}
-            options={{ 
+            options={{
               headerShown: false,
-              ...(Platform.OS === "ios" 
+              ...(Platform.OS === "ios"
                 ? TransitionPresets.ModalPresentationIOS
                 : TransitionPresets.SlideFromRightIOS),
             }}
           />
-          <Stack.Screen 
-            name="SpendingTrends" 
+          <Stack.Screen
+            name="SpendingTrends"
             component={SpendingTrendsScreen}
-            options={{ 
+            options={{
               headerShown: false,
-              ...(Platform.OS === "ios" 
+              ...(Platform.OS === "ios"
                 ? TransitionPresets.ModalPresentationIOS
                 : TransitionPresets.SlideFromRightIOS),
             }}
           />
-          <Stack.Screen 
-            name="SpendingHeatmap" 
+          <Stack.Screen
+            name="SpendingHeatmap"
             component={SpendingHeatmapScreen}
-            options={{ 
+            options={{
               headerShown: false,
-              ...(Platform.OS === "ios" 
+              ...(Platform.OS === "ios"
                 ? TransitionPresets.ModalPresentationIOS
                 : TransitionPresets.SlideFromRightIOS),
             }}
           />
-          <Stack.Screen 
-            name="TripFilters" 
+          <Stack.Screen
+            name="TripFilters"
             component={TripFiltersScreen}
-            options={{ 
+            options={{
               headerShown: false,
-              ...(Platform.OS === "ios" 
+              ...(Platform.OS === "ios"
                 ? TransitionPresets.ModalPresentationIOS
                 : TransitionPresets.SlideFromRightIOS),
             }}

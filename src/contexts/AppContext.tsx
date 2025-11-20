@@ -511,31 +511,46 @@ export const [AppProvider, useApp] = createContextHook(() => {
   // Packing Items
   const addPackingItem = useCallback(
     async (item: PackingItem) => {
-      const updatedItems = [...packingItems, item];
-      setPackingItems(updatedItems);
-      await storage.savePackingItems(updatedItems);
+      setPackingItems((prev) => {
+        const updated = [...prev, item];
+        storage.savePackingItems(updated);
+        return updated;
+      });
     },
-    [packingItems],
+    [],
+  );
+
+  const addPackingItems = useCallback(
+    async (items: PackingItem[]) => {
+      setPackingItems((prev) => {
+        const updated = [...prev, ...items];
+        storage.savePackingItems(updated);
+        return updated;
+      });
+    },
+    [],
   );
 
   const updatePackingItem = useCallback(
     async (item: PackingItem) => {
-      const updatedItems = packingItems.map((i) =>
-        i.id === item.id ? item : i,
-      );
-      setPackingItems(updatedItems);
-      await storage.savePackingItems(updatedItems);
+      setPackingItems((prev) => {
+        const updated = prev.map((i) => (i.id === item.id ? item : i));
+        storage.savePackingItems(updated);
+        return updated;
+      });
     },
-    [packingItems],
+    [],
   );
 
   const deletePackingItem = useCallback(
     async (itemId: string) => {
-      const updatedItems = packingItems.filter((i) => i.id !== itemId);
-      setPackingItems(updatedItems);
-      await storage.savePackingItems(updatedItems);
+      setPackingItems((prev) => {
+        const updated = prev.filter((i) => i.id !== itemId);
+        storage.savePackingItems(updated);
+        return updated;
+      });
     },
-    [packingItems],
+    [],
   );
 
   const getTripPackingItems = useCallback(
@@ -548,9 +563,11 @@ export const [AppProvider, useApp] = createContextHook(() => {
   // Activity Items
   const addActivityItem = useCallback(
     async (item: ActivityItem) => {
-      const updatedItems = [...activityItems, item];
-      setActivityItems(updatedItems);
-      await storage.saveActivityItems(updatedItems);
+      setActivityItems((prev) => {
+        const updated = [...prev, item];
+        storage.saveActivityItems(updated);
+        return updated;
+      });
 
       // Schedule activity reminder if notifications enabled
       const trip = trips.find(t => t.id === item.tripId);
@@ -559,27 +576,40 @@ export const [AppProvider, useApp] = createContextHook(() => {
         await notificationService.scheduleActivityReminder(trip, item.description, item.date);
       }
     },
-    [activityItems, trips],
+    [trips],
+  );
+
+  const addActivityItems = useCallback(
+    async (items: ActivityItem[]) => {
+      setActivityItems((prev) => {
+        const updated = [...prev, ...items];
+        storage.saveActivityItems(updated);
+        return updated;
+      });
+    },
+    [],
   );
 
   const updateActivityItem = useCallback(
     async (item: ActivityItem) => {
-      const updatedItems = activityItems.map((i) =>
-        i.id === item.id ? item : i,
-      );
-      setActivityItems(updatedItems);
-      await storage.saveActivityItems(updatedItems);
+      setActivityItems((prev) => {
+        const updated = prev.map((i) => (i.id === item.id ? item : i));
+        storage.saveActivityItems(updated);
+        return updated;
+      });
     },
-    [activityItems],
+    [],
   );
 
   const deleteActivityItem = useCallback(
     async (itemId: string) => {
-      const updatedItems = activityItems.filter((i) => i.id !== itemId);
-      setActivityItems(updatedItems);
-      await storage.saveActivityItems(updatedItems);
+      setActivityItems((prev) => {
+        const updated = prev.filter((i) => i.id !== itemId);
+        storage.saveActivityItems(updated);
+        return updated;
+      });
     },
-    [activityItems],
+    [],
   );
 
   const getTripActivityItems = useCallback(
@@ -625,10 +655,12 @@ export const [AppProvider, useApp] = createContextHook(() => {
       canUseProFeature,
       logAction,
       addPackingItem,
+      addPackingItems,
       updatePackingItem,
       deletePackingItem,
       getTripPackingItems,
       addActivityItem,
+      addActivityItems,
       updateActivityItem,
       deleteActivityItem,
       getTripActivityItems,
@@ -665,10 +697,12 @@ export const [AppProvider, useApp] = createContextHook(() => {
       canUseProFeature,
       logAction,
       addPackingItem,
+      addPackingItems,
       updatePackingItem,
       deletePackingItem,
       getTripPackingItems,
       addActivityItem,
+      addActivityItems,
       updateActivityItem,
       deleteActivityItem,
       getTripActivityItems,

@@ -10,25 +10,21 @@ import {
   Alert,
   Modal,
   Dimensions,
-  BackHandler,
   KeyboardAvoidingView,
   FlatList,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useTheme, Surface, ProgressBar, Chip, Badge, FAB, Divider } from "react-native-paper";
+import { useTheme, Surface, ProgressBar, Chip, FAB, Divider } from "react-native-paper";
 import { useThemeMode } from "@/contexts/ThemeContext";
 import { useApp } from "@/contexts/AppContext";
 import { Trip, PackingItem, ActivityItem } from "@/types";
 import EmptyState from "@/components/EmptyState";
 import { getTemplatesForDestination, getConditionTemplates } from "@/utils/destinationTemplates";
-import { MotiView, AnimatePresence } from "moti";
+import { MotiView } from "moti";
 import * as Haptics from "expo-haptics";
 
 const { width } = Dimensions.get("window");
-
-// Helper for unique IDs
-const generateId = () => Math.random().toString(36).substr(2, 9);
 
 interface PlanningScreenProps {
   navigation: any;
@@ -60,9 +56,11 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
   const {
     trips,
     addPackingItem,
+    addPackingItems,
     updatePackingItem,
     deletePackingItem,
     addActivityItem,
+    addActivityItems,
     updateActivityItem,
     deleteActivityItem,
     getTripPackingItems,
@@ -86,9 +84,15 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
 
   // Modals state
   const [showTemplatesModal, setShowTemplatesModal] = useState(false);
+  const [showCopyTripModal, setShowCopyTripModal] = useState(false);
   const [templateType, setTemplateType] = useState<"packing" | "activities">("packing");
   const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
   const [selectedTemplateItems, setSelectedTemplateItems] = useState<Set<string>>(new Set());
+
+  // Copy Trip State
+  const [tripToCopyFrom, setTripToCopyFrom] = useState<Trip | null>(null);
+  const [copyItems, setCopyItems] = useState<any[]>([]);
+  const [selectedCopyItems, setSelectedCopyItems] = useState<Set<string>>(new Set());
 
   const selectedTrip = useMemo(() => getTrip(selectedTripId), [selectedTripId, getTrip]);
 
@@ -113,16 +117,19 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
   // Templates
   const templates = useMemo(() => {
     if (!selectedTrip) return { packing: [], activities: [] };
-    return getTemplatesForDestination(selectedTrip.destination, selectedTrip.destination); // Passing destination as country fallback
+    return getTemplatesForDestination(selectedTrip.destination, selectedTrip.destination);
   }, [selectedTrip]);
 
   const conditionTemplates = useMemo(() => getConditionTemplates(), []);
+
+  const generateId = () => Date.now().toString() + Math.random().toString(36).substr(2, 9);
 
   const handleAddItem = async () => {
     if (!newItemText.trim() || !selectedTripId) return;
 
     if (activeTab === "packing") {
       await addPackingItem({
+        id: generateId(),
         tripId: selectedTripId,
         name: newItemText.trim(),
         category: "Essentials", // Default category
@@ -130,6 +137,7 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
       });
     } else {
       await addActivityItem({
+        id: generateId(),
         tripId: selectedTripId,
         description: newItemText.trim(),
         completed: false,
@@ -141,12 +149,12 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
 
   const handleTogglePacked = async (item: PackingItem) => {
     if (Platform.OS !== 'web') Haptics.selectionAsync();
-    await updatePackingItem(item.id, { packed: !item.packed });
+    await updatePackingItem({ ...item, packed: !item.packed });
   };
 
   const handleToggleActivity = async (item: ActivityItem) => {
     if (Platform.OS !== 'web') Haptics.selectionAsync();
-    await updateActivityItem(item.id, { completed: !item.completed });
+    await updateActivityItem({ ...item, completed: !item.completed });
   };
 
   const handleDeleteItem = (id: string, type: "packing" | "activity") => {
@@ -173,30 +181,74 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
     const itemsToAdd = Array.from(selectedTemplateItems);
     if (templateType === "packing") {
       const templateItems = selectedTemplate.items.filter((i: any) => itemsToAdd.includes(i.name));
-      for (const item of templateItems) {
-        await addPackingItem({
-          tripId: selectedTripId,
-          name: item.name,
-          category: item.category,
-          packed: false,
-        });
-      }
+      const newItems = templateItems.map((item: any) => ({
+        id: generateId() + Math.random().toString(36).substr(2, 5),
+        tripId: selectedTripId,
+        name: item.name,
+        category: item.category,
+        packed: false,
+      }));
+      await addPackingItems(newItems);
     } else {
       const templateActivities = selectedTemplate.activities.filter((a: any) => itemsToAdd.includes(a.description));
-      for (const activity of templateActivities) {
-        await addActivityItem({
-          tripId: selectedTripId,
-          description: activity.description,
-          completed: false,
-          date: new Date().toISOString(), // Or specific date if available
-        });
-      }
+      const newActivities = templateActivities.map((activity: any) => ({
+        id: generateId() + Math.random().toString(36).substr(2, 5),
+        tripId: selectedTripId,
+        description: activity.description,
+        completed: false,
+        date: new Date().toISOString(),
+      }));
+      await addActivityItems(newActivities);
     }
 
     setShowTemplatesModal(false);
     setSelectedTemplate(null);
     setSelectedTemplateItems(new Set());
     Alert.alert("Success", `Added ${itemsToAdd.length} items to your list.`);
+  };
+
+  const handlePrepareCopyTrip = (trip: Trip) => {
+    setTripToCopyFrom(trip);
+    if (activeTab === "packing") {
+      const items = getTripPackingItems(trip.id);
+      setCopyItems(items);
+    } else {
+      const items = getTripActivityItems(trip.id);
+      setCopyItems(items);
+    }
+    setSelectedCopyItems(new Set());
+  };
+
+  const handleCopyItems = async () => {
+    if (!tripToCopyFrom || !selectedTripId) return;
+
+    const itemsToCopy = copyItems.filter(item => selectedCopyItems.has(item.id));
+
+    if (activeTab === "packing") {
+      const newItems = itemsToCopy.map(item => ({
+        id: generateId() + Math.random().toString(36).substr(2, 5),
+        tripId: selectedTripId,
+        name: item.name,
+        category: item.category,
+        packed: false,
+      }));
+      await addPackingItems(newItems);
+    } else {
+      const newActivities = itemsToCopy.map(item => ({
+        id: generateId() + Math.random().toString(36).substr(2, 5),
+        tripId: selectedTripId,
+        description: item.description,
+        completed: false,
+        date: new Date().toISOString(),
+      }));
+      await addActivityItems(newActivities);
+    }
+
+    setShowCopyTripModal(false);
+    setTripToCopyFrom(null);
+    setCopyItems([]);
+    setSelectedCopyItems(new Set());
+    Alert.alert("Success", `Copied ${itemsToCopy.length} items to your list.`);
   };
 
   if (!selectedTrip) {
@@ -262,6 +314,17 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
                   {packedCount} of {totalPackingItems} items packed
                 </Text>
               </Surface>
+
+              {/* Actions Row */}
+              <View style={styles.actionsRow}>
+                <TouchableOpacity
+                  style={[styles.actionButton, { backgroundColor: safeTheme.colors.secondaryContainer }]}
+                  onPress={() => setShowCopyTripModal(true)}
+                >
+                  <Ionicons name="copy-outline" size={20} color={safeTheme.colors.onSecondaryContainer} />
+                  <Text style={[styles.actionButtonText, { color: safeTheme.colors.onSecondaryContainer }]}>Copy from Trip</Text>
+                </TouchableOpacity>
+              </View>
 
               {/* Smart Suggestions / Templates */}
               <View style={styles.section}>
@@ -347,6 +410,18 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
           {/* Activities Tab Content */}
           {activeTab === "activities" && (
             <MotiView from={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ type: 'timing', duration: 300 } as any}>
+
+              {/* Actions Row */}
+              <View style={styles.actionsRow}>
+                <TouchableOpacity
+                  style={[styles.actionButton, { backgroundColor: safeTheme.colors.secondaryContainer }]}
+                  onPress={() => setShowCopyTripModal(true)}
+                >
+                  <Ionicons name="copy-outline" size={20} color={safeTheme.colors.onSecondaryContainer} />
+                  <Text style={[styles.actionButtonText, { color: safeTheme.colors.onSecondaryContainer }]}>Copy from Trip</Text>
+                </TouchableOpacity>
+              </View>
+
               {/* Suggestions */}
               <View style={styles.section}>
                 <Text style={[styles.sectionTitle, { color: safeTheme.colors.onSurface }]}>Top Places & Activities</Text>
@@ -435,7 +510,12 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
       </KeyboardAvoidingView>
 
       {/* Trip Selector Modal */}
-      <Modal visible={showTripSelector} animationType="slide" transparent>
+      <Modal
+        visible={showTripSelector}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowTripSelector(false)}
+      >
         <View style={styles.modalOverlay}>
           <Surface style={[styles.modalContent, { backgroundColor: safeTheme.colors.surface }]} elevation={5}>
             <View style={styles.modalHeader}>
@@ -469,7 +549,12 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
       </Modal>
 
       {/* Templates Modal */}
-      <Modal visible={showTemplatesModal} animationType="slide" presentationStyle="pageSheet">
+      <Modal
+        visible={showTemplatesModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowTemplatesModal(false)}
+      >
         <SafeAreaView style={[styles.modalContainer, { backgroundColor: safeTheme.colors.background }]}>
           <View style={[styles.modalHeader, { borderBottomColor: safeTheme.colors.outlineVariant }]}>
             <Text style={[styles.modalTitle, { color: safeTheme.colors.onSurface }]}>
@@ -558,6 +643,121 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
           </View>
         </SafeAreaView>
       </Modal>
+
+      {/* Copy Trip Modal */}
+      <Modal
+        visible={showCopyTripModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => {
+          setShowCopyTripModal(false);
+          setTripToCopyFrom(null);
+          setCopyItems([]);
+          setSelectedCopyItems(new Set());
+        }}
+      >
+        <SafeAreaView style={[styles.modalContainer, { backgroundColor: safeTheme.colors.background }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: safeTheme.colors.outlineVariant }]}>
+            <Text style={[styles.modalTitle, { color: safeTheme.colors.onSurface }]}>
+              {tripToCopyFrom ? `Copy from ${tripToCopyFrom.name}` : "Select Trip to Copy"}
+            </Text>
+            <TouchableOpacity onPress={() => {
+              setShowCopyTripModal(false);
+              setTripToCopyFrom(null);
+              setCopyItems([]);
+              setSelectedCopyItems(new Set());
+            }}>
+              <Text style={{ color: safeTheme.colors.primary, fontSize: 16, fontWeight: '600' }}>Close</Text>
+            </TouchableOpacity>
+          </View>
+
+          {!tripToCopyFrom ? (
+            <FlatList
+              data={sortedTrips.filter(t => t.id !== selectedTripId)}
+              keyExtractor={item => item.id}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[styles.tripItem, { borderBottomColor: safeTheme.colors.outlineVariant }]}
+                  onPress={() => handlePrepareCopyTrip(item)}
+                >
+                  <View>
+                    <Text style={[styles.tripItemName, { color: safeTheme.colors.onSurface }]}>{item.name}</Text>
+                    <Text style={{ color: safeTheme.colors.onSurfaceVariant, fontSize: 12 }}>{item.destination}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={safeTheme.colors.onSurfaceVariant} />
+                </TouchableOpacity>
+              )}
+              ListEmptyComponent={
+                <View style={styles.centerContent}>
+                  <Text style={{ color: safeTheme.colors.onSurfaceVariant }}>No other trips to copy from.</Text>
+                </View>
+              }
+            />
+          ) : (
+            <>
+              <ScrollView style={styles.modalBody}>
+                {copyItems.length === 0 ? (
+                  <View style={styles.centerContent}>
+                    <Text style={{ color: safeTheme.colors.onSurfaceVariant, marginTop: 40 }}>
+                      No {activeTab === "packing" ? "packing items" : "activities"} found in this trip.
+                    </Text>
+                  </View>
+                ) : (
+                  copyItems.map((item) => (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={[styles.templateItemRow, { borderBottomColor: safeTheme.colors.outlineVariant }]}
+                      onPress={() => {
+                        const newSet = new Set(selectedCopyItems);
+                        if (newSet.has(item.id)) newSet.delete(item.id);
+                        else newSet.add(item.id);
+                        setSelectedCopyItems(newSet);
+                      }}
+                    >
+                      <Ionicons
+                        name={selectedCopyItems.has(item.id) ? "checkbox" : "square-outline"}
+                        size={24}
+                        color={selectedCopyItems.has(item.id) ? safeTheme.colors.primary : safeTheme.colors.onSurfaceVariant}
+                      />
+                      <View style={{ marginLeft: 12 }}>
+                        <Text style={[styles.templateItemName, { color: safeTheme.colors.onSurface }]}>
+                          {activeTab === "packing" ? item.name : item.description}
+                        </Text>
+                        {activeTab === "packing" && (
+                          <Text style={[styles.templateItemCategory, { color: safeTheme.colors.onSurfaceVariant }]}>{item.category}</Text>
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  ))
+                )}
+              </ScrollView>
+
+              <View style={[styles.modalFooter, { borderTopColor: safeTheme.colors.outlineVariant, backgroundColor: safeTheme.colors.surface }]}>
+                <TouchableOpacity
+                  style={[styles.selectAllButton, { borderColor: safeTheme.colors.outline }]}
+                  onPress={() => {
+                    if (selectedCopyItems.size === copyItems.length) setSelectedCopyItems(new Set());
+                    else setSelectedCopyItems(new Set(copyItems.map(i => i.id)));
+                  }}
+                >
+                  <Text style={{ color: safeTheme.colors.onSurface }}>
+                    {selectedCopyItems.size > 0 ? "Deselect All" : "Select All"}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.addSelectedButton, { backgroundColor: safeTheme.colors.primary, opacity: selectedCopyItems.size === 0 ? 0.5 : 1 }]}
+                  onPress={handleCopyItems}
+                  disabled={selectedCopyItems.size === 0}
+                >
+                  <Text style={{ color: safeTheme.colors.onPrimary, fontWeight: 'bold' }}>
+                    Copy {selectedCopyItems.size} Items
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -637,6 +837,22 @@ const styles = StyleSheet.create({
   },
   progressSubtext: {
     fontSize: 12,
+  },
+  actionsRow: {
+    marginBottom: 24,
+    flexDirection: 'row',
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    gap: 8,
+  },
+  actionButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   section: {
     marginBottom: 24,
@@ -746,7 +962,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#e5e5e5',
   },
   tripItemName: {
     fontSize: 16,

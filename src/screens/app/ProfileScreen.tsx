@@ -553,7 +553,7 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
           <MotiView
             from={{ opacity: 0, translateY: 20 }}
             animate={{ opacity: 1, translateY: 0 }}
-            transition={{ type: 'timing', duration: 300 }}
+            transition={{ type: 'timing', duration: 300 } as any}
           >
             <AnimatedCard variant="elevated" elevation={2} style={styles.profileCard}>
               <View style={styles.profilePhotoSection}>
@@ -585,7 +585,7 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
                     <MotiView
                       from={{ scale: 0 }}
                       animate={{ scale: 1 }}
-                      transition={{ type: 'spring' }}
+                      transition={{ type: 'spring' } as any}
                       style={[styles.editPhotoBadge, { backgroundColor: theme.colors.primary }]}
                     >
                       <Ionicons name="camera" size={20} color="#fff" />

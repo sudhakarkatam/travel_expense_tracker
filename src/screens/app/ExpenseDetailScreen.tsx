@@ -1,11 +1,24 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, Modal, Dimensions } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { useApp } from '@/contexts/AppContext';
-import { formatDateTime } from '@/utils/dateFormatter';
+import React, { useMemo } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Alert,
+  Image,
+  Dimensions,
+  Modal,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import { useTheme, Surface, Divider, Chip } from "react-native-paper";
+import { useApp } from "@/contexts/AppContext";
+import { formatCurrency } from "@/utils/currencyFormatter";
+import { formatDateTime } from "@/utils/dateFormatter";
+import { MotiView } from "moti";
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+const { width } = Dimensions.get("window");
 
 interface ExpenseDetailScreenProps {
   navigation: any;
@@ -13,47 +26,42 @@ interface ExpenseDetailScreenProps {
 }
 
 export default function ExpenseDetailScreen({ navigation, route }: ExpenseDetailScreenProps) {
-  const { expenses, deleteExpense, categories } = useApp();
+  const theme = useTheme();
   const { expenseId, tripId } = route.params;
-  const expense = expenses.find(e => e.id === expenseId);
-  const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
-  const category = categories.find(c => c.id === expense?.category);
+  const { getTrip, getTripExpenses, deleteExpense, user } = useApp();
 
-  if (!expense) {
+  const trip = useMemo(() => getTrip(tripId), [tripId, getTrip]);
+  const expenses = useMemo(() => getTripExpenses(tripId), [tripId, getTripExpenses]);
+  const expense = useMemo(() => expenses.find(e => e.id === expenseId), [expenses, expenseId]);
+
+  if (!expense || !trip) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="#333" />
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <View style={styles.centerContent}>
+          <Text style={{ color: theme.colors.onSurface }}>Expense not found.</Text>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginTop: 16 }}>
+            <Text style={{ color: theme.colors.primary }}>Go Back</Text>
           </TouchableOpacity>
-          <Text style={styles.title}>Expense Details</Text>
-          <View style={{ width: 24 }} />
-        </View>
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Expense not found</Text>
         </View>
       </SafeAreaView>
     );
   }
 
-  const handleEdit = () => {
-    navigation.navigate('EditExpense', { 
-      expenseId: expense.id, 
-      tripId: tripId 
-    });
-  };
+  const paidByParticipant = trip.participants.find(p => p.id === expense.paidBy);
+  const paidByName = paidByParticipant?.name || "Unknown";
+  const isCurrentUserPayer = expense.paidBy === user?.id;
 
   const handleDelete = () => {
     Alert.alert(
-      'Delete Expense',
-      `Are you sure you want to delete "${expense.description}"?`,
+      "Delete Expense",
+      "Are you sure you want to delete this expense?",
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: "Cancel", style: "cancel" },
         {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            deleteExpense(expense.id);
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            await deleteExpense(expense.id);
             navigation.goBack();
           },
         },
@@ -61,199 +69,175 @@ export default function ExpenseDetailScreen({ navigation, route }: ExpenseDetail
     );
   };
 
-  const renderReceiptImages = () => {
-    if (!expense.receiptImages || expense.receiptImages.length === 0) {
-      return null;
-    }
-
-    return (
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Receipt Images ({expense.receiptImages.length})</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imageScroll}>
-          {expense.receiptImages.map((imageUri: string, index: number) => (
-            <TouchableOpacity 
-              key={index} 
-              style={styles.imageContainer}
-              onPress={() => setSelectedImageIndex(index)}
-            >
-              <Image source={{ uri: imageUri }} style={styles.receiptImage} />
-              <View style={styles.imageOverlay}>
-                <Ionicons name="expand" size={24} color="white" />
-              </View>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
-    );
-  };
-
-  const renderSplitDetails = () => {
-    if (!expense.splitBetween || expense.splitBetween.length === 0) {
-      return null;
-    }
-
-    return (
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Split Details</Text>
-        <View style={styles.splitInfo}>
-          <Text style={styles.splitLabel}>Split Type: {expense.splitType}</Text>
-          <Text style={styles.splitLabel}>Paid By: {expense.paidBy}</Text>
-        </View>
-        
-        <View style={styles.splitList}>
-          {expense.splitBetween.map((split: any, index: number) => (
-            <View key={index} style={styles.splitItem}>
-              <Text style={styles.splitParticipant}>{split.userName}</Text>
-              <Text style={styles.splitAmount}>
-                {expense.splitType === 'percentage' 
-                  ? `${split.percentage}%` 
-                  : `₹${split.amount.toFixed(2)}`
-                }
-              </Text>
-            </View>
-          ))}
-        </View>
-      </View>
-    );
-  };
+  const [selectedReceipt, setSelectedReceipt] = React.useState<string | null>(null);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
+      <Surface style={[styles.header, { backgroundColor: theme.colors.surface }]} elevation={1}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color={theme.colors.onSurface} />
         </TouchableOpacity>
-        <Text style={styles.title}>Expense Details</Text>
-        <TouchableOpacity onPress={handleEdit}>
-          <Ionicons name="pencil" size={24} color="#8b5cf6" />
+        <Text style={[styles.headerTitle, { color: theme.colors.onSurface }]}>Expense Details</Text>
+        <TouchableOpacity onPress={() => navigation.navigate("EditExpense", { expenseId, tripId })}>
+          <Text style={[styles.editButton, { color: theme.colors.primary }]}>Edit</Text>
         </TouchableOpacity>
-      </View>
+      </Surface>
 
-      <ScrollView style={styles.content}>
-        {/* Main Expense Info */}
-        <View style={styles.mainInfo}>
-          <View style={styles.amountContainer}>
-            <Text style={styles.currency}>₹</Text>
-            <Text style={styles.amount}>{expense.amount.toFixed(2)}</Text>
-          </View>
-          
-          <Text style={styles.description}>{expense.description}</Text>
-          
-          {category && (
-            <View style={styles.categoryContainer}>
-              <View style={[styles.categoryIcon, { backgroundColor: category.color }]}>
-                <Ionicons name={category.icon as any} size={20} color="white" />
-              </View>
-              <Text style={styles.categoryName}>{category.name}</Text>
+      <ScrollView contentContainerStyle={styles.content}>
+        <MotiView
+          from={{ opacity: 0, translateY: 20 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'timing', duration: 300 } as any}
+        >
+          {/* Main Amount Card */}
+          <Surface style={[styles.amountCard, { backgroundColor: theme.colors.surface }]} elevation={2}>
+            <View style={[styles.iconContainer, { backgroundColor: theme.colors.primaryContainer }]}>
+              <Ionicons
+                name={getCategoryIcon(expense.category)}
+                size={32}
+                color={theme.colors.onPrimaryContainer}
+              />
             </View>
-          )}
-          
-          <View style={styles.dateContainer}>
-            <Ionicons name="calendar-outline" size={16} color="#666" />
-            <Text style={styles.dateText}>
-              {formatDateTime(expense.createdAt || expense.date, { dateFormat: 'long' })}
+            <Text style={[styles.description, { color: theme.colors.onSurface }]}>{expense.description}</Text>
+            <Text style={[styles.amount, { color: theme.colors.primary }]}>
+              {formatCurrency(expense.amount, { currency: expense.currency })}
             </Text>
-          </View>
-        </View>
+            <View style={styles.metaRow}>
+              <Chip icon="calendar" style={{ backgroundColor: theme.colors.surfaceVariant }} textStyle={{ color: theme.colors.onSurfaceVariant }}>
+                {formatDateTime(expense.date)}
+              </Chip>
+              <Chip icon="pricetag" style={{ backgroundColor: theme.colors.surfaceVariant, marginLeft: 8 }} textStyle={{ color: theme.colors.onSurfaceVariant }}>
+                {expense.category}
+              </Chip>
+            </View>
+          </Surface>
 
-        {/* Receipt Images */}
-        {renderReceiptImages()}
-
-        {/* Split Details */}
-        {renderSplitDetails()}
-
-        {/* Additional Info */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Additional Information</Text>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Expense ID:</Text>
-            <Text style={styles.infoValue}>{expense.id}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Created:</Text>
-            <Text style={styles.infoValue}>
-              {new Date(expense.date).toLocaleString()}
-            </Text>
-          </View>
+          {/* Notes Section */}
           {expense.notes && (
-            <View style={styles.notesContainer}>
-              <Text style={styles.infoLabel}>Notes:</Text>
-              <Text style={styles.notesText}>{expense.notes}</Text>
-            </View>
+            <Surface style={[styles.section, { backgroundColor: theme.colors.surface }]} elevation={1}>
+              <Text style={[styles.sectionTitle, { color: theme.colors.onSurfaceVariant }]}>Notes</Text>
+              <Text style={[styles.notesText, { color: theme.colors.onSurface }]}>{expense.notes}</Text>
+            </Surface>
           )}
-        </View>
-      </ScrollView>
 
-      {/* Action Buttons */}
-      <View style={styles.bottomActions}>
-        <TouchableOpacity style={styles.editButton} onPress={handleEdit}>
-          <Ionicons name="pencil" size={20} color="#8b5cf6" />
-          <Text style={styles.editButtonText}>Edit</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
-          <Ionicons name="trash" size={20} color="#ef4444" />
-          <Text style={styles.deleteButtonText}>Delete</Text>
-        </TouchableOpacity>
-      </View>
+          {/* Paid By Section */}
+          <Surface style={[styles.section, { backgroundColor: theme.colors.surface }]} elevation={1}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.onSurfaceVariant }]}>Paid By</Text>
+            <View style={styles.payerRow}>
+              <View style={[styles.avatar, { backgroundColor: theme.colors.primary }]}>
+                <Text style={{ color: theme.colors.onPrimary, fontWeight: 'bold' }}>
+                  {paidByName.charAt(0).toUpperCase()}
+                </Text>
+              </View>
+              <Text style={[styles.payerName, { color: theme.colors.onSurface }]}>
+                {isCurrentUserPayer ? "You" : paidByName}
+              </Text>
+              <Text style={[styles.payerAmount, { color: theme.colors.onSurface }]}>
+                {formatCurrency(expense.amount, { currency: expense.currency })}
+              </Text>
+            </View>
+          </Surface>
 
-      {/* Image Modal */}
-      <Modal
-        visible={selectedImageIndex !== null}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setSelectedImageIndex(null)}
-      >
-        <View style={styles.modalOverlay}>
-          <TouchableOpacity 
-            style={styles.modalCloseArea}
-            onPress={() => setSelectedImageIndex(null)}
-          />
-          <View style={styles.modalContent}>
-            <TouchableOpacity 
-              style={styles.modalCloseButton}
-              onPress={() => setSelectedImageIndex(null)}
-            >
-              <Ionicons name="close" size={30} color="white" />
-            </TouchableOpacity>
-            {selectedImageIndex !== null && expense.receiptImages && (
-              <ScrollView
-                horizontal
-                pagingEnabled
-                showsHorizontalScrollIndicator={false}
-                style={styles.modalImageScroll}
-              >
-                {expense.receiptImages.map((imageUri: string, index: number) => (
-                  <View key={index} style={styles.modalImageContainer}>
-                    <Image 
-                      source={{ uri: imageUri }} 
-                      style={styles.modalImage}
-                      resizeMode="contain"
-                    />
+          {/* Split Details */}
+          <Surface style={[styles.section, { backgroundColor: theme.colors.surface }]} elevation={1}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.onSurfaceVariant }]}>Shared With</Text>
+            {expense.splitBetween.map((split, index) => {
+              const participant = trip.participants.find(p => p.id === split.userId);
+              const isMe = split.userId === user?.id;
+              return (
+                <View key={split.userId}>
+                  <View style={styles.splitRow}>
+                    <View style={[styles.avatar, { backgroundColor: theme.colors.secondary }]}>
+                      <Text style={{ color: theme.colors.onSecondary, fontWeight: 'bold' }}>
+                        {participant?.name?.charAt(0).toUpperCase() || "?"}
+                      </Text>
+                    </View>
+                    <Text style={[styles.splitName, { color: theme.colors.onSurface }]}>
+                      {isMe ? "You" : participant?.name || "Unknown"}
+                    </Text>
+                    <Text style={[styles.splitAmount, { color: theme.colors.onSurface }]}>
+                      {formatCurrency(split.amount, { currency: expense.currency })}
+                    </Text>
                   </View>
+                  {index < expense.splitBetween.length - 1 && <Divider />}
+                </View>
+              );
+            })}
+          </Surface>
+
+          {/* Receipts */}
+          {expense.receiptImages && expense.receiptImages.length > 0 && (
+            <Surface style={[styles.section, { backgroundColor: theme.colors.surface }]} elevation={1}>
+              <Text style={[styles.sectionTitle, { color: theme.colors.onSurfaceVariant }]}>Receipts</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.receiptsScroll}>
+                {expense.receiptImages.map((uri, index) => (
+                  <TouchableOpacity key={index} onPress={() => setSelectedReceipt(uri)}>
+                    <Image source={{ uri }} style={styles.receiptImage} />
+                  </TouchableOpacity>
                 ))}
               </ScrollView>
-            )}
-            {selectedImageIndex !== null && expense.receiptImages && (
-              <Text style={styles.imageCounter}>
-                {selectedImageIndex + 1} of {expense.receiptImages.length}
-              </Text>
-            )}
-          </View>
-          <TouchableOpacity 
-            style={styles.modalCloseArea}
-            onPress={() => setSelectedImageIndex(null)}
-          />
+            </Surface>
+          )}
+
+          {/* Delete Button */}
+          <TouchableOpacity
+            style={[styles.deleteButton, { borderColor: theme.colors.error }]}
+            onPress={handleDelete}
+          >
+            <Ionicons name="trash-outline" size={20} color={theme.colors.error} />
+            <Text style={[styles.deleteButtonText, { color: theme.colors.error }]}>Delete Expense</Text>
+          </TouchableOpacity>
+
+        </MotiView>
+      </ScrollView>
+
+      {/* Full Screen Receipt Modal */}
+      <Modal
+        visible={!!selectedReceipt}
+        transparent={true}
+        onRequestClose={() => setSelectedReceipt(null)}
+        animationType="fade"
+      >
+        <View style={styles.modalContainer}>
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={() => setSelectedReceipt(null)}
+          >
+            <Ionicons name="close" size={30} color="#FFF" />
+          </TouchableOpacity>
+          {selectedReceipt && (
+            <Image
+              source={{ uri: selectedReceipt }}
+              style={styles.fullScreenImage}
+              resizeMode="contain"
+            />
+          )}
         </View>
       </Modal>
     </SafeAreaView>
   );
 }
 
+function getCategoryIcon(category: string): any {
+  const map: Record<string, string> = {
+    food: "restaurant",
+    transport: "bus",
+    accommodation: "bed",
+    shopping: "cart",
+    entertainment: "film",
+    others: "ellipsis-horizontal",
+  };
+  return map[category.toLowerCase()] || "receipt";
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+  },
+  centerContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   header: {
     flexDirection: 'row',
@@ -261,284 +245,138 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
   },
-  title: {
+  backButton: {
+    padding: 4,
+  },
+  headerTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    flex: 1,
-    textAlign: 'center',
+    fontWeight: '600',
+  },
+  editButton: {
+    fontSize: 16,
+    fontWeight: '600',
   },
   content: {
-    flex: 1,
     padding: 16,
+    paddingBottom: 40,
   },
-  mainInfo: {
+  amountCard: {
     alignItems: 'center',
-    paddingVertical: 24,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-    marginBottom: 24,
-  },
-  amountContainer: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
+    padding: 24,
+    borderRadius: 16,
     marginBottom: 16,
   },
-  currency: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#8b5cf6',
-    marginRight: 4,
-  },
-  amount: {
-    fontSize: 36,
-    fontWeight: 'bold',
-    color: '#333',
+  iconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
   },
   description: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#333',
+    marginBottom: 8,
     textAlign: 'center',
+  },
+  amount: {
+    fontSize: 32,
+    fontWeight: 'bold',
     marginBottom: 16,
   },
-  categoryContainer: {
+  metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
-    gap: 8,
-  },
-  categoryIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  categoryName: {
-    fontSize: 16,
-    color: '#333',
-    fontWeight: '500',
-  },
-  dateContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  dateText: {
-    fontSize: 14,
-    color: '#666',
   },
   section: {
-    marginBottom: 24,
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: 14,
+    fontWeight: '600',
     marginBottom: 12,
+    textTransform: 'uppercase',
   },
-  imageScroll: {
+  payerRow: {
     flexDirection: 'row',
+    alignItems: 'center',
   },
-  imageContainer: {
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: 12,
   },
-  receiptImage: {
-    width: 120,
-    height: 120,
-    borderRadius: 8,
-    backgroundColor: '#f3f4f6',
-  },
-  splitInfo: {
-    backgroundColor: '#f9fafb',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 12,
-  },
-  splitLabel: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 4,
-  },
-  splitList: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  splitItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-  },
-  splitParticipant: {
+  payerName: {
     fontSize: 16,
-    color: '#333',
-    fontWeight: '500',
+    flex: 1,
+  },
+  payerAmount: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  splitRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  splitName: {
+    fontSize: 16,
+    flex: 1,
   },
   splitAmount: {
     fontSize: 16,
-    color: '#8b5cf6',
-    fontWeight: '600',
-  },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-  },
-  infoLabel: {
-    fontSize: 14,
-    color: '#666',
     fontWeight: '500',
   },
-  infoValue: {
-    fontSize: 14,
-    color: '#333',
-  },
-  notesContainer: {
-    marginTop: 12,
-  },
-  notesText: {
-    fontSize: 14,
-    color: '#333',
-    lineHeight: 20,
-    marginTop: 4,
-  },
-  bottomActions: {
+  receiptsScroll: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-    backgroundColor: 'white',
-    gap: 12,
   },
-  editButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    backgroundColor: '#f3f4f6',
+  receiptImage: {
+    width: 100,
+    height: 100,
     borderRadius: 8,
-    gap: 6,
-  },
-  editButtonText: {
-    fontSize: 16,
-    color: '#8b5cf6',
-    fontWeight: '600',
+    marginRight: 8,
+    backgroundColor: '#eee',
   },
   deleteButton: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    backgroundColor: '#fef2f2',
-    borderRadius: 8,
-    gap: 6,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: 8,
+    gap: 8,
   },
   deleteButtonText: {
     fontSize: 16,
-    color: '#ef4444',
     fontWeight: '600',
   },
-  errorContainer: {
+  notesText: {
+    fontSize: 16,
+    lineHeight: 24,
+  },
+  modalContainer: {
     flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.9)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  errorText: {
-    fontSize: 18,
-    color: '#666',
+  fullScreenImage: {
+    width: width,
+    height: width * 1.5,
   },
-  imageScroll: {
-    marginTop: 8,
-  },
-  imageContainer: {
-    marginRight: 12,
-    position: 'relative',
-  },
-  receiptImage: {
-    width: 120,
-    height: 120,
-    borderRadius: 8,
-  },
-  imageOverlay: {
+  closeButton: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.9)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalCloseArea: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  modalContent: {
-    width: screenWidth,
-    height: screenHeight,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalCloseButton: {
-    position: 'absolute',
-    top: 60,
+    top: 40,
     right: 20,
     zIndex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    borderRadius: 20,
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalImageScroll: {
-    flex: 1,
-    width: screenWidth,
-  },
-  modalImageContainer: {
-    width: screenWidth,
-    height: screenHeight,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalImage: {
-    width: screenWidth - 40,
-    height: screenHeight - 200,
-  },
-  imageCounter: {
-    position: 'absolute',
-    bottom: 60,
-    alignSelf: 'center',
-    color: 'white',
-    fontSize: 16,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    padding: 10,
   },
 });

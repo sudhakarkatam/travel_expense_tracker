@@ -289,6 +289,91 @@ export const DESTINATION_ACTIVITY_TEMPLATES: ActivityTemplate[] = [
       { description: "Explore Brooklyn Bridge", date: "" },
     ],
   },
+  // Top Places in India
+  {
+    destination: "Taj Mahal (Agra)",
+    country: "India",
+    icon: "location",
+    activities: [
+      { description: "Sunrise view of Taj Mahal", date: "" },
+      { description: "Visit Agra Fort", date: "" },
+      { description: "Explore Mehtab Bagh", date: "" },
+      { description: "Try Petha (local sweet)", date: "" },
+      { description: "Visit Fatehpur Sikri", date: "" },
+    ],
+  },
+  {
+    destination: "Varanasi",
+    country: "India",
+    icon: "location",
+    activities: [
+      { description: "Attend Ganga Aarti at Dashashwamedh Ghat", date: "" },
+      { description: "Morning boat ride on Ganges", date: "" },
+      { description: "Visit Kashi Vishwanath Temple", date: "" },
+      { description: "Explore Sarnath", date: "" },
+      { description: "Walk through the narrow alleys", date: "" },
+    ],
+  },
+  {
+    destination: "Jaipur",
+    country: "India",
+    icon: "location",
+    activities: [
+      { description: "Visit Amber Fort", date: "" },
+      { description: "See Hawa Mahal", date: "" },
+      { description: "Explore City Palace", date: "" },
+      { description: "Visit Jantar Mantar", date: "" },
+      { description: "Shop at Johari Bazaar", date: "" },
+    ],
+  },
+  {
+    destination: "Ladakh",
+    country: "India",
+    icon: "location",
+    activities: [
+      { description: "Visit Pangong Lake", date: "" },
+      { description: "Explore Nubra Valley", date: "" },
+      { description: "Visit Thiksey Monastery", date: "" },
+      { description: "Drive on Magnetic Hill", date: "" },
+      { description: "Visit Shanti Stupa", date: "" },
+    ],
+  },
+  {
+    destination: "Hampi",
+    country: "India",
+    icon: "location",
+    activities: [
+      { description: "Visit Virupaksha Temple", date: "" },
+      { description: "Explore Vijaya Vittala Temple", date: "" },
+      { description: "Coracle ride in Tungabhadra River", date: "" },
+      { description: "Sunset at Matanga Hill", date: "" },
+      { description: "Visit Lotus Mahal", date: "" },
+    ],
+  },
+  {
+    destination: "Mysore",
+    country: "India",
+    icon: "location",
+    activities: [
+      { description: "Visit Mysore Palace", date: "" },
+      { description: "Explore Brindavan Gardens", date: "" },
+      { description: "Visit Chamundeshwari Temple", date: "" },
+      { description: "See St. Philomena's Church", date: "" },
+      { description: "Visit Mysore Zoo", date: "" },
+    ],
+  },
+  {
+    destination: "Rishikesh",
+    country: "India",
+    icon: "location",
+    activities: [
+      { description: "River Rafting in Ganges", date: "" },
+      { description: "Attend Ganga Aarti at Triveni Ghat", date: "" },
+      { description: "Visit Ram Jhula & Laxman Jhula", date: "" },
+      { description: "Yoga session by the river", date: "" },
+      { description: "Visit Beatles Ashram", date: "" },
+    ],
+  },
 ];
 
 // Condition-based templates (Mountains, Beaches, Winter, Summer, Business)
@@ -456,8 +541,8 @@ export function getTemplatesForDestination(
   });
 
   return {
-    packing: packingTemplates.length > 0 
-      ? packingTemplates 
+    packing: packingTemplates.length > 0
+      ? packingTemplates
       : conditionTemplates.length > 0
         ? conditionTemplates
         : DESTINATION_PACKING_TEMPLATES.filter(t => t.destination === "Beach/Tropical" || t.destination === "Business" || t.destination === "Mountain/Hill"),

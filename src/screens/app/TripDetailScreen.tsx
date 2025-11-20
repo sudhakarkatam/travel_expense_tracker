@@ -126,7 +126,7 @@ export default function TripDetailScreen({ navigation, route }: TripDetailScreen
         key={expense.id}
         from={{ opacity: 0, translateX: -20 }}
         animate={{ opacity: 1, translateX: 0 }}
-        transition={{ type: 'timing', duration: 300, delay: index * 50 }}
+        transition={{ type: 'timing', duration: 300, delay: index * 50 } as any}
       >
         <AnimatedCard
           variant="elevated"
@@ -226,7 +226,7 @@ export default function TripDetailScreen({ navigation, route }: TripDetailScreen
         <MotiView
           from={{ opacity: 0, translateY: 20 }}
           animate={{ opacity: 1, translateY: 0 }}
-          transition={{ type: 'timing', duration: 300 }}
+          transition={{ type: 'timing', duration: 300 } as any}
         >
           {/* Cover Image Hero Section */}
           {trip.coverImage ? (
@@ -367,31 +367,6 @@ export default function TripDetailScreen({ navigation, route }: TripDetailScreen
             </Text>
           </AnimatedCard>
 
-          {/* Summary Stats */}
-          <AnimatedCard variant="elevated" elevation={2} style={styles.summaryCard}>
-            <View style={styles.summaryRow}>
-              <View style={styles.summaryItem}>
-                <Ionicons name="receipt-outline" size={24} color={safeTheme.colors.primary} />
-                <Text style={[styles.summaryValue, { color: safeTheme.colors.onSurface }]}>
-                  {summary.expenses.length}
-                </Text>
-                <Text style={[styles.summaryLabel, { color: safeTheme.colors.onSurfaceVariant }]}>
-                  Expenses
-                </Text>
-              </View>
-              <Divider style={styles.summaryDivider} />
-              <View style={styles.summaryItem}>
-                <Ionicons name="wallet-outline" size={24} color={safeTheme.colors.secondary} />
-                <Text style={[styles.summaryValue, { color: safeTheme.colors.onSurface }]}>
-                  {formatCurrency(summary.totalSpent, { currency: trip.currency })}
-                </Text>
-                <Text style={[styles.summaryLabel, { color: safeTheme.colors.onSurfaceVariant }]}>
-                  Total Spent
-                </Text>
-              </View>
-            </View>
-          </AnimatedCard>
-
           {/* Expenses Section */}
           <View style={styles.expensesSection}>
             <View style={styles.expensesHeader}>
@@ -446,10 +421,10 @@ export default function TripDetailScreen({ navigation, route }: TripDetailScreen
             )}
           </View>
         </MotiView>
-      </ScrollView>
+      </ScrollView >
 
       {/* Bottom Actions */}
-      <Surface style={styles.bottomActions} elevation={4}>
+      < Surface style={styles.bottomActions} elevation={4} >
         <View style={styles.bottomActionGroup}>
           <TouchableOpacity
             style={styles.iconActionButton}
@@ -496,8 +471,8 @@ export default function TripDetailScreen({ navigation, route }: TripDetailScreen
           style={styles.addExpenseButton}
           labelStyle={styles.addExpenseLabel}
         />
-      </Surface>
-    </SafeAreaView>
+      </Surface >
+    </SafeAreaView >
   );
 }
 
