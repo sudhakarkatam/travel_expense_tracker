@@ -66,6 +66,7 @@ export interface Participant {
   avatar?: string;
   isOwner: boolean;
   isCurrentUser: boolean;
+  joinedAt?: string;
 }
 
 export interface Balance {
@@ -108,11 +109,11 @@ export interface ProUsage {
 export interface AuditLog {
   id: string;
   entityType:
-    | "trip"
-    | "expense"
-    | "settlement"
-    | "packingItem"
-    | "activityItem";
+  | "trip"
+  | "expense"
+  | "settlement"
+  | "packingItem"
+  | "activityItem";
   entityId: string;
   action: "created" | "updated" | "deleted";
   changes: Record<string, any>;

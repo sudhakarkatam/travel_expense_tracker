@@ -15,18 +15,18 @@ export const ensureImageDirectory = async () => {
 export const saveImage = async (uri: string, type: 'cover' | 'receipt'): Promise<string> => {
   try {
     await ensureImageDirectory();
-    
+
     const fileName = `${type}_${Date.now()}.jpg`;
     const newUri = `${IMAGE_DIRECTORY}${fileName}`;
-    
+
     await FileSystem.copyAsync({
       from: uri,
       to: newUri,
     });
-    
+
     return newUri;
   } catch (error) {
-    console.error('Error saving image:', error);
+    console.error('Error saving image:', error instanceof Error ? error.message : 'Unknown error');
     throw new Error('Failed to save image');
   }
 };
@@ -38,7 +38,7 @@ export const deleteImage = async (path: string): Promise<void> => {
       await FileSystem.deleteAsync(path);
     }
   } catch (error) {
-    console.error('Error deleting image:', error);
+    console.error('Error deleting image:', error instanceof Error ? error.message : 'Unknown error');
     throw new Error('Failed to delete image');
   }
 };
@@ -72,7 +72,7 @@ export const pickImage = async (type: 'cover' | 'receipt'): Promise<string | nul
     }
     return null;
   } catch (error) {
-    console.error('Error picking image:', error);
+    console.error('Error picking image:', error instanceof Error ? error.message : 'Unknown error');
     Alert.alert(
       'Error',
       'Failed to pick image. Please make sure you have granted photo library permissions.',
@@ -106,7 +106,7 @@ export const takePhoto = async (): Promise<string | null> => {
     }
     return null;
   } catch (error) {
-    console.error('Error taking photo:', error);
+    console.error('Error taking photo:', error instanceof Error ? error.message : 'Unknown error');
     Alert.alert(
       'Error',
       'Failed to take photo. Please make sure you have granted camera permissions.',
@@ -139,7 +139,7 @@ export const pickMultipleImages = async (): Promise<string[]> => {
     }
     return [];
   } catch (error) {
-    console.error('Error picking images:', error);
+    console.error('Error picking images:', error instanceof Error ? error.message : 'Unknown error');
     Alert.alert(
       'Error',
       'Failed to pick images. Please make sure you have granted photo library permissions.',

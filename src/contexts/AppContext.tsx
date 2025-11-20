@@ -27,7 +27,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
   const [activityItems, setActivityItems] = useState<ActivityItem[]>([]);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  
+
   // Get auth user to detect login changes
   const { user: authUser, isGuest } = useAuth();
   const previousAuthUserId = useRef<string | null>(null);
@@ -97,7 +97,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
   useEffect(() => {
     const authChanged = authUser && authUser.id !== previousAuthUserId.current;
     const guestToLoggedIn = previousIsGuest.current && !isGuest && authUser;
-    
+
     if (authChanged || guestToLoggedIn) {
       console.log('[AppContext] User logged in, reloading data...', { authChanged, guestToLoggedIn });
       previousAuthUserId.current = authUser?.id || null;
@@ -360,9 +360,14 @@ export const [AppProvider, useApp] = createContextHook(() => {
     (tripId: string): Balance[] => {
       const tripExpenses = expenses.filter((e) => e.tripId === tripId);
       const tripSettlements = settlements.filter((s) => s.tripId === tripId);
-      return calculateBalances(tripExpenses, tripSettlements);
+      const trip = trips.find((t) => t.id === tripId);
+      return calculateBalances(
+        tripExpenses,
+        tripSettlements,
+        trip?.participants || [],
+      );
     },
-    [expenses, settlements],
+    [expenses, settlements, trips],
   );
 
   const updateUser = useCallback(
@@ -371,8 +376,8 @@ export const [AppProvider, useApp] = createContextHook(() => {
       const updatedUser = 'id' in updates && updates.id
         ? (updates as User)
         : user
-        ? { ...user, ...updates }
-        : {
+          ? { ...user, ...updates }
+          : {
             id: `user_${Date.now()}`,
             name: 'User',
             isPro: false,
@@ -627,6 +632,8 @@ export const [AppProvider, useApp] = createContextHook(() => {
       updateActivityItem,
       deleteActivityItem,
       getTripActivityItems,
+      packingItems,
+      activityItems,
     }),
     [
       trips,
@@ -665,6 +672,8 @@ export const [AppProvider, useApp] = createContextHook(() => {
       updateActivityItem,
       deleteActivityItem,
       getTripActivityItems,
+      packingItems,
+      activityItems,
     ],
   );
 });

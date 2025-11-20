@@ -17,7 +17,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme, Surface } from "react-native-paper";
 import { useApp } from "@/contexts/AppContext";
 import { pickImage, takePhoto, saveImage } from "@/utils/imageStorage";
-import { CURRENCIES, getCurrencySymbol } from "@/constants/currencies";
+import { COMMON_CURRENCIES, getCurrencySymbol } from "@/constants/currencies";
 import DatePickerInput from "@/components/DatePickerInput";
 
 // Categories are now loaded from context
@@ -29,7 +29,7 @@ interface AddExpenseScreenProps {
 
 export default function AddExpenseScreen({ navigation, route }: AddExpenseScreenProps) {
   const theme = useTheme();
-  
+
   // Safe defaults for theme colors to prevent runtime errors
   const safeTheme = {
     colors: {
@@ -45,7 +45,7 @@ export default function AddExpenseScreen({ navigation, route }: AddExpenseScreen
       outlineVariant: theme?.colors?.outlineVariant || '#E5E5E5',
     },
   };
-  const { trips, expenses, addExpense, getTrip, categories } = useApp();
+  const { trips, expenses, addExpense, getTrip, categories, user } = useApp();
   const tripId =
     route?.params?.tripId || (trips && trips.length > 0 ? trips[0].id : "");
   const trip = getTrip(tripId);
@@ -282,7 +282,7 @@ export default function AddExpenseScreen({ navigation, route }: AddExpenseScreen
         category: formData.category as any,
         date: formData.date,
         receiptImages: receiptImages,
-        paidBy: formData.isSplitExpense ? formData.paidBy : "current_user",
+        paidBy: formData.isSplitExpense ? formData.paidBy : (user?.id || "current_user"),
         splitBetween: splitParticipants,
         splitType: formData.isSplitExpense ? formData.splitType : "equal",
       });
@@ -312,319 +312,320 @@ export default function AddExpenseScreen({ navigation, route }: AddExpenseScreen
         style={styles.keyboardView}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-        <ScrollView 
+        <ScrollView
           style={styles.content}
           keyboardShouldPersistTaps="handled"
         >
-        <View style={styles.form}>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Trip</Text>
-            <View style={styles.tripSelector}>
-              <Text style={styles.tripText}>
-                {selectedTrip ? selectedTrip.name : "Select a trip"}
-              </Text>
-              <Ionicons name="chevron-down" size={20} color="#666" />
-            </View>
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Amount</Text>
-            <View style={styles.amountContainer}>
-              <TouchableOpacity
-                style={styles.currencyButton}
-                onPress={() => setShowCurrencyPicker(true)}
-              >
-                <Text style={styles.currencyText}>
-                  {getCurrencySymbol(formData.currency)}
+          <View style={styles.form}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Trip</Text>
+              <View style={styles.tripSelector}>
+                <Text style={styles.tripText}>
+                  {selectedTrip ? selectedTrip.name : "Select a trip"}
                 </Text>
-                <Ionicons name="chevron-down" size={16} color="#666" />
-              </TouchableOpacity>
+                <Ionicons name="chevron-down" size={20} color="#666" />
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Amount</Text>
+              <View style={styles.amountContainer}>
+                <TouchableOpacity
+                  style={styles.currencyButton}
+                  onPress={() => setShowCurrencyPicker(true)}
+                >
+                  <Text style={styles.currencyText}>
+                    {getCurrencySymbol(formData.currency)}
+                  </Text>
+                  <Ionicons name="chevron-down" size={16} color="#666" />
+                </TouchableOpacity>
+                <TextInput
+                  style={[styles.input, styles.amountInput]}
+                  placeholder="0.00"
+                  value={formData.amount}
+                  onChangeText={(value) => handleInputChange("amount", value)}
+                  keyboardType="numeric"
+                />
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Description (optional)</Text>
               <TextInput
-                style={[styles.input, styles.amountInput]}
-                placeholder="0.00"
-                value={formData.amount}
-                onChangeText={(value) => handleInputChange("amount", value)}
-                keyboardType="numeric"
+                style={[styles.input, styles.textArea]}
+                placeholder="What did you pay for?"
+                value={formData.description}
+                onChangeText={(value) => handleInputChange("description", value)}
+                multiline
+                numberOfLines={3}
               />
             </View>
-          </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Description (optional)</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="What did you pay for?"
-              value={formData.description}
-              onChangeText={(value) => handleInputChange("description", value)}
-              multiline
-              numberOfLines={3}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Category</Text>
-            <View style={styles.categoryGrid}>
-              {categories.map((category) => (
-                <TouchableOpacity
-                  key={category.id}
-                  style={[
-                    styles.categoryButton,
-                    {
-                      backgroundColor:
-                        formData.category === category.id
-                          ? category.color
-                          : "#f3f4f6",
-                    },
-                  ]}
-                  onPress={() => handleInputChange("category", category.id)}
-                >
-                  <Ionicons
-                    name={category.icon as any}
-                    size={20}
-                    color={formData.category === category.id ? "white" : "#666"}
-                  />
-                  <Text
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Category</Text>
+              <View style={styles.categoryGrid}>
+                {categories.map((category) => (
+                  <TouchableOpacity
+                    key={category.id}
                     style={[
-                      styles.categoryText,
+                      styles.categoryButton,
                       {
-                        color:
-                          formData.category === category.id ? "white" : "#666",
+                        backgroundColor:
+                          formData.category === category.id
+                            ? category.color
+                            : "#f3f4f6",
                       },
                     ]}
+                    onPress={() => handleInputChange("category", category.id)}
                   >
-                    {category.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          <View style={styles.inputGroup}>
-            <View style={styles.splitToggleContainer}>
-              <Text style={styles.label}>Split expense</Text>
-              <Switch
-                value={formData.isSplitExpense}
-                onValueChange={(value) =>
-                  handleInputChange("isSplitExpense", value)
-                }
-                trackColor={{ false: "#e5e7eb", true: "#8b5cf6" }}
-                thumbColor={formData.isSplitExpense ? "#fff" : "#f4f3f4"}
-              />
-            </View>
-            <Text style={styles.splitToggleDescription}>
-              Enable to split this expense between multiple people
-            </Text>
-          </View>
-
-          {formData.isSplitExpense && (
-            <>
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Who Paid</Text>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  style={styles.participantSelector}
-                >
-                  {trip?.participants?.map((participant) => (
-                    <TouchableOpacity
-                      key={participant.id}
+                    <Ionicons
+                      name={category.icon as any}
+                      size={20}
+                      color={formData.category === category.id ? "white" : "#666"}
+                    />
+                    <Text
                       style={[
-                        styles.participantChip,
-                        formData.paidBy === participant.id &&
-                          styles.selectedChip,
+                        styles.categoryText,
+                        {
+                          color:
+                            formData.category === category.id ? "white" : "#666",
+                        },
                       ]}
-                      onPress={() =>
-                        handleInputChange("paidBy", participant.id)
-                      }
                     >
-                      <View style={styles.chipContent}>
-                        <Text
-                          style={[
-                            styles.chipText,
-                            formData.paidBy === participant.id &&
-                              styles.selectedChipText,
-                          ]}
-                        >
-                          {participant.name}
-                        </Text>
-                        {participant.isCurrentUser && (
-                          <View style={styles.currentUserChipBadge}>
-                            <Text style={styles.currentUserChipText}>You</Text>
-                          </View>
-                        )}
-                      </View>
-                    </TouchableOpacity>
-                  )) || []}
-                </ScrollView>
+                      {category.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
+            </View>
 
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Split Type</Text>
-                <View style={styles.splitTypeSelector}>
-                  {(["equal", "percentage", "custom"] as const).map((type) => (
-                    <TouchableOpacity
-                      key={type}
-                      style={[
-                        styles.splitTypeButton,
-                        formData.splitType === type && styles.selectedSplitType,
-                      ]}
-                      onPress={() => handleSplitTypeChange(type)}
-                    >
-                      <Text
+            <View style={styles.inputGroup}>
+              <View style={styles.splitToggleContainer}>
+                <Text style={styles.label}>Split expense</Text>
+                <Switch
+                  value={formData.isSplitExpense}
+                  onValueChange={(value) =>
+                    handleInputChange("isSplitExpense", value)
+                  }
+                  trackColor={{ false: "#e5e7eb", true: "#8b5cf6" }}
+                  thumbColor={formData.isSplitExpense ? "#fff" : "#f4f3f4"}
+                />
+              </View>
+              <Text style={styles.splitToggleDescription}>
+                Enable to split this expense between multiple people
+              </Text>
+            </View>
+
+            {formData.isSplitExpense && (
+              <>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Who Paid</Text>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.participantSelector}
+                  >
+                    {trip?.participants?.map((participant) => (
+                      <TouchableOpacity
+                        key={participant.id}
                         style={[
-                          styles.splitTypeText,
-                          formData.splitType === type &&
-                            styles.selectedSplitTypeText,
+                          styles.participantChip,
+                          formData.paidBy === participant.id &&
+                          styles.selectedChip,
                         ]}
+                        onPress={() =>
+                          handleInputChange("paidBy", participant.id)
+                        }
                       >
-                        {type.charAt(0).toUpperCase() + type.slice(1)}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Split Between</Text>
-                <View style={styles.participantList}>
-                  {(trip?.participants || []).map((participant) => (
-                    <TouchableOpacity
-                      key={participant.id}
-                      style={styles.participantItem}
-                      onPress={() => handleParticipantToggle(participant.id)}
-                    >
-                      <View style={styles.participantInfo}>
-                        <View
-                          style={[
-                            styles.checkbox,
-                            formData.splitBetween.includes(participant.id) &&
-                              styles.checkedBox,
-                          ]}
-                        >
-                          {formData.splitBetween.includes(participant.id) && (
-                            <Ionicons
-                              name="checkmark"
-                              size={16}
-                              color="white"
-                            />
-                          )}
-                        </View>
-                        <View style={styles.participantNameRow}>
-                          <Text style={styles.participantName}>
+                        <View style={styles.chipContent}>
+                          <Text
+                            style={[
+                              styles.chipText,
+                              formData.paidBy === participant.id &&
+                              styles.selectedChipText,
+                            ]}
+                          >
                             {participant.name}
                           </Text>
                           {participant.isCurrentUser && (
-                            <View style={styles.currentUserBadge}>
-                              <Text style={styles.currentUserText}>You</Text>
+                            <View style={styles.currentUserChipBadge}>
+                              <Text style={styles.currentUserChipText}>You</Text>
                             </View>
                           )}
                         </View>
-                      </View>
-
-                      {formData.splitBetween.includes(participant.id) && (
-                        <View style={styles.amountInput}>
-                          {formData.splitType === "custom" && (
-                            <TextInput
-                              style={styles.customAmountInput}
-                              placeholder="$0.00"
-                              value={
-                                formData.customAmounts[participant.id] || ""
-                              }
-                              onChangeText={(value) =>
-                                handleCustomAmountChange(participant.id, value)
-                              }
-                              keyboardType="numeric"
-                            />
-                          )}
-                          {formData.splitType === "percentage" && (
-                            <TextInput
-                              style={styles.percentageInput}
-                              placeholder="0%"
-                              value={formData.percentages[participant.id] || ""}
-                              onChangeText={(value) =>
-                                handlePercentageChange(participant.id, value)
-                              }
-                              keyboardType="numeric"
-                            />
-                          )}
-                          {formData.splitType === "equal" && (
-                            <Text style={styles.equalAmount}>
-                              $
-                              {(
-                                parseFloat(formData.amount) /
-                                formData.splitBetween.length
-                              ).toFixed(2)}
-                            </Text>
-                          )}
-                        </View>
-                      )}
-                    </TouchableOpacity>
-                  ))}
+                      </TouchableOpacity>
+                    )) || []}
+                  </ScrollView>
                 </View>
-              </View>
-            </>
-          )}
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Date</Text>
-            <DatePickerInput
-              value={formData.date}
-              onChange={(value) => handleInputChange("date", value)}
-            />
-          </View>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Split Type</Text>
+                  <View style={styles.splitTypeSelector}>
+                    {(["equal", "percentage", "custom"] as const).map((type) => (
+                      <TouchableOpacity
+                        key={type}
+                        style={[
+                          styles.splitTypeButton,
+                          formData.splitType === type && styles.selectedSplitType,
+                        ]}
+                        onPress={() => handleSplitTypeChange(type)}
+                      >
+                        <Text
+                          style={[
+                            styles.splitTypeText,
+                            formData.splitType === type &&
+                            styles.selectedSplitTypeText,
+                          ]}
+                        >
+                          {type.charAt(0).toUpperCase() + type.slice(1)}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Photos</Text>
-            <View style={styles.photoButtons}>
-              <TouchableOpacity
-                style={styles.photoButton}
-                onPress={handleTakePhoto}
-              >
-                <Ionicons name="camera" size={20} color="#8b5cf6" />
-                <Text style={styles.photoButtonText}>Take Photo</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.photoButton}
-                onPress={handlePickPhoto}
-              >
-                <Ionicons name="cloud-upload" size={20} color="#8b5cf6" />
-                <Text style={styles.photoButtonText}>Upload</Text>
-              </TouchableOpacity>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Split Between</Text>
+                  <View style={styles.participantList}>
+                    {(trip?.participants || []).map((participant) => (
+                      <TouchableOpacity
+                        key={participant.id}
+                        style={styles.participantItem}
+                        onPress={() => handleParticipantToggle(participant.id)}
+                      >
+                        <View style={styles.participantInfo}>
+                          <View
+                            style={[
+                              styles.checkbox,
+                              formData.splitBetween.includes(participant.id) &&
+                              styles.checkedBox,
+                            ]}
+                          >
+                            {formData.splitBetween.includes(participant.id) && (
+                              <Ionicons
+                                name="checkmark"
+                                size={16}
+                                color="white"
+                              />
+                            )}
+                          </View>
+                          <View style={styles.participantNameRow}>
+                            <Text style={styles.participantName}>
+                              {participant.name}
+                            </Text>
+                            {participant.isCurrentUser && (
+                              <View style={styles.currentUserBadge}>
+                                <Text style={styles.currentUserText}>You</Text>
+                              </View>
+                            )}
+                          </View>
+                        </View>
+
+                        {formData.splitBetween.includes(participant.id) && (
+                          <View style={styles.amountInput}>
+                            {formData.splitType === "custom" && (
+                              <TextInput
+                                style={styles.customAmountInput}
+                                placeholder="$0.00"
+                                value={
+                                  formData.customAmounts[participant.id] || ""
+                                }
+                                onChangeText={(value) =>
+                                  handleCustomAmountChange(participant.id, value)
+                                }
+                                keyboardType="numeric"
+                              />
+                            )}
+                            {formData.splitType === "percentage" && (
+                              <TextInput
+                                style={styles.percentageInput}
+                                placeholder="0%"
+                                value={formData.percentages[participant.id] || ""}
+                                onChangeText={(value) =>
+                                  handlePercentageChange(participant.id, value)
+                                }
+                                keyboardType="numeric"
+                              />
+                            )}
+                            {formData.splitType === "equal" && (
+                              <Text style={styles.equalAmount}>
+                                $
+                                {(
+                                  parseFloat(formData.amount) /
+                                  formData.splitBetween.length
+                                ).toFixed(2)}
+                              </Text>
+                            )}
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              </>
+            )}
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Date</Text>
+              <DatePickerInput
+                value={formData.date}
+                onChange={(value) => handleInputChange("date", value)}
+              />
             </View>
 
-            {receiptImages.length > 0 && (
-              <View style={styles.imagePreviewContainer}>
-                <Text style={styles.imagePreviewLabel}>Receipt Images:</Text>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  style={styles.imagePreviewScroll}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Photos</Text>
+              <View style={styles.photoButtons}>
+                <TouchableOpacity
+                  style={styles.photoButton}
+                  onPress={handleTakePhoto}
                 >
-                  {receiptImages.map((imageUri, index) => (
-                    <View key={index} style={styles.imagePreviewItem}>
-                      <Image
-                        source={{ uri: imageUri }}
-                        style={styles.imagePreview}
-                      />
-                      <TouchableOpacity
-                        style={styles.removeImageButton}
-                        onPress={() => handleRemoveImage(index)}
-                      >
-                        <Ionicons
-                          name="close-circle"
-                          size={20}
-                          color="#ef4444"
-                        />
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-                </ScrollView>
+                  <Ionicons name="camera" size={20} color="#8b5cf6" />
+                  <Text style={styles.photoButtonText}>Take Photo</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.photoButton}
+                  onPress={handlePickPhoto}
+                >
+                  <Ionicons name="cloud-upload" size={20} color="#8b5cf6" />
+                  <Text style={styles.photoButtonText}>Upload</Text>
+                </TouchableOpacity>
               </View>
-            )}
-          </View>
-        </View>
 
-        <View style={styles.actions}>
+              {receiptImages.length > 0 && (
+                <View style={styles.imagePreviewContainer}>
+                  <Text style={styles.imagePreviewLabel}>Receipt Images:</Text>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.imagePreviewScroll}
+                  >
+                    {receiptImages.map((imageUri, index) => (
+                      <View key={index} style={styles.imagePreviewItem}>
+                        <Image
+                          source={{ uri: imageUri }}
+                          style={styles.imagePreview}
+                        />
+                        <TouchableOpacity
+                          style={styles.removeImageButton}
+                          onPress={() => handleRemoveImage(index)}
+                        >
+                          <Ionicons
+                            name="close-circle"
+                            size={20}
+                            color="#ef4444"
+                          />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+            </View>
+          </View>
+        </ScrollView>
+
+        <View style={[styles.actions, { backgroundColor: "#fff", borderTopWidth: 1, borderTopColor: "#e5e7eb", paddingHorizontal: 16 }]}>
           <TouchableOpacity
             style={styles.cancelButton}
             onPress={() => navigation.goBack()}
@@ -642,51 +643,50 @@ export default function AddExpenseScreen({ navigation, route }: AddExpenseScreen
             </Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
 
-      {/* Currency Picker Modal */}
-      {showCurrencyPicker && (
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Currency</Text>
-              <TouchableOpacity onPress={() => setShowCurrencyPicker(false)}>
-                <Ionicons name="close" size={24} color="#333" />
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={styles.currencyList}>
-              {CURRENCIES.slice(0, 20).map((currency) => (
-                <TouchableOpacity
-                  key={currency.code}
-                  style={[
-                    styles.currencyItem,
-                    formData.currency === currency.code &&
-                      styles.selectedCurrencyItem,
-                  ]}
-                  onPress={() => {
-                    setFormData((prev) => ({
-                      ...prev,
-                      currency: currency.code,
-                    }));
-                    setShowCurrencyPicker(false);
-                  }}
-                >
-                  <Text style={styles.currencySymbol}>{currency.symbol}</Text>
-                  <View style={styles.currencyInfo}>
-                    <Text style={styles.currencyCode}>{currency.code}</Text>
-                    <Text style={styles.currencyName}>{currency.name}</Text>
-                  </View>
-                  {formData.currency === currency.code && (
-                    <Ionicons name="checkmark" size={20} color="#8b5cf6" />
-                  )}
+        {/* Currency Picker Modal */}
+        {showCurrencyPicker && (
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Select Currency</Text>
+                <TouchableOpacity onPress={() => setShowCurrencyPicker(false)}>
+                  <Ionicons name="close" size={24} color="#333" />
                 </TouchableOpacity>
-              ))}
-            </ScrollView>
+              </View>
+              <ScrollView style={styles.currencyList}>
+                {COMMON_CURRENCIES.slice(0, 20).map((currency: any) => (
+                  <TouchableOpacity
+                    key={currency.code}
+                    style={[
+                      styles.currencyItem,
+                      formData.currency === currency.code &&
+                      styles.selectedCurrencyItem,
+                    ]}
+                    onPress={() => {
+                      setFormData((prev) => ({
+                        ...prev,
+                        currency: currency.code,
+                      }));
+                      setShowCurrencyPicker(false);
+                    }}
+                  >
+                    <Text style={styles.currencySymbol}>{currency.symbol}</Text>
+                    <View style={styles.currencyInfo}>
+                      <Text style={styles.currencyCode}>{currency.code}</Text>
+                      <Text style={styles.currencyName}>{currency.name}</Text>
+                    </View>
+                    {formData.currency === currency.code && (
+                      <Ionicons name="checkmark" size={20} color="#8b5cf6" />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
           </View>
-        </View>
-      )}
+        )}
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </SafeAreaView >
   );
 }
 
@@ -1088,5 +1088,8 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: "white",
     fontWeight: "600",
+  },
+  keyboardView: {
+    flex: 1,
   },
 });

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Switch } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Switch, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, Surface } from 'react-native-paper';
@@ -12,7 +12,7 @@ interface ManageMembersScreenProps {
 
 export default function ManageMembersScreen({ navigation, route }: ManageMembersScreenProps) {
   const theme = useTheme();
-  
+
   // Safe defaults for theme colors to prevent runtime errors
   const safeTheme = {
     colors: {
@@ -26,12 +26,14 @@ export default function ManageMembersScreen({ navigation, route }: ManageMembers
       error: theme?.colors?.error || '#EF4444',
       outline: theme?.colors?.outline || '#E5E5E5',
       outlineVariant: theme?.colors?.outlineVariant || '#E5E5E5',
+      primaryContainer: theme?.colors?.primaryContainer || '#EDE9FE',
+      onPrimaryContainer: theme?.colors?.onPrimaryContainer || '#000000',
     },
   };
   const { tripId } = route.params;
   const { getTrip, updateTrip } = useApp();
   const trip = getTrip(tripId);
-  
+
   const [isAddingMember, setIsAddingMember] = useState(false);
   const [newMemberName, setNewMemberName] = useState('');
   const [newMemberEmail, setNewMemberEmail] = useState('');
@@ -72,7 +74,7 @@ export default function ManageMembersScreen({ navigation, route }: ManageMembers
 
     updatedParticipants.push(newMember);
     await updateTrip(tripId, { participants: updatedParticipants });
-    
+
     setNewMemberName('');
     setNewMemberEmail('');
     setIsCurrentUser(false);
@@ -128,16 +130,16 @@ export default function ManageMembersScreen({ navigation, route }: ManageMembers
   };
 
   return (
-      <SafeAreaView style={[styles.container, { backgroundColor: safeTheme.colors.background }]} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: safeTheme.colors.background }]} edges={['top']}>
       <Surface style={[styles.header, { backgroundColor: safeTheme.colors.surface }]} elevation={1}>
-        <TouchableOpacity 
+        <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.backButton}
         >
           <Ionicons name="arrow-back" size={24} color={safeTheme.colors.onSurface} />
         </TouchableOpacity>
         <Text style={[styles.title, { color: safeTheme.colors.onSurface }]}>Manage Members</Text>
-        <TouchableOpacity 
+        <TouchableOpacity
           onPress={handleShareInvite}
           style={styles.shareButton}
         >
@@ -150,141 +152,141 @@ export default function ManageMembersScreen({ navigation, route }: ManageMembers
         style={styles.keyboardView}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-        <ScrollView 
+        <ScrollView
           style={styles.content}
           keyboardShouldPersistTaps="handled"
         >
-        <Surface style={[styles.inviteSection, { backgroundColor: safeTheme.colors.surface }]} elevation={1}>
-          <View style={[styles.inviteCodeContainer, { backgroundColor: safeTheme.colors.surfaceVariant }]}>
-            <Text style={[styles.inviteCodeLabel, { color: safeTheme.colors.onSurfaceVariant }]}>Invite Code</Text>
-            <Text style={[styles.inviteCode, { color: safeTheme.colors.primary }]}>{trip.inviteCode || `TRIP${trip.id.slice(-6).toUpperCase()}`}</Text>
-          </View>
-          
-          <View style={styles.inviteActions}>
-            <TouchableOpacity style={[styles.inviteButton, { backgroundColor: safeTheme.colors.surfaceVariant }]} onPress={handleShareInvite}>
-              <Ionicons name="share-outline" size={20} color={safeTheme.colors.primary} />
-              <Text style={[styles.inviteButtonText, { color: safeTheme.colors.primary }]}>Share Invite</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={[styles.inviteButton, { backgroundColor: safeTheme.colors.surfaceVariant }]} onPress={handleJoinWithCode}>
-              <Ionicons name="add-circle-outline" size={20} color={safeTheme.colors.primary} />
-              <Text style={[styles.inviteButtonText, { color: safeTheme.colors.primary }]}>Join with Code</Text>
-            </TouchableOpacity>
-          </View>
-        </Surface>
+          <Surface style={[styles.inviteSection, { backgroundColor: safeTheme.colors.surface }]} elevation={1}>
+            <View style={[styles.inviteCodeContainer, { backgroundColor: safeTheme.colors.surfaceVariant }]}>
+              <Text style={[styles.inviteCodeLabel, { color: safeTheme.colors.onSurfaceVariant }]}>Invite Code</Text>
+              <Text style={[styles.inviteCode, { color: safeTheme.colors.primary }]}>{trip.inviteCode || `TRIP${trip.id.slice(-6).toUpperCase()}`}</Text>
+            </View>
 
-        <View style={styles.membersSection}>
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: safeTheme.colors.onSurface }]}>Members ({(trip.participants || []).length})</Text>
-            <TouchableOpacity 
-              style={[styles.addButton, { backgroundColor: safeTheme.colors.primary }]}
-              onPress={() => setIsAddingMember(true)}
-            >
-              <Ionicons name="add" size={20} color={safeTheme.colors.onPrimary} />
-            </TouchableOpacity>
-          </View>
-
-          {(trip.participants || []).map((member) => (
-            <Surface key={member.id} style={[styles.memberItem, { backgroundColor: safeTheme.colors.surface, borderBottomColor: safeTheme.colors.outlineVariant }]} elevation={1}>
-              <View style={styles.memberInfo}>
-                <View style={[styles.memberAvatar, { backgroundColor: safeTheme.colors.primary }]}>
-                  <Text style={[styles.memberInitial, { color: safeTheme.colors.onPrimary }]}>
-                    {member.name.charAt(0).toUpperCase()}
-                  </Text>
-                </View>
-                <View style={styles.memberDetails}>
-                  <View style={styles.memberNameRow}>
-                    <Text style={[styles.memberName, { color: safeTheme.colors.onSurface }]}>{member.name}</Text>
-                    {member.isCurrentUser && (
-                      <View style={[styles.currentUserBadge, { backgroundColor: safeTheme.colors.primaryContainer }]}>
-                        <Text style={[styles.currentUserText, { color: safeTheme.colors.onPrimaryContainer }]}>You</Text>
-                      </View>
-                    )}
-                  </View>
-                  {member.email && (
-                    <Text style={[styles.memberEmail, { color: safeTheme.colors.onSurfaceVariant }]}>{member.email}</Text>
-                  )}
-                  <Text style={[styles.memberJoined, { color: safeTheme.colors.onSurfaceVariant }]}>
-                    Joined {new Date(member.joinedAt).toLocaleDateString()}
-                  </Text>
-                </View>
-              </View>
-              
-              <TouchableOpacity 
-                style={styles.removeButton}
-                onPress={() => handleRemoveMember(member.id)}
-              >
-                <Ionicons name="close-circle" size={24} color={safeTheme.colors.error} />
+            <View style={styles.inviteActions}>
+              <TouchableOpacity style={[styles.inviteButton, { backgroundColor: safeTheme.colors.surfaceVariant }]} onPress={handleShareInvite}>
+                <Ionicons name="share-outline" size={20} color={safeTheme.colors.primary} />
+                <Text style={[styles.inviteButtonText, { color: safeTheme.colors.primary }]}>Share Invite</Text>
               </TouchableOpacity>
-            </Surface>
-          ))}
 
-          {isAddingMember && (
-            <Surface style={[styles.addMemberForm, { backgroundColor: safeTheme.colors.surface }]} elevation={2}>
-              <Text style={[styles.formTitle, { color: safeTheme.colors.onSurface }]}>Add New Member</Text>
-              
-              <View style={styles.inputGroup}>
-                <Text style={[styles.label, { color: safeTheme.colors.onSurface }]}>Name *</Text>
-                <TextInput
-                  style={[styles.input, { backgroundColor: safeTheme.colors.surfaceVariant, borderColor: safeTheme.colors.outlineVariant, color: safeTheme.colors.onSurface }]}
-                  placeholder="Enter member name"
-                  placeholderTextColor={safeTheme.colors.onSurfaceVariant}
-                  value={newMemberName}
-                  onChangeText={setNewMemberName}
-                />
-              </View>
-              
-              <View style={styles.inputGroup}>
-                <Text style={[styles.label, { color: safeTheme.colors.onSurface }]}>Email (optional)</Text>
-                <TextInput
-                  style={[styles.input, { backgroundColor: safeTheme.colors.surfaceVariant, borderColor: safeTheme.colors.outlineVariant, color: safeTheme.colors.onSurface }]}
-                  placeholder="Enter email address"
-                  placeholderTextColor={safeTheme.colors.onSurfaceVariant}
-                  value={newMemberEmail}
-                  onChangeText={setNewMemberEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                />
-              </View>
-              
-              <View style={styles.inputGroup}>
-                <View style={styles.switchContainer}>
-                  <Text style={[styles.label, { color: safeTheme.colors.onSurface }]}>This is me (Current User)</Text>
-                  <Switch
-                    value={isCurrentUser}
-                    onValueChange={setIsCurrentUser}
-                    trackColor={{ false: safeTheme.colors.surfaceVariant, true: safeTheme.colors.primary }}
-                    thumbColor={isCurrentUser ? safeTheme.colors.onPrimary : safeTheme.colors.onSurfaceVariant}
+              <TouchableOpacity style={[styles.inviteButton, { backgroundColor: safeTheme.colors.surfaceVariant }]} onPress={handleJoinWithCode}>
+                <Ionicons name="add-circle-outline" size={20} color={safeTheme.colors.primary} />
+                <Text style={[styles.inviteButtonText, { color: safeTheme.colors.primary }]}>Join with Code</Text>
+              </TouchableOpacity>
+            </View>
+          </Surface>
+
+          <View style={styles.membersSection}>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: safeTheme.colors.onSurface }]}>Members ({(trip.participants || []).length})</Text>
+              <TouchableOpacity
+                style={[styles.addButton, { backgroundColor: safeTheme.colors.primary }]}
+                onPress={() => setIsAddingMember(true)}
+              >
+                <Ionicons name="add" size={20} color={safeTheme.colors.onPrimary} />
+              </TouchableOpacity>
+            </View>
+
+            {(trip.participants || []).map((member) => (
+              <Surface key={member.id} style={[styles.memberItem, { backgroundColor: safeTheme.colors.surface, borderBottomColor: safeTheme.colors.outlineVariant }]} elevation={1}>
+                <View style={styles.memberInfo}>
+                  <View style={[styles.memberAvatar, { backgroundColor: safeTheme.colors.primary }]}>
+                    <Text style={[styles.memberInitial, { color: safeTheme.colors.onPrimary }]}>
+                      {member.name.charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                  <View style={styles.memberDetails}>
+                    <View style={styles.memberNameRow}>
+                      <Text style={[styles.memberName, { color: safeTheme.colors.onSurface }]}>{member.name}</Text>
+                      {member.isCurrentUser && (
+                        <View style={[styles.currentUserBadge, { backgroundColor: safeTheme.colors.primaryContainer }]}>
+                          <Text style={[styles.currentUserText, { color: safeTheme.colors.onPrimaryContainer }]}>You</Text>
+                        </View>
+                      )}
+                    </View>
+                    {member.email && (
+                      <Text style={[styles.memberEmail, { color: safeTheme.colors.onSurfaceVariant }]}>{member.email}</Text>
+                    )}
+                    <Text style={[styles.memberJoined, { color: safeTheme.colors.onSurfaceVariant }]}>
+                      Joined {new Date(member.joinedAt || Date.now()).toLocaleDateString()}
+                    </Text>
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.removeButton}
+                  onPress={() => handleRemoveMember(member.id)}
+                >
+                  <Ionicons name="close-circle" size={24} color={safeTheme.colors.error} />
+                </TouchableOpacity>
+              </Surface>
+            ))}
+
+            {isAddingMember && (
+              <Surface style={[styles.addMemberForm, { backgroundColor: safeTheme.colors.surface }]} elevation={2}>
+                <Text style={[styles.formTitle, { color: safeTheme.colors.onSurface }]}>Add New Member</Text>
+
+                <View style={styles.inputGroup}>
+                  <Text style={[styles.label, { color: safeTheme.colors.onSurface }]}>Name *</Text>
+                  <TextInput
+                    style={[styles.input, { backgroundColor: safeTheme.colors.surfaceVariant, borderColor: safeTheme.colors.outlineVariant, color: safeTheme.colors.onSurface }]}
+                    placeholder="Enter member name"
+                    placeholderTextColor={safeTheme.colors.onSurfaceVariant}
+                    value={newMemberName}
+                    onChangeText={setNewMemberName}
                   />
                 </View>
-                <Text style={[styles.switchDescription, { color: safeTheme.colors.onSurfaceVariant }]}>
-                  Mark this member as yourself for easier expense tracking
-                </Text>
-              </View>
-              
-              <View style={styles.formActions}>
-                <TouchableOpacity 
-                  style={[styles.cancelButton, { backgroundColor: safeTheme.colors.surfaceVariant }]}
-                  onPress={() => {
-                    setIsAddingMember(false);
-                    setNewMemberName('');
-                    setNewMemberEmail('');
-                    setIsCurrentUser(false);
-                  }}
-                >
-                  <Text style={[styles.cancelText, { color: safeTheme.colors.onSurface }]}>Cancel</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity 
-                  style={[styles.addMemberButton, { backgroundColor: safeTheme.colors.primary }]}
-                  onPress={handleAddMember}
-                >
-                  <Text style={[styles.addMemberText, { color: safeTheme.colors.onPrimary }]}>Add Member</Text>
-                </TouchableOpacity>
-              </View>
-            </Surface>
-          )}
-        </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={[styles.label, { color: safeTheme.colors.onSurface }]}>Email (optional)</Text>
+                  <TextInput
+                    style={[styles.input, { backgroundColor: safeTheme.colors.surfaceVariant, borderColor: safeTheme.colors.outlineVariant, color: safeTheme.colors.onSurface }]}
+                    placeholder="Enter email address"
+                    placeholderTextColor={safeTheme.colors.onSurfaceVariant}
+                    value={newMemberEmail}
+                    onChangeText={setNewMemberEmail}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                  />
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <View style={styles.switchContainer}>
+                    <Text style={[styles.label, { color: safeTheme.colors.onSurface }]}>This is me (Current User)</Text>
+                    <Switch
+                      value={isCurrentUser}
+                      onValueChange={setIsCurrentUser}
+                      trackColor={{ false: safeTheme.colors.surfaceVariant, true: safeTheme.colors.primary }}
+                      thumbColor={isCurrentUser ? safeTheme.colors.onPrimary : safeTheme.colors.onSurfaceVariant}
+                    />
+                  </View>
+                  <Text style={[styles.switchDescription, { color: safeTheme.colors.onSurfaceVariant }]}>
+                    Mark this member as yourself for easier expense tracking
+                  </Text>
+                </View>
+
+                <View style={styles.formActions}>
+                  <TouchableOpacity
+                    style={[styles.cancelButton, { backgroundColor: safeTheme.colors.surfaceVariant }]}
+                    onPress={() => {
+                      setIsAddingMember(false);
+                      setNewMemberName('');
+                      setNewMemberEmail('');
+                      setIsCurrentUser(false);
+                    }}
+                  >
+                    <Text style={[styles.cancelText, { color: safeTheme.colors.onSurface }]}>Cancel</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.addMemberButton, { backgroundColor: safeTheme.colors.primary }]}
+                    onPress={handleAddMember}
+                  >
+                    <Text style={[styles.addMemberText, { color: safeTheme.colors.onPrimary }]}>Add Member</Text>
+                  </TouchableOpacity>
+                </View>
+              </Surface>
+            )}
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

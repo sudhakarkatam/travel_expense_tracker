@@ -26,7 +26,7 @@ interface TripDetailScreenProps {
 
 export default function TripDetailScreen({ navigation, route }: TripDetailScreenProps) {
   const theme = useTheme();
-  
+
   // Safe defaults for theme colors to prevent runtime errors
   const safeTheme = {
     colors: {
@@ -59,16 +59,16 @@ export default function TripDetailScreen({ navigation, route }: TripDetailScreen
 
   const handleExportTrip = async () => {
     if (!trip || !summary) return;
-    
+
     setIsExporting(true);
     try {
       const tripExpenses = expenses.filter(expense => expense.tripId === trip.id);
       const tripSettlements = settlements.filter(settlement => settlement.tripId === trip.id);
       const tripBalances = getTripBalances(trip.id);
-      
+
       const totalSpent = tripExpenses.reduce((sum, expense) => sum + expense.amount, 0);
       const remainingBudget = trip.budget - totalSpent;
-      
+
       const categoryBreakdown = tripExpenses.reduce((breakdown, expense) => {
         breakdown[expense.category] = (breakdown[expense.category] || 0) + expense.amount;
         return breakdown;
@@ -85,7 +85,7 @@ export default function TripDetailScreen({ navigation, route }: TripDetailScreen
       };
 
       const pdfUri = await PDFExportService.generateComprehensiveTripPDF(tripSummary);
-      
+
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(pdfUri, {
           mimeType: 'application/pdf',
@@ -132,9 +132,9 @@ export default function TripDetailScreen({ navigation, route }: TripDetailScreen
           variant="elevated"
           elevation={1}
           onPress={() => {
-            navigation.navigate('ExpenseDetail', { 
-              expenseId: expense.id, 
-              tripId: trip.id 
+            navigation.navigate('ExpenseDetail', {
+              expenseId: expense.id,
+              tripId: trip.id
             });
             if (Platform.OS !== 'web') {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -146,10 +146,10 @@ export default function TripDetailScreen({ navigation, route }: TripDetailScreen
             title={expense.description || 'No description'}
             description={`${expense.category} • ${formatDateTime(expense.createdAt || expense.date)}`}
             left={(props) => (
-              <List.Icon 
-                {...props} 
-                icon="receipt" 
-                color={safeTheme.colors.primary} 
+              <List.Icon
+                {...props}
+                icon="receipt"
+                color={safeTheme.colors.primary}
               />
             )}
             right={() => (
@@ -218,8 +218,8 @@ export default function TripDetailScreen({ navigation, route }: TripDetailScreen
         </View>
       </Surface>
 
-      <ScrollView 
-        style={styles.content} 
+      <ScrollView
+        style={styles.content}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
@@ -263,14 +263,14 @@ export default function TripDetailScreen({ navigation, route }: TripDetailScreen
           {tripCurrency !== defaultCurrency && exchangeRate && exchangeRate > 0 && (
             <View style={[styles.currencyToggleCard, { backgroundColor: safeTheme.colors.surfaceVariant }]}>
               <View style={styles.currencyToggleRow}>
-                <Ionicons 
-                  name="swap-horizontal" 
-                  size={16} 
-                  color={safeTheme.colors.primary} 
+                <Ionicons
+                  name="swap-horizontal"
+                  size={16}
+                  color={safeTheme.colors.primary}
                 />
                 <Text style={[styles.currencyToggleLabel, { color: safeTheme.colors.onSurface }]}>
-                  {showInDefaultCurrency 
-                    ? `Showing in ${defaultCurrency}` 
+                  {showInDefaultCurrency
+                    ? `Showing in ${defaultCurrency}`
                     : `Showing in ${tripCurrency}`}
                 </Text>
                 <Switch
@@ -334,12 +334,12 @@ export default function TripDetailScreen({ navigation, route }: TripDetailScreen
               </Text>
               <Text style={[
                 styles.progressPercentage,
-                { 
-                  color: isOverBudget 
-                    ? safeTheme.colors.error 
-                    : isNearBudget 
-                    ? '#FF9500' 
-                    : safeTheme.colors.primary 
+                {
+                  color: isOverBudget
+                    ? safeTheme.colors.error
+                    : isNearBudget
+                      ? '#FF9500'
+                      : safeTheme.colors.primary
                 }
               ]}>
                 {progressPercentage.toFixed(0)}% {isOverBudget ? 'used' : ''}
@@ -348,11 +348,11 @@ export default function TripDetailScreen({ navigation, route }: TripDetailScreen
             <ProgressBar
               progress={Math.min(progressPercentage / 100, 1)}
               color={
-                isOverBudget 
-                  ? safeTheme.colors.error 
-                  : isNearBudget 
-                  ? '#FF9500' 
-                  : safeTheme.colors.primary
+                isOverBudget
+                  ? safeTheme.colors.error
+                  : isNearBudget
+                    ? '#FF9500'
+                    : safeTheme.colors.primary
               }
               style={styles.progressBar}
             />
@@ -383,7 +383,7 @@ export default function TripDetailScreen({ navigation, route }: TripDetailScreen
               <View style={styles.summaryItem}>
                 <Ionicons name="wallet-outline" size={24} color={safeTheme.colors.secondary} />
                 <Text style={[styles.summaryValue, { color: safeTheme.colors.onSurface }]}>
-                  {formatCurrency(summary.totalSpent, trip.currency)}
+                  {formatCurrency(summary.totalSpent, { currency: trip.currency })}
                 </Text>
                 <Text style={[styles.summaryLabel, { color: safeTheme.colors.onSurfaceVariant }]}>
                   Total Spent
@@ -450,34 +450,38 @@ export default function TripDetailScreen({ navigation, route }: TripDetailScreen
 
       {/* Bottom Actions */}
       <Surface style={styles.bottomActions} elevation={4}>
-        <AnimatedButton
-          mode="outlined"
-          label="Members"
-          icon="people"
-          onPress={() => {
-            navigation.navigate('ManageMembers', { tripId: trip.id });
-            if (Platform.OS !== 'web') {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            }
-          }}
-          variant="secondary"
-          style={[styles.bottomActionButton, { flex: 1, minWidth: 0 }]}
-          labelStyle={{ fontSize: 13 }}
-        />
-        <AnimatedButton
-          mode="outlined"
-          label="Settle Up"
-          icon="card"
-          onPress={() => {
-            navigation.navigate('SettleUp', { tripId: trip.id });
-            if (Platform.OS !== 'web') {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            }
-          }}
-          variant="secondary"
-          style={[styles.bottomActionButton, { flex: 1, minWidth: 0 }]}
-          labelStyle={{ fontSize: 13 }}
-        />
+        <View style={styles.bottomActionGroup}>
+          <TouchableOpacity
+            style={styles.iconActionButton}
+            onPress={() => {
+              navigation.navigate('ManageMembers', { tripId: trip.id });
+              if (Platform.OS !== 'web') {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }
+            }}
+          >
+            <View style={[styles.iconActionCircle, { backgroundColor: safeTheme.colors.surfaceVariant }]}>
+              <Ionicons name="people" size={24} color={safeTheme.colors.onSurfaceVariant} />
+            </View>
+            <Text style={[styles.iconActionLabel, { color: safeTheme.colors.onSurfaceVariant }]}>Members</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.iconActionButton}
+            onPress={() => {
+              navigation.navigate('SettleUp', { tripId: trip.id });
+              if (Platform.OS !== 'web') {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }
+            }}
+          >
+            <View style={[styles.iconActionCircle, { backgroundColor: safeTheme.colors.surfaceVariant }]}>
+              <Ionicons name="card" size={24} color={safeTheme.colors.onSurfaceVariant} />
+            </View>
+            <Text style={[styles.iconActionLabel, { color: safeTheme.colors.onSurfaceVariant }]}>Settle</Text>
+          </TouchableOpacity>
+        </View>
+
         <AnimatedButton
           mode="contained"
           label="Add Expense"
@@ -490,6 +494,7 @@ export default function TripDetailScreen({ navigation, route }: TripDetailScreen
           }}
           variant="primary"
           style={styles.addExpenseButton}
+          labelStyle={styles.addExpenseLabel}
         />
       </Surface>
     </SafeAreaView>
@@ -767,19 +772,43 @@ const styles = StyleSheet.create({
   },
   bottomActions: {
     flexDirection: 'row',
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    gap: 16,
     borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(0,0,0,0.1)',
     alignItems: 'center',
+    backgroundColor: '#fff',
+    paddingBottom: Platform.OS === 'ios' ? 34 : 16,
   },
-  bottomActionButton: {
-    flex: 1,
-    minWidth: 0,
+  bottomActionGroup: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  iconActionButton: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  iconActionCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconActionLabel: {
+    fontSize: 12,
+    fontWeight: '500',
   },
   addExpenseButton: {
-    flex: 1.5,
-    minWidth: 0,
+    flex: 1,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+  },
+  addExpenseLabel: {
+    fontSize: 16,
+    fontWeight: '600',
   },
   errorContainer: {
     flex: 1,

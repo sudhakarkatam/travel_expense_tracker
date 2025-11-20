@@ -38,7 +38,7 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
-  
+
   const [name, setName] = useState(user?.name || appUser?.name || '');
   const [email, setEmail] = useState(user?.email || '');
   const [profilePhoto, setProfilePhoto] = useState(user?.avatar || appUser?.avatar || null);
@@ -93,15 +93,15 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
         setIsUploadingPhoto(true);
         const imageUri = result.assets[0].uri;
         setProfilePhoto(imageUri);
-        
+
         if (user) {
           try {
             // Update Firebase Auth profile
             await authService.updateProfile({ avatar: imageUri });
-            
+
             // Also save to Firestore for persistence
             await firestoreService.saveUserPreferences(user.id, { avatar: imageUri });
-            
+
             if (Platform.OS !== 'web') {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             }
@@ -260,9 +260,9 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
               };
 
               await firestoreService.syncAllDataToCloud(user.id, allData, true);
-              
+
               const cloudData = await firestoreService.loadAllDataFromCloud(user.id);
-              
+
               await Promise.all([
                 storage.saveTrips(cloudData.trips),
                 storage.saveExpenses(cloudData.expenses),
@@ -272,7 +272,7 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
                 storage.saveCategories(cloudData.categories),
                 storage.saveAuditLogs(cloudData.auditLogs),
               ]);
-              
+
               if (Platform.OS !== 'web') {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               }
@@ -339,7 +339,7 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
           <MotiView
             from={{ opacity: 0, translateY: 20 }}
             animate={{ opacity: 1, translateY: 0 }}
-            transition={{ type: 'timing', duration: 300 }}
+            transition={{ type: 'timing', duration: 300 } as any}
           >
             <AnimatedCard variant="elevated" elevation={2} style={styles.authCard}>
               <View style={styles.tabContainer}>
@@ -545,184 +545,184 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
         style={styles.keyboardView}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-        <ScrollView 
-          style={styles.content} 
+        <ScrollView
+          style={styles.content}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
-        <MotiView
-          from={{ opacity: 0, translateY: 20 }}
-          animate={{ opacity: 1, translateY: 0 }}
-          transition={{ type: 'timing', duration: 300 }}
-        >
-          <AnimatedCard variant="elevated" elevation={2} style={styles.profileCard}>
-            <View style={styles.profilePhotoSection}>
-              <TouchableOpacity
-                onPress={isEditing ? pickImage : undefined}
-                disabled={!isEditing || isUploadingPhoto}
-                style={styles.profilePhotoContainer}
-              >
-                {isUploadingPhoto ? (
-                  <View style={[styles.profilePhotoPlaceholder, { backgroundColor: theme.colors.surfaceVariant }]}>
-                    <ActivityIndicator size="large" color={theme.colors.primary} />
-                  </View>
-                ) : profilePhoto ? (
-                  <Image
-                    source={{ uri: profilePhoto }}
-                    style={styles.profilePhotoImage}
-                    contentFit="cover"
-                    transition={200}
-                  />
-                ) : (
-                  <View style={[styles.profilePhotoPlaceholder, { backgroundColor: theme.colors.surfaceVariant }]}>
-                    <Ionicons name="camera-outline" size={32} color={theme.colors.onSurfaceVariant} />
-                    <Text style={[styles.profilePhotoHint, { color: theme.colors.onSurfaceVariant }]}>
-                      Profile Photo
-                    </Text>
-                  </View>
-                )}
+          <MotiView
+            from={{ opacity: 0, translateY: 20 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ type: 'timing', duration: 300 }}
+          >
+            <AnimatedCard variant="elevated" elevation={2} style={styles.profileCard}>
+              <View style={styles.profilePhotoSection}>
+                <TouchableOpacity
+                  onPress={pickImage}
+                  disabled={isUploadingPhoto}
+                  style={styles.profilePhotoContainer}
+                >
+                  {isUploadingPhoto ? (
+                    <View style={[styles.profilePhotoPlaceholder, { backgroundColor: theme.colors.surfaceVariant }]}>
+                      <ActivityIndicator size="large" color={theme.colors.primary} />
+                    </View>
+                  ) : profilePhoto ? (
+                    <Image
+                      source={{ uri: profilePhoto }}
+                      style={styles.profilePhotoImage}
+                      contentFit="cover"
+                      transition={200}
+                    />
+                  ) : (
+                    <View style={[styles.profilePhotoPlaceholder, { backgroundColor: theme.colors.surfaceVariant }]}>
+                      <Ionicons name="camera-outline" size={32} color={theme.colors.onSurfaceVariant} />
+                      <Text style={[styles.profilePhotoHint, { color: theme.colors.onSurfaceVariant }]}>
+                        Profile Photo
+                      </Text>
+                    </View>
+                  )}
+                  {isEditing && (
+                    <MotiView
+                      from={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ type: 'spring' }}
+                      style={[styles.editPhotoBadge, { backgroundColor: theme.colors.primary }]}
+                    >
+                      <Ionicons name="camera" size={20} color="#fff" />
+                    </MotiView>
+                  )}
+                </TouchableOpacity>
                 {isEditing && (
-                  <MotiView
-                    from={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: 'spring' }}
-                    style={[styles.editPhotoBadge, { backgroundColor: theme.colors.primary }]}
-                  >
-                    <Ionicons name="camera" size={20} color="#fff" />
-                  </MotiView>
+                  <Text style={[styles.editPhotoHint, { color: theme.colors.onSurfaceVariant }]}>
+                    Tap to change photo
+                  </Text>
                 )}
-              </TouchableOpacity>
-              {isEditing && (
-                <Text style={[styles.editPhotoHint, { color: theme.colors.onSurfaceVariant }]}>
-                  Tap to change photo
-                </Text>
-              )}
-            </View>
+              </View>
 
-            <Divider style={styles.divider} />
+              <Divider style={styles.divider} />
 
-            <View style={styles.infoSection}>
-              <List.Item
-                title="Name"
-                description={isEditing ? undefined : (name || 'Not set')}
-                left={(props) => <List.Icon {...props} icon="account-outline" />}
-                right={() => isEditing ? (
-                  <PaperTextInput
-                    style={[styles.editInput, { color: theme.colors.onSurface }]}
-                    value={name}
-                    onChangeText={setName}
-                    placeholder="Enter your name"
-                    autoCapitalize="words"
-                    mode="flat"
-                  />
-                ) : null}
-                titleStyle={{ color: theme.colors.onSurface }}
-                descriptionStyle={{ color: theme.colors.onSurfaceVariant }}
-              />
-
-              <List.Item
-                title="Email"
-                description={email || (isGuest ? 'Guest User' : 'Not set')}
-                left={(props) => <List.Icon {...props} icon="email-outline" />}
-                titleStyle={{ color: theme.colors.onSurface }}
-                descriptionStyle={{ color: theme.colors.onSurfaceVariant }}
-              />
-
-              {user && (
+              <View style={styles.infoSection}>
                 <List.Item
-                  title="Account Type"
-                  description={user.provider === 'google' ? 'Google Account' : 'Email Account'}
-                  left={(props) => <List.Icon {...props} icon={user.provider === 'google' ? 'google' : 'email'} />}
+                  title="Name"
+                  description={isEditing ? undefined : (name || 'Not set')}
+                  left={(props) => <List.Icon {...props} icon="account-outline" />}
+                  right={() => isEditing ? (
+                    <PaperTextInput
+                      style={[styles.editInput, { color: theme.colors.onSurface }]}
+                      value={name}
+                      onChangeText={setName}
+                      placeholder="Enter your name"
+                      autoCapitalize="words"
+                      mode="flat"
+                    />
+                  ) : null}
                   titleStyle={{ color: theme.colors.onSurface }}
                   descriptionStyle={{ color: theme.colors.onSurfaceVariant }}
                 />
-              )}
 
-              {appUser && (
                 <List.Item
-                  title="Membership"
-                  description={appUser.isPro ? 'Pro Member' : 'Free Plan'}
-                  left={(props) => <List.Icon {...props} icon={appUser.isPro ? 'star' : 'star-outline'} />}
+                  title="Email"
+                  description={email || (isGuest ? 'Guest User' : 'Not set')}
+                  left={(props) => <List.Icon {...props} icon="email-outline" />}
                   titleStyle={{ color: theme.colors.onSurface }}
-                  descriptionStyle={{ color: appUser.isPro ? theme.colors.primary : theme.colors.onSurfaceVariant }}
+                  descriptionStyle={{ color: theme.colors.onSurfaceVariant }}
                 />
-              )}
-            </View>
 
-            {isEditing && (
-              <AnimatedButton
-                mode="contained"
-                label="Save Changes"
-                onPress={handleSaveProfile}
-                loading={isLoading}
-                disabled={isLoading}
-                variant="primary"
-                fullWidth
-                style={styles.saveButton}
-              />
-            )}
-          </AnimatedCard>
-
-          <AnimatedCard variant="elevated" elevation={2} style={styles.actionsCard}>
-            <List.Section>
-              <List.Subheader style={{ color: theme.colors.onSurface }}>Account</List.Subheader>
-              
-              {user && (
-                <>
+                {user && (
                   <List.Item
-                    title="Sync All Data to Cloud"
-                    description="Upload trips, expenses, and images"
-                    left={(props) => (
-                      <List.Icon {...props} icon="cloud-upload-outline" color={theme.colors.primary} />
-                    )}
-                    right={() => isSyncing ? (
-                      <ActivityIndicator size="small" color={theme.colors.primary} />
-                    ) : null}
-                    onPress={handleSyncToCloud}
-                    disabled={isSyncing}
-                    titleStyle={{ color: theme.colors.primary }}
+                    title="Account Type"
+                    description={user.provider === 'google' ? 'Google Account' : 'Email Account'}
+                    left={(props) => <List.Icon {...props} icon={user.provider === 'google' ? 'google' : 'email'} />}
+                    titleStyle={{ color: theme.colors.onSurface }}
                     descriptionStyle={{ color: theme.colors.onSurfaceVariant }}
                   />
+                )}
 
+                {appUser && (
                   <List.Item
-                    title="Sign Out"
-                    left={(props) => <List.Icon {...props} icon="logout" color={theme.colors.error} />}
-                    onPress={handleLogout}
-                    titleStyle={{ color: theme.colors.error }}
+                    title="Membership"
+                    description={appUser.isPro ? 'Pro Member' : 'Free Plan'}
+                    left={(props) => <List.Icon {...props} icon={appUser.isPro ? 'star' : 'star-outline'} />}
+                    titleStyle={{ color: theme.colors.onSurface }}
+                    descriptionStyle={{ color: appUser.isPro ? theme.colors.primary : theme.colors.onSurfaceVariant }}
                   />
-                </>
-              )}
+                )}
+              </View>
 
-              {isGuest && (
-                <>
-                  <List.Item
-                    title="Sign In to Sync Data"
-                    left={(props) => (
-                      <List.Icon {...props} icon="login" color={theme.colors.primary} />
-                    )}
-                    onPress={() => {
-                      setIsLoginMode(true);
-                      setShowAuthForm(true);
-                    }}
-                    titleStyle={{ color: theme.colors.primary }}
-                  />
-                  
-                  <List.Item
-                    title="Create Account"
-                    left={(props) => (
-                      <List.Icon {...props} icon="account-plus" color={theme.colors.primary} />
-                    )}
-                    onPress={() => {
-                      setIsLoginMode(false);
-                      setShowAuthForm(true);
-                    }}
-                    titleStyle={{ color: theme.colors.primary }}
-                  />
-                </>
+              {isEditing && (
+                <AnimatedButton
+                  mode="contained"
+                  label="Save Changes"
+                  onPress={handleSaveProfile}
+                  loading={isLoading}
+                  disabled={isLoading}
+                  variant="primary"
+                  fullWidth
+                  style={styles.saveButton}
+                />
               )}
-            </List.Section>
-          </AnimatedCard>
-        </MotiView>
+            </AnimatedCard>
+
+            <AnimatedCard variant="elevated" elevation={2} style={styles.actionsCard}>
+              <List.Section>
+                <List.Subheader style={{ color: theme.colors.onSurface }}>Account</List.Subheader>
+
+                {user && (
+                  <>
+                    <List.Item
+                      title="Sync All Data to Cloud"
+                      description="Upload trips, expenses, and images"
+                      left={(props) => (
+                        <List.Icon {...props} icon="cloud-upload-outline" color={theme.colors.primary} />
+                      )}
+                      right={() => isSyncing ? (
+                        <ActivityIndicator size="small" color={theme.colors.primary} />
+                      ) : null}
+                      onPress={handleSyncToCloud}
+                      disabled={isSyncing}
+                      titleStyle={{ color: theme.colors.primary }}
+                      descriptionStyle={{ color: theme.colors.onSurfaceVariant }}
+                    />
+
+                    <List.Item
+                      title="Sign Out"
+                      left={(props) => <List.Icon {...props} icon="logout" color={theme.colors.error} />}
+                      onPress={handleLogout}
+                      titleStyle={{ color: theme.colors.error }}
+                    />
+                  </>
+                )}
+
+                {isGuest && (
+                  <>
+                    <List.Item
+                      title="Sign In to Sync Data"
+                      left={(props) => (
+                        <List.Icon {...props} icon="login" color={theme.colors.primary} />
+                      )}
+                      onPress={() => {
+                        setIsLoginMode(true);
+                        setShowAuthForm(true);
+                      }}
+                      titleStyle={{ color: theme.colors.primary }}
+                    />
+
+                    <List.Item
+                      title="Create Account"
+                      left={(props) => (
+                        <List.Icon {...props} icon="account-plus" color={theme.colors.primary} />
+                      )}
+                      onPress={() => {
+                        setIsLoginMode(false);
+                        setShowAuthForm(true);
+                      }}
+                      titleStyle={{ color: theme.colors.primary }}
+                    />
+                  </>
+                )}
+              </List.Section>
+            </AnimatedCard>
+          </MotiView>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -815,7 +815,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderStyle: 'dashed',
+    borderColor: '#e5e7eb',
   },
   profilePhotoImage: {
     width: 120,
