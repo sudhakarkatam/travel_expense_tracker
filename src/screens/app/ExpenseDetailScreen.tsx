@@ -49,7 +49,9 @@ export default function ExpenseDetailScreen({ navigation, route }: ExpenseDetail
 
   const paidByParticipant = trip.participants.find(p => p.id === expense.paidBy);
   const paidByName = paidByParticipant?.name || "Unknown";
-  const isCurrentUserPayer = expense.paidBy === user?.id;
+  const currentUserParticipant = trip.participants.find(p => p.isCurrentUser);
+  const currentUserIdInTrip = currentUserParticipant?.id || user?.id;
+  const isCurrentUserPayer = expense.paidBy === currentUserIdInTrip;
 
   const handleDelete = () => {
     Alert.alert(
@@ -104,9 +106,9 @@ export default function ExpenseDetailScreen({ navigation, route }: ExpenseDetail
             </Text>
             <View style={styles.metaRow}>
               <Chip icon="calendar" style={{ backgroundColor: theme.colors.surfaceVariant }} textStyle={{ color: theme.colors.onSurfaceVariant }}>
-                {formatDateTime(expense.date)}
+                {formatDateTime(expense.createdAt || expense.date)}
               </Chip>
-              <Chip icon="pricetag" style={{ backgroundColor: theme.colors.surfaceVariant, marginLeft: 8 }} textStyle={{ color: theme.colors.onSurfaceVariant }}>
+              <Chip icon="tag" style={{ backgroundColor: theme.colors.surfaceVariant, marginLeft: 8 }} textStyle={{ color: theme.colors.onSurfaceVariant }}>
                 {expense.category}
               </Chip>
             </View>

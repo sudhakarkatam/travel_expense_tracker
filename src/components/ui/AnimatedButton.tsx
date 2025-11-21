@@ -16,6 +16,7 @@ interface AnimatedButtonProps {
   fullWidth?: boolean;
   style?: any;
   labelStyle?: any;
+  contentStyle?: any;
 }
 
 export function AnimatedButton({
@@ -29,6 +30,7 @@ export function AnimatedButton({
   fullWidth = false,
   style,
   labelStyle,
+  contentStyle,
 }: AnimatedButtonProps) {
   const theme = useTheme();
   const [isPressed, setIsPressed] = React.useState(false);
@@ -68,7 +70,7 @@ export function AnimatedButton({
       transition={{
         type: 'timing',
         duration: 100,
-      }}
+      } as any}
       style={[fullWidth && styles.fullWidth, style]}
     >
       <Button
@@ -86,8 +88,8 @@ export function AnimatedButton({
           mode === 'contained'
             ? '#FFFFFF'
             : mode === 'outlined'
-            ? getVariantColor()
-            : getVariantColor()
+              ? getVariantColor()
+              : getVariantColor()
         }
         style={[
           styles.button,
@@ -98,7 +100,7 @@ export function AnimatedButton({
           },
         ]}
         labelStyle={[styles.label, labelStyle]}
-        contentStyle={styles.content}
+        contentStyle={[styles.content, contentStyle]}
       >
         {label}
       </Button>

@@ -118,7 +118,7 @@ export default function AllExpensesScreen({ navigation, route }: { navigation: a
 
   const getCategoryIcon = (categoryId: string) => {
     const category = categories.find((c) => c.id === categoryId) || categories.find(c => c.name.toLowerCase() === categoryId.toLowerCase());
-    return category?.icon || "pricetag";
+    return category?.icon || "tag";
   };
 
   const getTripName = (tripId: string) => {
@@ -127,7 +127,10 @@ export default function AllExpensesScreen({ navigation, route }: { navigation: a
   };
 
   const renderExpenseItem = ({ item, index }: { item: Expense; index: number }) => {
-    const isPayer = item.paidBy === user?.id;
+    const trip = trips.find(t => t.id === item.tripId);
+    const currentUserParticipant = trip?.participants.find(p => p.isCurrentUser);
+    const currentUserIdInTrip = currentUserParticipant?.id || user?.id;
+    const isPayer = item.paidBy === currentUserIdInTrip;
 
     return (
       <MotiView
@@ -150,7 +153,7 @@ export default function AllExpensesScreen({ navigation, route }: { navigation: a
               </Text>
               <View style={styles.metaContainer}>
                 <Text style={[styles.expenseMeta, { color: safeTheme.colors.onSurfaceVariant }]}>
-                  {formatDateTime(item.date, { includeTime: true, timeFormat: '12h' })}
+                  {formatDateTime(item.createdAt || item.date, { includeTime: true, timeFormat: '12h' })}
                 </Text>
                 {!tripId && (
                   <>

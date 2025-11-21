@@ -22,6 +22,7 @@ import { authService } from '@/services/auth';
 import { useApp } from '@/contexts/AppContext';
 import { firestoreService } from '@/services/firestoreService';
 import { storage } from '@/utils/storage';
+import { storageService } from '@/services/storageService';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
 import { AnimatedCard } from '@/components/ui/AnimatedCard';
 import { AnimatedInput } from '@/components/ui/AnimatedInput';
@@ -91,11 +92,14 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
 
       if (!result.canceled && result.assets[0]) {
         setIsUploadingPhoto(true);
-        const imageUri = result.assets[0].uri;
-        setProfilePhoto(imageUri);
+        let imageUri = result.assets[0].uri;
 
         if (user) {
           try {
+            // Upload to Firebase Storage/Firestore first
+            const uploadResult = await storageService.uploadImage(imageUri, user.id, 'profile');
+            imageUri = uploadResult.url;
+
             // Update Firebase Auth profile
             await authService.updateProfile({ avatar: imageUri });
 
@@ -108,6 +112,8 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
           } catch (error) {
             console.error('Error updating profile photo:', error);
             Alert.alert('Error', 'Failed to update profile photo. Please try again.');
+            setIsUploadingPhoto(false);
+            return;
           }
         } else if (appUser) {
           await updateUser({ ...appUser, avatar: imageUri });
@@ -120,6 +126,8 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
           };
           await updateUser(newUser);
         }
+
+        setProfilePhoto(imageUri);
         setIsUploadingPhoto(false);
       }
     } catch (error) {

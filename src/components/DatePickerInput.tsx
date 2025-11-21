@@ -40,21 +40,46 @@ export default function DatePickerInput({
   const formatDate = (dateString: string): string => {
     if (!dateString) return '';
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
+
+    if (mode === 'time') {
+      return date.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      });
+    }
+
+    const datePart = date.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
     });
+
+    if (mode === 'datetime') {
+      const timePart = date.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      });
+      return `${datePart} at ${timePart}`;
+    }
+
+    return datePart;
   };
 
   const handleDateChange = (event: any, selectedDate?: Date) => {
     setShowPicker(Platform.OS === 'ios');
-    
+
     if (selectedDate) {
-      // Convert to ISO string and take only the date part
-      const isoString = selectedDate.toISOString();
-      const dateOnly = isoString.split('T')[0];
-      onChange(dateOnly);
+      if (mode === 'date') {
+        // Keep existing behavior for date-only mode
+        const isoString = selectedDate.toISOString();
+        const dateOnly = isoString.split('T')[0];
+        onChange(dateOnly);
+      } else {
+        // Return full ISO string for datetime/time modes
+        onChange(selectedDate.toISOString());
+      }
     }
   };
 

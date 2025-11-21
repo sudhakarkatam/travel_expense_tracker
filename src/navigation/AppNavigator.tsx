@@ -37,6 +37,7 @@ import ProfileScreen from "../screens/app/ProfileScreen";
 import SpendingTrendsScreen from "../screens/app/SpendingTrendsScreen";
 import SpendingHeatmapScreen from "../screens/app/SpendingHeatmapScreen";
 import TripFiltersScreen from "../screens/app/TripFiltersScreen";
+import TripNotesScreen from "../screens/app/TripNotesScreen";
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -415,6 +416,16 @@ export default function AppNavigator() {
           <Stack.Screen
             name="TripFilters"
             component={TripFiltersScreen}
+            options={{
+              headerShown: false,
+              ...(Platform.OS === "ios"
+                ? TransitionPresets.ModalPresentationIOS
+                : TransitionPresets.SlideFromRightIOS),
+            }}
+          />
+          <Stack.Screen
+            name="TripNotes"
+            component={TripNotesScreen}
             options={{
               headerShown: false,
               ...(Platform.OS === "ios"

@@ -57,6 +57,18 @@ export interface Trip {
     settlementReminders?: boolean;
     activityReminders?: boolean;
   };
+  notes?: Note[];
+}
+
+export interface Note {
+  id: string;
+  title: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+  images?: string[];
+  color?: string;
+  category?: string;
 }
 
 export interface Participant {

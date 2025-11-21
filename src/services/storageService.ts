@@ -24,7 +24,10 @@ export interface UploadImageResult {
 }
 
 // Image size limits (in bytes)
-const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB for Firebase Storage
+// Image size limits (in bytes)
+const MAX_COVER_SIZE = 5 * 1024 * 1024; // 5MB for Covers
+const MAX_RECEIPT_SIZE = 2 * 1024 * 1024; // 2MB for Receipts
+const MAX_PROFILE_SIZE = 2 * 1024 * 1024; // 2MB for Profile
 const MAX_FIRESTORE_SIZE = 900 * 1024; // 900KB for Firestore base64 (1MB limit with margin)
 const MAX_IMAGE_DIMENSION = 2048; // Max width or height in pixels for Storage
 const MAX_FIRESTORE_DIMENSION = 1200; // Max dimension for Firestore (smaller to ensure < 900KB)
@@ -33,9 +36,10 @@ export const storageService = {
   /**
    * Check and validate image size
    * @param localUri - Local file URI
+   * @param type - Type of image (cover, receipt, profile)
    * @returns File size in bytes
    */
-  async validateImageSize(localUri: string): Promise<number> {
+  async validateImageSize(localUri: string, type: 'cover' | 'receipt' | 'profile' = 'cover'): Promise<number> {
     const fileInfo = await FileSystem.getInfoAsync(localUri);
     if (!fileInfo.exists) {
       throw new Error('File does not exist');
@@ -43,9 +47,13 @@ export const storageService = {
 
     // Get file size
     const fileSize = fileInfo.size || 0;
-    
-    if (fileSize > MAX_IMAGE_SIZE) {
-      throw new Error(`Image size (${(fileSize / 1024 / 1024).toFixed(2)}MB) exceeds maximum allowed size of ${MAX_IMAGE_SIZE / 1024 / 1024}MB. Please compress or resize the image.`);
+
+    let limit = MAX_COVER_SIZE;
+    if (type === 'receipt') limit = MAX_RECEIPT_SIZE;
+    if (type === 'profile') limit = MAX_PROFILE_SIZE;
+
+    if (fileSize > limit) {
+      throw new Error(`Image size (${(fileSize / 1024 / 1024).toFixed(2)}MB) exceeds maximum allowed size of ${limit / 1024 / 1024}MB for ${type}s. Please compress or resize the image.`);
     }
 
     return fileSize;
@@ -68,10 +76,10 @@ export const storageService = {
     while (attempts < maxAttempts) {
       const fileInfo = await FileSystem.getInfoAsync(currentUri);
       const fileSize = fileInfo.size || 0;
-      
+
       // Check if file is small enough (accounting for base64 encoding overhead ~33%)
       const base64Size = (fileSize * 4) / 3;
-      
+
       if (base64Size <= MAX_FIRESTORE_SIZE) {
         console.log(`[Storage] Image compressed to ${(fileSize / 1024).toFixed(2)}KB (base64: ${(base64Size / 1024).toFixed(2)}KB)`);
         return currentUri;
@@ -129,63 +137,67 @@ export const storageService = {
   /**
    * Compress and resize image if needed (for Firebase Storage)
    * @param localUri - Local file URI
+   * @param type - Type of image (cover, receipt, profile)
    * @returns Compressed/resized image URI
    */
-  async compressImageIfNeeded(localUri: string): Promise<string> {
+  async compressImageIfNeeded(localUri: string, type: 'cover' | 'receipt' | 'profile'): Promise<string> {
     try {
+      // Determine limit
+      let limit = MAX_COVER_SIZE;
+      if (type === 'receipt') limit = MAX_RECEIPT_SIZE;
+      if (type === 'profile') limit = MAX_PROFILE_SIZE;
+
       // Check file size first
-      const fileSize = await this.validateImageSize(localUri);
-      
+      const fileInfo = await FileSystem.getInfoAsync(localUri);
+      const fileSize = fileInfo.size || 0;
+
       // If ImageManipulator is not available, just validate size
       if (!ImageManipulator) {
-        console.warn('[Storage] ImageManipulator not available. Skipping compression.');
+        if (fileSize > limit) {
+          console.warn(`[Storage] ImageManipulator not available and image is too large (${(fileSize / 1024 / 1024).toFixed(2)}MB > ${limit / 1024 / 1024}MB).`);
+        }
         return localUri;
       }
-      
-      // If file is small enough, still optimize dimensions
-      if (fileSize <= MAX_IMAGE_SIZE) {
-        try {
-          const manipulatedImage = await ImageManipulator.manipulateAsync(
-            localUri,
-            [
-              { resize: { width: MAX_IMAGE_DIMENSION } }, // Resize if larger
-            ],
-            {
-              compress: 0.8, // 80% quality
-              format: ImageManipulator.SaveFormat.JPEG,
-            }
-          );
-          return manipulatedImage.uri;
-        } catch (error) {
-          // If manipulation fails, return original
-          console.warn('[Storage] Image manipulation failed, using original:', error);
-          return localUri;
-        }
+
+      // If file is small enough, still optimize dimensions if it's huge
+      if (fileSize <= limit) {
+        // Optional: Resize if dimensions are massive even if file size is small?
+        // For now, just return if size is within limits
+        return localUri;
       }
 
+      console.log(`[Storage] Image too large (${(fileSize / 1024 / 1024).toFixed(2)}MB > ${limit / 1024 / 1024}MB), compressing...`);
+
       // File is too large, compress it
+      // Adjust quality based on how much we need to compress
+      const ratio = limit / fileSize;
+      const quality = Math.max(0.4, Math.min(0.9, ratio * 0.9));
+
+      const width = type === 'cover' ? 1920 : 1200;
+
       const manipulatedImage = await ImageManipulator.manipulateAsync(
         localUri,
         [
-          { resize: { width: MAX_IMAGE_DIMENSION } },
+          { resize: { width: width } },
         ],
         {
-          compress: 0.7, // 70% quality for large images
+          compress: quality,
           format: ImageManipulator.SaveFormat.JPEG,
         }
       );
 
       // Check if compressed image is still too large
       const compressedInfo = await FileSystem.getInfoAsync(manipulatedImage.uri);
-      if (compressedInfo.size && compressedInfo.size > MAX_IMAGE_SIZE) {
+      if (compressedInfo.size && compressedInfo.size > limit) {
         // Try more aggressive compression
+        console.log(`[Storage] Still too large (${(compressedInfo.size / 1024 / 1024).toFixed(2)}MB), trying aggressive compression...`);
         const moreCompressed = await ImageManipulator.manipulateAsync(
           localUri,
           [
-            { resize: { width: 1600 } }, // Smaller dimension
+            { resize: { width: Math.floor(width * 0.8) } }, // Smaller dimension
           ],
           {
-            compress: 0.6, // 60% quality
+            compress: 0.5, // 50% quality
             format: ImageManipulator.SaveFormat.JPEG,
           }
         );
@@ -195,13 +207,7 @@ export const storageService = {
       return manipulatedImage.uri;
     } catch (error) {
       console.error('[Storage] Error compressing image:', error);
-      // If compression fails, try to validate original size
-      try {
-        await this.validateImageSize(localUri);
-        return localUri; // Return original if validation passes
-      } catch (validationError) {
-        throw validationError; // Throw validation error
-      }
+      return localUri;
     }
   },
 
@@ -237,7 +243,7 @@ export const storageService = {
     itemId?: string
   ): Promise<UploadImageResult> {
     console.log(`[Storage] Using base64 storage (Firestore)...`);
-    
+
     // Compress image to fit Firestore's 900KB limit
     let processedUri = localUri;
     try {
@@ -246,16 +252,16 @@ export const storageService = {
       console.error('[Storage] Compression failed:', compressError);
       throw new Error(`Failed to compress image for Firestore: ${compressError instanceof Error ? compressError.message : 'Unknown error'}`);
     }
-    
+
     // Convert to base64
     const base64Data = await this.convertToBase64(processedUri);
-    
+
     // Final size check
     const sizeInBytes = (base64Data.length * 3) / 4;
     if (sizeInBytes > MAX_FIRESTORE_SIZE) {
       throw new Error(`Image too large for Firestore (${(sizeInBytes / 1024).toFixed(2)}KB). Maximum is ${(MAX_FIRESTORE_SIZE / 1024).toFixed(2)}KB.`);
     }
-    
+
     // Clean up compressed file if different from original
     if (processedUri !== localUri) {
       try {
@@ -264,11 +270,11 @@ export const storageService = {
         console.warn('[Storage] Failed to cleanup compressed image:', cleanupError);
       }
     }
-    
+
     console.log(`[Storage] ✅ Image converted to base64 (${(sizeInBytes / 1024).toFixed(2)}KB) for Firestore storage`);
     console.log(`[Storage] Base64 URL format: data:image/jpeg;base64,${base64Data.substring(0, 50)}...`);
     console.log(`[Storage] Full base64 length: ${base64Data.length} characters`);
-    
+
     return {
       url: base64Data, // Return base64 data URL (format: data:image/jpeg;base64,<base64_string>)
       path: 'firestore', // Indicate it's stored in Firestore
@@ -316,10 +322,10 @@ export const storageService = {
       }
 
       // Compress and resize image if needed
-      const processedUri = await this.compressImageIfNeeded(localUri);
+      const processedUri = await this.compressImageIfNeeded(localUri, type);
       const finalFileInfo = await FileSystem.getInfoAsync(processedUri);
       const fileSize = finalFileInfo.size || 0;
-      
+
       console.log(`[Storage] Image size: ${(fileSize / 1024).toFixed(2)}KB, uploading to Firebase Storage...`);
 
       // Create storage path
@@ -357,21 +363,21 @@ export const storageService = {
           const base64 = await FileSystem.readAsStringAsync(processedUri, {
             encoding: FileSystem.EncodingType.Base64,
           });
-          
+
           // Convert base64 to Uint8Array
           const binaryString = atob(base64);
           const bytes = new Uint8Array(binaryString.length);
           for (let i = 0; i < binaryString.length; i++) {
             bytes[i] = binaryString.charCodeAt(i);
           }
-          
+
           console.log(`[Storage] Uploading ${(bytes.length / 1024).toFixed(2)}KB to Firebase Storage...`);
-          
+
           // Try uploadBytesResumable with Uint8Array (not ArrayBuffer)
           // If that fails, we'll try a different approach
           try {
             const uploadTask = uploadBytesResumable(storageRef, bytes);
-            
+
             // Wait for upload to complete
             await new Promise<void>((resolve, reject) => {
               uploadTask.on(
@@ -422,13 +428,13 @@ export const storageService = {
       };
     } catch (error: any) {
       console.error('[Storage] ❌ Error uploading image to Firebase Storage:', error);
-      
+
       // Check if error is due to Storage not being available (requires Blaze plan)
-      const isStorageUnavailable = error.message?.includes('permission') || 
-                                   error.message?.includes('billing') ||
-                                   error.code === 'storage/unauthorized' ||
-                                   error.code === 'storage/quota-exceeded';
-      
+      const isStorageUnavailable = error.message?.includes('permission') ||
+        error.message?.includes('billing') ||
+        error.code === 'storage/unauthorized' ||
+        error.code === 'storage/quota-exceeded';
+
       if (isStorageUnavailable) {
         // Mark Storage as unavailable for future requests
         isStorageAvailable = false;
@@ -440,7 +446,7 @@ export const storageService = {
           throw new Error('Failed to upload image. Firebase Storage requires Blaze plan, and image is too large for Firestore.');
         }
       }
-      
+
       const errorMessage = error.message || 'Failed to upload image to cloud';
       throw new Error(errorMessage);
     }
@@ -458,14 +464,14 @@ export const storageService = {
     if (!localUris || localUris.length === 0) {
       return [];
     }
-    
+
     // Filter out invalid URIs
     const validUris = localUris.filter(uri => uri && typeof uri === 'string');
-    
+
     if (validUris.length === 0) {
       return [];
     }
-    
+
     const uploadPromises = validUris.map((uri, index) =>
       this.uploadImage(uri, userId, type, `${itemId}_${index}`)
     );
@@ -502,10 +508,10 @@ export const storageService = {
       }
 
       // Filter out already uploaded URLs (http/https/data URLs)
-      const localImages = localUris.filter(uri => 
+      const localImages = localUris.filter(uri =>
         uri && !uri.startsWith('http') && !uri.startsWith('https') && !uri.startsWith('data:')
       );
-      const existingUrls = localUris.filter(uri => 
+      const existingUrls = localUris.filter(uri =>
         uri && (uri.startsWith('http') || uri.startsWith('https') || uri.startsWith('data:'))
       );
 
@@ -515,7 +521,7 @@ export const storageService = {
 
       // Upload local images (will automatically fallback to base64 if Storage unavailable)
       const newUrls: string[] = [];
-      
+
       for (const uri of localImages) {
         try {
           // Try Firebase Storage first

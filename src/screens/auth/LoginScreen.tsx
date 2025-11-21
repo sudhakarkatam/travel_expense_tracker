@@ -7,6 +7,8 @@ import {
   Platform,
   ScrollView,
   Alert,
+  Dimensions,
+  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme, Surface, TextInput } from 'react-native-paper';
@@ -17,7 +19,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { StatusBar } from 'expo-status-bar';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
 import { AnimatedInput } from '@/components/ui/AnimatedInput';
-import { AnimatedCard } from '@/components/ui/AnimatedCard';
+import { LinearGradient } from 'expo-linear-gradient';
+
+const { width } = Dimensions.get('window');
 
 interface LoginScreenProps {
   navigation: any;
@@ -25,8 +29,8 @@ interface LoginScreenProps {
 
 export default function LoginScreen({ navigation }: LoginScreenProps) {
   const theme = useTheme();
-  
-  // Safe defaults for theme colors to prevent runtime errors
+
+  // Safe defaults for theme colors
   const safeTheme = {
     colors: {
       background: theme?.colors?.background || '#FFFFFF',
@@ -43,6 +47,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
       outlineVariant: theme?.colors?.outlineVariant || '#E5E5E5',
     },
   };
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -76,7 +81,6 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
       if (Platform.OS !== 'web') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
-      // Navigation will happen automatically when auth state changes
     } catch (error: any) {
       if (!error.message?.includes('cancelled') && !error.message?.includes('dismissed')) {
         Alert.alert('Login Failed', error.message || 'Please try again');
@@ -88,7 +92,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: safeTheme.colors.background }]} edges={['top', 'bottom']}>
-      <StatusBar style={Platform.OS === 'ios' ? 'dark' : 'auto'} />
+      <StatusBar style={theme.dark ? 'light' : 'dark'} />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
@@ -96,127 +100,136 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
           <MotiView
             from={{ opacity: 0, translateY: 20 }}
             animate={{ opacity: 1, translateY: 0 }}
-            transition={{ type: 'timing', duration: 300 }}
+            transition={{ type: 'timing', duration: 500 }}
+            style={styles.contentContainer}
           >
-            <Surface style={styles.header} elevation={0}>
-              <AnimatedButton
-                mode="text"
-                icon="arrow-back"
-                onPress={() => {
-                  navigation.goBack();
-                  if (Platform.OS !== 'web') {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  }
-                }}
-                label=""
-                style={styles.backButton}
+            {/* Header Section */}
+            <View style={styles.headerSection}>
+              <TouchableOpacity
+                onPress={() => navigation.goBack()}
+                style={[styles.backButton, { backgroundColor: safeTheme.colors.surfaceVariant }]}
+              >
+                <Ionicons name="arrow-back" size={24} color={safeTheme.colors.onSurface} />
+              </TouchableOpacity>
+
+              <Text style={[styles.title, { color: safeTheme.colors.onSurface }]}>
+                Welcome Back
+              </Text>
+              <Text style={[styles.subtitle, { color: safeTheme.colors.onSurfaceVariant }]}>
+                Sign in to continue managing your expenses
+              </Text>
+            </View>
+
+            {/* Form Section */}
+            <View style={styles.formSection}>
+              <AnimatedInput
+                label="Email"
+                value={email}
+                onChangeText={setEmail}
+                placeholder="Enter your email"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                left={<TextInput.Icon icon={() => <Ionicons name="mail-outline" size={20} color={safeTheme.colors.onSurfaceVariant} />} />}
+                style={styles.input}
               />
-              <Text style={[styles.title, { color: safeTheme.colors.onSurface }]}>Welcome Back</Text>
-              <Text style={[styles.subtitle, { color: safeTheme.colors.onSurfaceVariant }]}>Sign in to continue</Text>
-            </Surface>
 
-            <AnimatedCard variant="elevated" elevation={2} style={styles.card}>
-              <View style={styles.form}>
-                <AnimatedInput
-                  label="Email"
-                  value={email}
-                  onChangeText={setEmail}
-                  placeholder="Enter your email"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  left={<TextInput.Icon icon={() => <Ionicons name="mail-outline" size={20} />} />}
-                  style={styles.input}
-                />
-
-                <AnimatedInput
-                  label="Password"
-                  value={password}
-                  onChangeText={setPassword}
-                  placeholder="Enter your password"
-                  secureTextEntry={!showPassword}
-                  autoCapitalize="none"
-                  left={<TextInput.Icon icon={() => <Ionicons name="lock-closed-outline" size={20} />} />}
-                  right={
-                    <TextInput.Icon
-                      icon={() => (
-                        <Ionicons
-                          name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                          size={20}
-                        />
-                      )}
-                      onPress={() => {
-                        setShowPassword(!showPassword);
-                        if (Platform.OS !== 'web') {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        }
-                      }}
-                    />
-                  }
-                  style={styles.input}
-                />
-
-                <AnimatedButton
-                  mode="text"
-                  label="Forgot Password?"
-                  onPress={() => {
-                    if (Platform.OS !== 'web') {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    }
-                  }}
-                  variant="primary"
-                  style={styles.forgotButton}
-                />
-
-                <AnimatedButton
-                  mode="contained"
-                  label={isLoading ? 'Signing In...' : 'Sign In'}
-                  onPress={handleLogin}
-                  loading={isLoading}
-                  disabled={isLoading}
-                  variant="primary"
-                  fullWidth
-                  style={styles.loginButton}
-                />
-
-                <View style={styles.divider}>
-                  <View style={[styles.dividerLine, { backgroundColor: safeTheme.colors.outline }]} />
-                  <Text style={[styles.dividerText, { color: safeTheme.colors.onSurfaceVariant }]}>OR</Text>
-                  <View style={[styles.dividerLine, { backgroundColor: safeTheme.colors.outline }]} />
-                </View>
-
-                <AnimatedButton
-                  mode="outlined"
-                  label="Continue with Google"
-                  icon="logo-google"
-                  onPress={handleGoogleLogin}
-                  disabled={isLoading}
-                  variant="secondary"
-                  fullWidth
-                  style={styles.googleButton}
-                />
-
-                <View style={styles.signupContainer}>
-                  <Text style={[styles.signupText, { color: safeTheme.colors.onSurfaceVariant }]}>
-                    Don't have an account?{' '}
-                  </Text>
-                  <AnimatedButton
-                    mode="text"
-                    label="Sign Up"
+              <AnimatedInput
+                label="Password"
+                value={password}
+                onChangeText={setPassword}
+                placeholder="Enter your password"
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+                left={<TextInput.Icon icon={() => <Ionicons name="lock-closed-outline" size={20} color={safeTheme.colors.onSurfaceVariant} />} />}
+                right={
+                  <TextInput.Icon
+                    icon={() => (
+                      <Ionicons
+                        name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                        size={20}
+                        color={safeTheme.colors.onSurfaceVariant}
+                      />
+                    )}
                     onPress={() => {
-                      navigation.navigate('Signup');
+                      setShowPassword(!showPassword);
                       if (Platform.OS !== 'web') {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       }
                     }}
-                    variant="primary"
                   />
-                </View>
+                }
+                style={styles.input}
+              />
+
+              <TouchableOpacity
+                onPress={() => {
+                  if (Platform.OS !== 'web') {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }
+                  // Handle forgot password
+                }}
+                style={styles.forgotButton}
+              >
+                <Text style={[styles.forgotText, { color: safeTheme.colors.primary }]}>
+                  Forgot Password?
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Bottom Actions Section */}
+            <View style={styles.bottomSection}>
+              <AnimatedButton
+                mode="contained"
+                label={isLoading ? 'Signing In...' : 'Sign In'}
+                onPress={handleLogin}
+                loading={isLoading}
+                disabled={isLoading}
+                variant="primary"
+                style={styles.mainButton}
+                contentStyle={styles.buttonContent}
+                labelStyle={styles.buttonLabel}
+              />
+
+              <View style={styles.divider}>
+                <View style={[styles.dividerLine, { backgroundColor: safeTheme.colors.outline }]} />
+                <Text style={[styles.dividerText, { color: safeTheme.colors.onSurfaceVariant }]}>OR</Text>
+                <View style={[styles.dividerLine, { backgroundColor: safeTheme.colors.outline }]} />
               </View>
-            </AnimatedCard>
+
+              <AnimatedButton
+                mode="outlined"
+                label="Continue with Google"
+                icon="logo-google"
+                onPress={handleGoogleLogin}
+                disabled={isLoading}
+                variant="secondary"
+                style={styles.googleButton}
+                contentStyle={styles.buttonContent}
+              />
+
+              <View style={styles.signupContainer}>
+                <Text style={[styles.signupText, { color: safeTheme.colors.onSurfaceVariant }]}>
+                  Don't have an account?
+                </Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    navigation.navigate('Signup');
+                    if (Platform.OS !== 'web') {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }
+                  }}
+                >
+                  <Text style={[styles.signupLink, { color: safeTheme.colors.primary }]}>
+                    Sign Up
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           </MotiView>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -233,48 +246,73 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingTop: 20,
+    padding: 24,
   },
-  header: {
-    marginBottom: 32,
-    backgroundColor: 'transparent',
+  contentContainer: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  headerSection: {
+    marginTop: 20,
+    marginBottom: 40,
   },
   backButton: {
-    minWidth: 40,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 24,
   },
   title: {
     fontSize: 32,
-    fontWeight: '700',
-    marginBottom: 8,
+    fontWeight: '800',
+    marginBottom: 12,
     letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 16,
+    lineHeight: 24,
   },
-  card: {
+  formSection: {
+    gap: 16,
     marginBottom: 24,
   },
-  form: {
-    gap: 16,
-  },
   input: {
-    marginBottom: 8,
+    marginBottom: 4,
   },
   forgotButton: {
     alignSelf: 'flex-end',
-    marginTop: -8,
-    marginBottom: 8,
+    paddingVertical: 8,
   },
-  loginButton: {
-    marginTop: 8,
-    marginBottom: 24,
+  forgotText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  bottomSection: {
+    marginTop: 'auto',
+    gap: 16,
+  },
+  mainButton: {
+    borderRadius: 16,
+    height: 56,
+  },
+  googleButton: {
+    borderRadius: 16,
+    height: 56,
+    borderWidth: 1,
+  },
+  buttonContent: {
+    height: 56,
+  },
+  buttonLabel: {
+    fontSize: 16,
+    fontWeight: '700',
   },
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 24,
+    marginVertical: 8,
   },
   dividerLine: {
     flex: 1,
@@ -285,16 +323,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  googleButton: {
-    marginBottom: 24,
-  },
   signupContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    gap: 6,
     marginTop: 8,
   },
   signupText: {
     fontSize: 14,
+  },
+  signupLink: {
+    fontSize: 14,
+    fontWeight: '700',
   },
 });

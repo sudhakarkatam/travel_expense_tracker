@@ -41,8 +41,8 @@ interface HeatmapDay {
 export default function SpendingHeatmapScreen({ navigation }: SpendingHeatmapScreenProps) {
   const theme = useTheme();
   const { isDark } = useThemeMode();
-  const { expenses } = useApp();
-  
+  const { expenses, trips } = useApp();
+
   const safeTheme = {
     colors: {
       background: theme?.colors?.background || (isDark ? '#111827' : '#FFFFFF'),
@@ -65,7 +65,11 @@ export default function SpendingHeatmapScreen({ navigation }: SpendingHeatmapScr
 
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
   const [selectedDay, setSelectedDay] = useState<HeatmapDay | null>(null);
+  const [selectedTripId, setSelectedTripId] = useState<string>("all");
   const [showDayModal, setShowDayModal] = useState(false);
+  const [showTripSelector, setShowTripSelector] = useState(false);
+  const [showDateSelector, setShowDateSelector] = useState(false);
+  const [tempSelectedDate, setTempSelectedDate] = useState<Date>(new Date());
   const [viewMode, setViewMode] = useState<"month" | "custom">("month");
   const [showCustomRangeModal, setShowCustomRangeModal] = useState(false);
   const [customStartDate, setCustomStartDate] = useState<string>("");
@@ -78,26 +82,28 @@ export default function SpendingHeatmapScreen({ navigation }: SpendingHeatmapScr
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const firstDay = new Date(year, month, 1).getDay();
     const today = new Date();
-    
+
     // Aggregate daily spending
     const dailySpending: Record<string, number> = {};
     const dailyExpenseCount: Record<string, number> = {};
-    
+
     expenses.forEach((expense) => {
       const expenseDate = new Date(expense.date);
-      if (expenseDate.getMonth() === month && expenseDate.getFullYear() === year) {
+      const matchesTrip = selectedTripId === "all" || expense.tripId === selectedTripId;
+
+      if (matchesTrip && expenseDate.getMonth() === month && expenseDate.getFullYear() === year) {
         const dateKey = expenseDate.toISOString().split('T')[0];
         dailySpending[dateKey] = (dailySpending[dateKey] || 0) + expense.amount;
         dailyExpenseCount[dateKey] = (dailyExpenseCount[dateKey] || 0) + 1;
       }
     });
-    
+
     // Find max for normalization
     const maxSpending = Math.max(...Object.values(dailySpending), 1);
-    
+
     // Generate heatmap data
     const heatmapData: HeatmapDay[] = [];
-    
+
     // Add empty days before month starts
     for (let i = 0; i < firstDay; i++) {
       heatmapData.push({
@@ -110,7 +116,7 @@ export default function SpendingHeatmapScreen({ navigation }: SpendingHeatmapScr
         isCurrentMonth: false,
       });
     }
-    
+
     // Add month days
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(year, month, day);
@@ -118,7 +124,7 @@ export default function SpendingHeatmapScreen({ navigation }: SpendingHeatmapScr
       const amount = dailySpending[dateKey] || 0;
       const intensity = amount / maxSpending;
       const todayKey = today.toISOString().split('T')[0];
-      
+
       heatmapData.push({
         date: dateKey,
         amount,
@@ -129,9 +135,9 @@ export default function SpendingHeatmapScreen({ navigation }: SpendingHeatmapScr
         isCurrentMonth: true,
       });
     }
-    
+
     return heatmapData;
-  }, [expenses, currentMonth]);
+  }, [expenses, currentMonth, selectedTripId]);
 
   // Calculate insights
   const insights = useMemo(() => {
@@ -144,7 +150,7 @@ export default function SpendingHeatmapScreen({ navigation }: SpendingHeatmapScr
     const minDay = monthDays.find(d => d.amount === minAmount && d.amount > 0);
     const avgPerDay = monthDays.length > 0 ? totalSpent / monthDays.length : 0;
     const daysWithSpending = monthDays.filter(d => d.amount > 0).length;
-    
+
     // Most active day of week
     const dayOfWeekSpending: Record<number, number> = {};
     monthDays.forEach(day => {
@@ -155,7 +161,7 @@ export default function SpendingHeatmapScreen({ navigation }: SpendingHeatmapScr
     const mostActiveDay = Object.entries(dayOfWeekSpending)
       .sort(([, a], [, b]) => b - a)[0];
     const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    
+
     return {
       totalSpent,
       maxDay,
@@ -208,7 +214,7 @@ export default function SpendingHeatmapScreen({ navigation }: SpendingHeatmapScr
   const getDayColor = (intensity: number, isCurrentMonth: boolean) => {
     if (!isCurrentMonth) return safeTheme.colors.surfaceVariant;
     if (intensity === 0) return safeTheme.colors.surfaceVariant;
-    
+
     if (intensity > 0.7) return safeTheme.colors.error;
     if (intensity > 0.4) return safeTheme.colors.warning;
     if (intensity > 0.1) return safeTheme.colors.primary + '80';
@@ -240,7 +246,23 @@ export default function SpendingHeatmapScreen({ navigation }: SpendingHeatmapScr
           </TouchableOpacity>
           <View style={styles.headerTitleContainer}>
             <Text style={styles.headerTitle}>Spending Heatmap</Text>
-            <Text style={styles.headerSubtitle}>{monthYearLabel}</Text>
+            <TouchableOpacity
+              style={styles.tripSelectorButton}
+              onPress={() => setShowTripSelector(true)}
+            >
+              <Text style={styles.tripSelectorText}>
+                {selectedTripId === "all"
+                  ? "All Trips"
+                  : trips.find((t) => t.id === selectedTripId)?.name || "Unknown Trip"}
+              </Text>
+              <Ionicons name="chevron-down" size={16} color="rgba(255,255,255,0.9)" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => {
+              setTempSelectedDate(currentMonth);
+              setShowDateSelector(true);
+            }}>
+              <Text style={styles.headerSubtitle}>{monthYearLabel} <Ionicons name="caret-down" size={12} /></Text>
+            </TouchableOpacity>
           </View>
           <View style={styles.backButton} />
         </View>
@@ -259,7 +281,7 @@ export default function SpendingHeatmapScreen({ navigation }: SpendingHeatmapScr
           >
             <Ionicons name="chevron-back" size={20} color={safeTheme.colors.onPrimary} />
           </TouchableOpacity>
-          
+
           <TouchableOpacity
             onPress={handleCurrentMonth}
             style={styles.currentMonthButton}
@@ -272,14 +294,14 @@ export default function SpendingHeatmapScreen({ navigation }: SpendingHeatmapScr
             style={styles.navButton}
             disabled={currentMonth.getMonth() >= new Date().getMonth() && currentMonth.getFullYear() >= new Date().getFullYear()}
           >
-            <Ionicons 
-              name="chevron-forward" 
-              size={20} 
+            <Ionicons
+              name="chevron-forward"
+              size={20}
               color={
                 currentMonth.getMonth() >= new Date().getMonth() && currentMonth.getFullYear() >= new Date().getFullYear()
                   ? safeTheme.colors.onPrimary + '60'
                   : safeTheme.colors.onPrimary
-              } 
+              }
             />
           </TouchableOpacity>
         </View>
@@ -294,7 +316,7 @@ export default function SpendingHeatmapScreen({ navigation }: SpendingHeatmapScr
         <MotiView from={{ opacity: 0, translateY: 20 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300 }}>
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: safeTheme.colors.onSurface }]}>Daily Spending Intensity</Text>
-            
+
             <Surface style={[styles.heatmapContainer, { backgroundColor: safeTheme.colors.surface }]} elevation={1}>
               {/* Day Labels */}
               <View style={styles.dayLabelsRow}>
@@ -310,7 +332,7 @@ export default function SpendingHeatmapScreen({ navigation }: SpendingHeatmapScr
                 {heatmapData.map((day, index) => {
                   const color = getDayColor(day.intensity, day.isCurrentMonth);
                   const opacity = day.isCurrentMonth ? getDayOpacity(day.intensity) : 0.1;
-                  
+
                   return (
                     <TouchableOpacity
                       key={index}
@@ -435,9 +457,9 @@ export default function SpendingHeatmapScreen({ navigation }: SpendingHeatmapScr
               <>
                 <View style={styles.dayModalHeader}>
                   <Text style={[styles.dayModalTitle, { color: safeTheme.colors.onSurface }]}>
-                    {new Date(selectedDay.date).toLocaleDateString('default', { 
-                      weekday: 'long', 
-                      month: 'long', 
+                    {new Date(selectedDay.date).toLocaleDateString('default', {
+                      weekday: 'long',
+                      month: 'long',
                       day: 'numeric',
                       year: 'numeric'
                     })}
@@ -446,7 +468,7 @@ export default function SpendingHeatmapScreen({ navigation }: SpendingHeatmapScr
                     <Ionicons name="close" size={24} color={safeTheme.colors.onSurfaceVariant} />
                   </TouchableOpacity>
                 </View>
-                
+
                 <View style={styles.dayModalStats}>
                   <View style={styles.dayModalStatItem}>
                     <Text style={[styles.dayModalStatLabel, { color: safeTheme.colors.onSurfaceVariant }]}>Total Spent</Text>
@@ -467,8 +489,8 @@ export default function SpendingHeatmapScreen({ navigation }: SpendingHeatmapScr
                   onPress={() => {
                     setShowDayModal(false);
                     // Navigate to expenses filtered by date
-                    navigation.navigate('AllExpenses', { 
-                      dateFilter: selectedDay.date 
+                    navigation.navigate('AllExpenses', {
+                      dateFilter: selectedDay.date
                     });
                   }}
                 >
@@ -480,6 +502,178 @@ export default function SpendingHeatmapScreen({ navigation }: SpendingHeatmapScr
             )}
           </View>
         </View>
+      </Modal>
+
+      {/* Trip Selector Modal */}
+      <Modal
+        visible={showTripSelector}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowTripSelector(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowTripSelector(false)}
+        >
+          <View style={[styles.tripSelectorModal, { backgroundColor: safeTheme.colors.surface }]}>
+            <Text style={[styles.modalTitle, { color: safeTheme.colors.onSurface, marginBottom: 12 }]}>Select Trip</Text>
+            <ScrollView style={{ maxHeight: 300 }}>
+              <TouchableOpacity
+                style={[
+                  styles.tripOption,
+                  selectedTripId === "all" && { backgroundColor: safeTheme.colors.primaryContainer },
+                ]}
+                onPress={() => {
+                  setSelectedTripId("all");
+                  setShowTripSelector(false);
+                }}
+              >
+                <Text
+                  style={[
+                    styles.tripOptionText,
+                    {
+                      color: selectedTripId === "all"
+                        ? safeTheme.colors.onPrimaryContainer
+                        : safeTheme.colors.onSurface
+                    },
+                  ]}
+                >
+                  All Trips
+                </Text>
+                {selectedTripId === "all" && (
+                  <Ionicons name="checkmark" size={20} color={safeTheme.colors.primary} />
+                )}
+              </TouchableOpacity>
+              {trips.map((trip) => (
+                <TouchableOpacity
+                  key={trip.id}
+                  style={[
+                    styles.tripOption,
+                    selectedTripId === trip.id && { backgroundColor: safeTheme.colors.primaryContainer },
+                  ]}
+                  onPress={() => {
+                    setSelectedTripId(trip.id);
+                    setShowTripSelector(false);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.tripOptionText,
+                      {
+                        color: selectedTripId === trip.id
+                          ? safeTheme.colors.onPrimaryContainer
+                          : safeTheme.colors.onSurface
+                      },
+                    ]}
+                  >
+                    {trip.name}
+                  </Text>
+                  {selectedTripId === trip.id && (
+                    <Ionicons name="checkmark" size={20} color={safeTheme.colors.primary} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Date Selector Modal */}
+      <Modal
+        visible={showDateSelector}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowDateSelector(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowDateSelector(false)}
+        >
+          <View style={[styles.dateSelectorModal, { backgroundColor: safeTheme.colors.surface }]}>
+            <Text style={[styles.modalTitle, { color: safeTheme.colors.onSurface, marginBottom: 16 }]}>Select Month & Year</Text>
+
+            <View style={styles.dateSelectorControls}>
+              {/* Year Selector */}
+              <View style={styles.yearSelector}>
+                <TouchableOpacity onPress={() => {
+                  const newDate = new Date(tempSelectedDate);
+                  newDate.setFullYear(newDate.getFullYear() - 1);
+                  setTempSelectedDate(newDate);
+                }}>
+                  <Ionicons name="chevron-back" size={24} color={safeTheme.colors.primary} />
+                </TouchableOpacity>
+                <Text style={[styles.yearText, { color: safeTheme.colors.onSurface }]}>{tempSelectedDate.getFullYear()}</Text>
+                <TouchableOpacity onPress={() => {
+                  const newDate = new Date(tempSelectedDate);
+                  newDate.setFullYear(newDate.getFullYear() + 1);
+                  if (newDate <= new Date()) {
+                    setTempSelectedDate(newDate);
+                  }
+                }}>
+                  <Ionicons
+                    name="chevron-forward"
+                    size={24}
+                    color={tempSelectedDate.getFullYear() >= new Date().getFullYear() ? safeTheme.colors.onSurfaceVariant : safeTheme.colors.primary}
+                  />
+                </TouchableOpacity>
+              </View>
+
+              {/* Month Grid */}
+              <View style={styles.monthGrid}>
+                {Array.from({ length: 12 }, (_, i) => {
+                  const date = new Date(tempSelectedDate.getFullYear(), i, 1);
+                  const isSelected = i === tempSelectedDate.getMonth();
+                  const isFuture = date > new Date();
+
+                  return (
+                    <TouchableOpacity
+                      key={i}
+                      style={[
+                        styles.monthButton,
+                        isSelected && { backgroundColor: safeTheme.colors.primary },
+                        isFuture && { opacity: 0.5 }
+                      ]}
+                      disabled={isFuture}
+                      onPress={() => {
+                        const newDate = new Date(tempSelectedDate);
+                        newDate.setMonth(i);
+                        setTempSelectedDate(newDate);
+                      }}
+                    >
+                      <Text style={[
+                        styles.monthButtonText,
+                        { color: isSelected ? safeTheme.colors.onPrimary : safeTheme.colors.onSurface },
+                        isFuture && { color: safeTheme.colors.onSurfaceVariant }
+                      ]}>
+                        {date.toLocaleDateString('default', { month: 'short' })}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: safeTheme.colors.surfaceVariant }]}
+                onPress={() => setShowDateSelector(false)}
+              >
+                <Text style={[styles.modalButtonText, { color: safeTheme.colors.onSurface }]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: safeTheme.colors.primary }]}
+                onPress={() => {
+                  setCurrentMonth(tempSelectedDate);
+                  setShowDateSelector(false);
+                }}
+              >
+                <Text style={[styles.modalButtonText, { color: safeTheme.colors.onPrimary }]}>Apply</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
       </Modal>
     </SafeAreaView>
   );
@@ -731,6 +925,106 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   viewExpensesButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  tripSelectorButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 6,
+    marginBottom: 4,
+  },
+  tripSelectorText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  tripSelectorModal: {
+    width: '80%',
+    borderRadius: 16,
+    padding: 16,
+    alignSelf: 'center',
+    marginTop: 'auto',
+    marginBottom: 'auto',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  tripOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  tripOptionText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  dateSelectorModal: {
+    width: '90%',
+    borderRadius: 16,
+    padding: 20,
+    alignSelf: 'center',
+    marginTop: 'auto',
+    marginBottom: 'auto',
+    elevation: 5,
+  },
+  dateSelectorControls: {
+    gap: 20,
+    marginBottom: 20,
+  },
+  yearSelector: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+  },
+  yearText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  monthGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    justifyContent: 'center',
+  },
+  monthButton: {
+    width: '30%',
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.1)',
+  },
+  monthButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  modalButtonText: {
     fontSize: 16,
     fontWeight: '600',
   },

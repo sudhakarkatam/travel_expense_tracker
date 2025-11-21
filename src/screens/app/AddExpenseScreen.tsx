@@ -54,8 +54,9 @@ export default function AddExpenseScreen({ navigation, route }: AddExpenseScreen
     tripId: tripId,
     amount: "",
     description: "",
+    notes: "",
     category: categories.length > 0 ? categories[0].id : "food",
-    date: new Date().toISOString().split("T")[0],
+    date: new Date().toISOString(),
     currency: "INR",
     isSplitExpense: false,
     paidBy: "",
@@ -67,6 +68,7 @@ export default function AddExpenseScreen({ navigation, route }: AddExpenseScreen
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [receiptImages, setReceiptImages] = useState<string[]>([]);
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
+  const [showTripSelector, setShowTripSelector] = useState(false);
 
   useEffect(() => {
     if (trip && trip.participants && trip.participants.length > 0) {
@@ -227,6 +229,8 @@ export default function AddExpenseScreen({ navigation, route }: AddExpenseScreen
   };
 
   const handleAddExpense = async () => {
+    if (isSubmitting) return;
+
     if (!formData.amount.trim() || !formData.tripId) {
       Alert.alert("Error", "Please fill in all required fields.");
       return;
@@ -279,6 +283,7 @@ export default function AddExpenseScreen({ navigation, route }: AddExpenseScreen
         amount: amount,
         currency: formData.currency,
         description: formData.description.trim(),
+        notes: formData.notes?.trim(),
         category: formData.category as any,
         date: formData.date,
         receiptImages: receiptImages,
@@ -317,14 +322,58 @@ export default function AddExpenseScreen({ navigation, route }: AddExpenseScreen
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.form}>
-            <View style={styles.inputGroup}>
+            <View style={[styles.inputGroup, { zIndex: 10 }]}>
               <Text style={styles.label}>Trip</Text>
-              <View style={styles.tripSelector}>
+              <TouchableOpacity
+                style={styles.tripSelector}
+                onPress={() => setShowTripSelector(!showTripSelector)}
+              >
                 <Text style={styles.tripText}>
                   {selectedTrip ? selectedTrip.name : "Select a trip"}
                 </Text>
-                <Ionicons name="chevron-down" size={20} color="#666" />
-              </View>
+                <Ionicons name={showTripSelector ? "chevron-up" : "chevron-down"} size={20} color="#666" />
+              </TouchableOpacity>
+              {showTripSelector && (
+                <View style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  right: 0,
+                  backgroundColor: '#fff',
+                  borderRadius: 8,
+                  borderWidth: 1,
+                  borderColor: '#d1d5db',
+                  marginTop: 4,
+                  maxHeight: 200,
+                  elevation: 5,
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.25,
+                  shadowRadius: 3.84,
+                }}>
+                  <ScrollView nestedScrollEnabled>
+                    {trips.map(trip => (
+                      <TouchableOpacity
+                        key={trip.id}
+                        style={{
+                          padding: 12,
+                          borderBottomWidth: 1,
+                          borderBottomColor: '#f3f4f6',
+                          backgroundColor: trip.id === formData.tripId ? '#f3f4f6' : '#fff'
+                        }}
+                        onPress={() => {
+                          handleInputChange("tripId", trip.id);
+                          setShowTripSelector(false);
+                        }}
+                      >
+                        <Text style={{ color: '#333', fontWeight: trip.id === formData.tripId ? '600' : '400' }}>
+                          {trip.name}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
             </View>
 
             <View style={styles.inputGroup}>
@@ -356,6 +405,18 @@ export default function AddExpenseScreen({ navigation, route }: AddExpenseScreen
                 placeholder="What did you pay for?"
                 value={formData.description}
                 onChangeText={(value) => handleInputChange("description", value)}
+                multiline
+                numberOfLines={3}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Notes (optional)</Text>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                placeholder="Additional details..."
+                value={formData.notes}
+                onChangeText={(value) => handleInputChange("notes", value)}
                 multiline
                 numberOfLines={3}
               />
@@ -570,6 +631,7 @@ export default function AddExpenseScreen({ navigation, route }: AddExpenseScreen
               <DatePickerInput
                 value={formData.date}
                 onChange={(value) => handleInputChange("date", value)}
+                mode="datetime"
               />
             </View>
 

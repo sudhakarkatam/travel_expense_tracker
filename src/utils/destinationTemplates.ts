@@ -581,8 +581,61 @@ export function getDurationBasedSuggestions(days: number): Array<{ name: string;
   return suggestions;
 }
 
+
+// Real-time activity templates
+export const REAL_TIME_ACTIVITY_TEMPLATES: ActivityTemplate[] = [
+  {
+    destination: "Morning Routine",
+    icon: "sunny-outline",
+    activities: [
+      { description: "Morning Walk", date: "" },
+      { description: "Yoga / Meditation", date: "" },
+      { description: "Breakfast at local cafe", date: "" },
+      { description: "Read news / Plan the day", date: "" },
+    ],
+  },
+  {
+    destination: "Meals",
+    icon: "restaurant-outline",
+    activities: [
+      { description: "Lunch at popular spot", date: "" },
+      { description: "Dinner reservation", date: "" },
+      { description: "Street food tasting", date: "" },
+      { description: "Coffee break", date: "" },
+      { description: "Dessert / Ice cream", date: "" },
+    ],
+  },
+  {
+    destination: "Leisure",
+    icon: "happy-outline",
+    activities: [
+      { description: "Shopping at local market", date: "" },
+      { description: "Relax at park/beach", date: "" },
+      { description: "Photography walk", date: "" },
+      { description: "Visit a bookstore", date: "" },
+      { description: "Watch sunset", date: "" },
+    ],
+  },
+  {
+    destination: "Nightlife",
+    icon: "moon-outline",
+    activities: [
+      { description: "Visit a bar/pub", date: "" },
+      { description: "Live music event", date: "" },
+      { description: "Night market", date: "" },
+      { description: "Stargazing", date: "" },
+    ],
+  },
+];
+
 // Get condition-based templates
 export function getConditionTemplates(): DestinationTemplate[] {
   return CONDITION_PACKING_TEMPLATES;
 }
+
+// Get real-time activity templates
+export function getRealTimeActivityTemplates(): ActivityTemplate[] {
+  return REAL_TIME_ACTIVITY_TEMPLATES;
+}
+
 

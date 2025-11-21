@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -14,7 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme, Surface } from "react-native-paper";
 import { useThemeMode } from "@/contexts/ThemeContext";
-import { LineChart, BarChart } from "react-native-chart-kit";
+import { LineChart, BarChart, PieChart } from "react-native-chart-kit";
 import { useApp } from "@/contexts/AppContext";
 import { getCategoryBreakdown } from "@/utils/analyticsCalculations";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -23,9 +23,10 @@ import { MotiView } from "moti";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import DatePickerInput from "@/components/DatePickerInput";
+import { Svg, Circle, Rect } from "react-native-svg";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const CHART_WIDTH = SCREEN_WIDTH - 48;
+const CHART_WIDTH = SCREEN_WIDTH - 32;
 
 interface SpendingTrendsScreenProps {
   navigation: any;
@@ -42,8 +43,8 @@ interface DailySpending {
 export default function SpendingTrendsScreen({ navigation }: SpendingTrendsScreenProps) {
   const theme = useTheme();
   const { isDark } = useThemeMode();
-  const { expenses } = useApp();
-  
+  const { expenses, trips } = useApp();
+
   const safeTheme = {
     colors: {
       background: theme?.colors?.background || (isDark ? '#111827' : '#FFFFFF'),
@@ -56,15 +57,16 @@ export default function SpendingTrendsScreen({ navigation }: SpendingTrendsScree
       primaryContainer: theme?.colors?.primaryContainer || (isDark ? '#6d28d9' : '#EDE9FE'),
       onPrimaryContainer: theme?.colors?.onPrimaryContainer || (isDark ? '#e9d5ff' : '#000000'),
       error: theme?.colors?.error || '#EF4444',
-      success: theme?.colors?.success || '#10b981',
-      warning: theme?.colors?.warning || '#F59E0B',
-      info: theme?.colors?.info || '#3B82F6',
+      success: (theme?.colors as any)?.success || '#10b981',
+      warning: (theme?.colors as any)?.warning || '#F59E0B',
+      info: (theme?.colors as any)?.info || '#3B82F6',
       outline: theme?.colors?.outline || (isDark ? '#4b5563' : '#E5E7EB'),
       outlineVariant: theme?.colors?.outlineVariant || (isDark ? '#374151' : '#E5E7EB'),
     },
   };
 
   const [selectedPeriod, setSelectedPeriod] = useState<"7d" | "30d" | "90d" | "custom">("30d");
+  const [selectedTripId, setSelectedTripId] = useState<string>("all");
   const [currentStartDate, setCurrentStartDate] = useState<Date>(() => {
     const date = new Date();
     date.setDate(date.getDate() - 30);
@@ -72,8 +74,10 @@ export default function SpendingTrendsScreen({ navigation }: SpendingTrendsScree
   });
   const [currentEndDate, setCurrentEndDate] = useState<Date>(new Date());
   const [showCustomRangeModal, setShowCustomRangeModal] = useState(false);
+  const [showTripSelector, setShowTripSelector] = useState(false);
   const [customStartDate, setCustomStartDate] = useState<string>("");
   const [customEndDate, setCustomEndDate] = useState<string>("");
+  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number; visible: boolean; value: number; label: string } | null>(null);
 
   const periodDays = {
     "7d": 7,
@@ -83,34 +87,27 @@ export default function SpendingTrendsScreen({ navigation }: SpendingTrendsScree
 
   // Calculate date range based on selected period
   const dateRange = useMemo(() => {
-    if (selectedPeriod === "custom") {
-      if (customStartDate && customEndDate) {
-        return {
-          start: new Date(customStartDate),
-          end: new Date(customEndDate),
-        };
-      }
-      return { start: currentStartDate, end: currentEndDate };
-    }
-    
-    const end = new Date();
-    const start = new Date();
-    start.setDate(start.getDate() - periodDays[selectedPeriod]);
-    return { start, end };
-  }, [selectedPeriod, currentStartDate, currentEndDate, customStartDate, customEndDate, periodDays]);
+    return { start: currentStartDate, end: currentEndDate };
+  }, [currentStartDate, currentEndDate]);
+
+  // Filter expenses based on date range and selected trip
+  const filteredExpenses = useMemo(() => {
+    const { start, end } = dateRange;
+    return expenses.filter((expense) => {
+      const expenseDate = new Date(expense.date);
+      const matchesTrip = selectedTripId === "all" || expense.tripId === selectedTripId;
+      return matchesTrip && expenseDate >= start && expenseDate <= end;
+    });
+  }, [expenses, dateRange, selectedTripId]);
 
   // Process daily spending data
   const dailySpendingData = useMemo((): DailySpending[] => {
     const { start, end } = dateRange;
-    const filteredExpenses = expenses.filter((expense) => {
-      const expenseDate = new Date(expense.date);
-      return expenseDate >= start && expenseDate <= end;
-    });
 
     // Initialize date map
     const dailyMap: Record<string, DailySpending> = {};
     const currentDate = new Date(start);
-    
+
     while (currentDate <= end) {
       const dateKey = currentDate.toISOString().split('T')[0];
       dailyMap[dateKey] = {
@@ -129,7 +126,7 @@ export default function SpendingTrendsScreen({ navigation }: SpendingTrendsScree
       if (dailyMap[dateKey]) {
         dailyMap[dateKey].amount += expense.amount;
         dailyMap[dateKey].expenseCount += 1;
-        dailyMap[dateKey].categories[expense.category] = 
+        dailyMap[dateKey].categories[expense.category] =
           (dailyMap[dateKey].categories[expense.category] || 0) + expense.amount;
       }
     });
@@ -141,10 +138,10 @@ export default function SpendingTrendsScreen({ navigation }: SpendingTrendsScree
       day.topCategory = topCategory ? topCategory[0] : '';
     });
 
-    return Object.values(dailyMap).sort((a, b) => 
+    return Object.values(dailyMap).sort((a, b) =>
       new Date(a.date).getTime() - new Date(b.date).getTime()
     );
-  }, [expenses, dateRange]);
+  }, [filteredExpenses, dateRange]);
 
   // Calculate insights
   const insights = useMemo(() => {
@@ -156,14 +153,9 @@ export default function SpendingTrendsScreen({ navigation }: SpendingTrendsScree
     const minDay = dailySpendingData.find(d => d.amount === minAmount && d.amount > 0);
     const avgPerDay = dailySpendingData.length > 0 ? totalSpent / dailySpendingData.length : 0;
     const totalTransactions = dailySpendingData.reduce((sum, d) => sum + d.expenseCount, 0);
-    
+
     // Most used category
-    const categoryBreakdown = getCategoryBreakdown(
-      expenses.filter(e => {
-        const expenseDate = new Date(e.date);
-        return expenseDate >= dateRange.start && expenseDate <= dateRange.end;
-      })
-    );
+    const categoryBreakdown = getCategoryBreakdown(filteredExpenses);
     const mostUsedCategory = categoryBreakdown[0];
 
     // Peak hour (simplified - would need time data)
@@ -178,43 +170,41 @@ export default function SpendingTrendsScreen({ navigation }: SpendingTrendsScree
       mostUsedCategory,
       peakHour,
     };
-  }, [dailySpendingData, expenses, dateRange]);
+  }, [dailySpendingData, filteredExpenses]);
 
-  // Chart data - show max 7 labels at a time for better readability
+  // Chart data
   const lineChartData = useMemo(() => {
     const labels = dailySpendingData.map((day) => {
       const date = new Date(day.date);
-      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-      return `${dayNames[date.getDay()]} ${date.getDate()}`;
+      return `${date.getDate()}/${date.getMonth() + 1}`;
     });
-    
+
     const data = dailySpendingData.map((day) => day.amount);
 
-    // For monthly/90d views, show only 7 labels at a time
-    const maxLabels = 7;
-    const shouldScroll = labels.length > maxLabels;
-    
+    // Downsample labels for readability if too many points
+    const visibleLabels = labels.map((label, index) => {
+      if (labels.length > 10 && index % Math.ceil(labels.length / 6) !== 0) {
+        return '';
+      }
+      return label;
+    });
+
     return {
-      labels: labels.length > 0 ? labels : ['No Data'],
+      labels: visibleLabels,
       datasets: [
         {
           data: data.length > 0 ? data : [0],
-          strokeWidth: 2,
+          color: (opacity = 1) => safeTheme.colors.primary,
+          strokeWidth: 3,
         },
       ],
-      shouldScroll,
-      totalPoints: labels.length,
+      legend: ["Daily Spending"]
     };
-  }, [dailySpendingData]);
+  }, [dailySpendingData, safeTheme.colors.primary]);
 
   // Category bar chart data
   const categoryChartData = useMemo(() => {
-    const categoryBreakdown = getCategoryBreakdown(
-      expenses.filter(e => {
-        const expenseDate = new Date(e.date);
-        return expenseDate >= dateRange.start && expenseDate <= dateRange.end;
-      })
-    );
+    const categoryBreakdown = getCategoryBreakdown(filteredExpenses);
 
     return {
       labels: categoryBreakdown.slice(0, 5).map(c => c.category),
@@ -224,30 +214,48 @@ export default function SpendingTrendsScreen({ navigation }: SpendingTrendsScree
         },
       ],
     };
-  }, [expenses, dateRange]);
+  }, [filteredExpenses]);
+
+  // Category Pie Chart Data
+  const pieChartData = useMemo(() => {
+    const categoryBreakdown = getCategoryBreakdown(filteredExpenses);
+    return categoryBreakdown.map((c, index) => ({
+      name: c.category,
+      population: c.amount,
+      color: c.color,
+      legendFontColor: safeTheme.colors.onSurfaceVariant,
+      legendFontSize: 12,
+    }));
+  }, [filteredExpenses, safeTheme]);
 
   const chartConfig = {
     backgroundColor: safeTheme.colors.surface,
     backgroundGradientFrom: safeTheme.colors.surface,
     backgroundGradientTo: safeTheme.colors.surface,
     decimalPlaces: 0,
-    color: (opacity = 1) => {
-      const rgb = hexToRgb(safeTheme.colors.primary);
-      return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${opacity})`;
-    },
-    labelColor: (opacity = 1) => {
-      const rgb = hexToRgb(safeTheme.colors.onSurfaceVariant);
-      return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${opacity})`;
-    },
+    color: (opacity = 1) => safeTheme.colors.primary,
+    labelColor: (opacity = 1) => safeTheme.colors.onSurfaceVariant,
     style: { borderRadius: 16 },
-    propsForDots: { r: "4", strokeWidth: "2", stroke: safeTheme.colors.primary },
+    propsForDots: { r: "4", strokeWidth: "2", stroke: safeTheme.colors.surface },
+    propsForBackgroundLines: { strokeDasharray: "", stroke: safeTheme.colors.outlineVariant, strokeOpacity: 0.3 },
   };
 
-  const hexToRgb = (hex: string) => {
-    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    return result
-      ? { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) }
-      : { r: 139, g: 92, b: 246 };
+  const handleDataPointClick = (data: any) => {
+    const { x, y, value, index } = data;
+    const date = dailySpendingData[index]?.date;
+    const formattedDate = new Date(date).toLocaleDateString('default', { month: 'short', day: 'numeric' });
+
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+
+    setTooltipPos({
+      x,
+      y,
+      visible: true,
+      value,
+      label: formattedDate
+    });
   };
 
   const handlePreviousPeriod = () => {
@@ -257,7 +265,7 @@ export default function SpendingTrendsScreen({ navigation }: SpendingTrendsScree
     newEnd.setDate(newEnd.getDate() - 1);
     const newStart = new Date(newEnd);
     newStart.setDate(newStart.getDate() - daysDiff);
-    
+
     setCurrentStartDate(newStart);
     setCurrentEndDate(newEnd);
     if (Platform.OS !== 'web') {
@@ -272,14 +280,14 @@ export default function SpendingTrendsScreen({ navigation }: SpendingTrendsScree
     newStart.setDate(newStart.getDate() + 1);
     const newEnd = new Date(newStart);
     newEnd.setDate(newEnd.getDate() + daysDiff);
-    
+
     // Don't go beyond today
     const today = new Date();
     if (newEnd > today) {
       newEnd.setTime(today.getTime());
     }
     if (newStart > today) return;
-    
+
     setCurrentStartDate(newStart);
     setCurrentEndDate(newEnd);
     if (Platform.OS !== 'web') {
@@ -324,26 +332,16 @@ export default function SpendingTrendsScreen({ navigation }: SpendingTrendsScree
 
   const formatDateRange = () => {
     const { start, end } = dateRange;
-    const startStr = start.toLocaleDateString('default', { month: 'short', day: 'numeric', year: 'numeric' });
-    const endStr = end.toLocaleDateString('default', { month: 'short', day: 'numeric', year: 'numeric' });
+    const startStr = start.toLocaleDateString('default', { month: 'short', day: 'numeric' });
+    const endStr = end.toLocaleDateString('default', { month: 'short', day: 'numeric' });
     return `${startStr} - ${endStr}`;
-  };
-
-  const formatMonthYear = () => {
-    const { start, end } = dateRange;
-    const startMonth = start.toLocaleDateString('default', { month: 'long', year: 'numeric' });
-    const endMonth = end.toLocaleDateString('default', { month: 'long', year: 'numeric' });
-    if (startMonth === endMonth) {
-      return startMonth;
-    }
-    return `${startMonth} - ${endMonth}`;
   };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: safeTheme.colors.background }]} edges={["top"]}>
       {/* Header with Gradient */}
       <LinearGradient
-        colors={[safeTheme.colors.primary, safeTheme.colors.primary + 'DD']}
+        colors={[safeTheme.colors.primary, safeTheme.colors.primary + 'CC']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.header}
@@ -357,8 +355,18 @@ export default function SpendingTrendsScreen({ navigation }: SpendingTrendsScree
           </TouchableOpacity>
           <View style={styles.headerTitleContainer}>
             <Text style={styles.headerTitle}>Spending Trends</Text>
+            <TouchableOpacity
+              style={styles.tripSelectorButton}
+              onPress={() => setShowTripSelector(true)}
+            >
+              <Text style={styles.tripSelectorText}>
+                {selectedTripId === "all"
+                  ? "All Trips"
+                  : trips.find((t) => t.id === selectedTripId)?.name || "Unknown Trip"}
+              </Text>
+              <Ionicons name="chevron-down" size={16} color="rgba(255,255,255,0.9)" />
+            </TouchableOpacity>
             <Text style={styles.headerSubtitle}>{formatDateRange()}</Text>
-            <Text style={styles.headerMonthYear}>{formatMonthYear()}</Text>
           </View>
           <View style={styles.backButton} />
         </View>
@@ -376,13 +384,13 @@ export default function SpendingTrendsScreen({ navigation }: SpendingTrendsScree
             style={styles.navButton}
             disabled={selectedPeriod === "custom"}
           >
-            <Ionicons 
-              name="chevron-back" 
-              size={20} 
-              color={selectedPeriod === "custom" ? safeTheme.colors.onPrimary + '60' : safeTheme.colors.onPrimary} 
+            <Ionicons
+              name="chevron-back"
+              size={20}
+              color={selectedPeriod === "custom" ? safeTheme.colors.onPrimary + '60' : safeTheme.colors.onPrimary}
             />
           </TouchableOpacity>
-          
+
           <View style={styles.periodButtons}>
             {(["7d", "30d", "90d", "custom"] as const).map((period) => (
               <TouchableOpacity
@@ -410,10 +418,10 @@ export default function SpendingTrendsScreen({ navigation }: SpendingTrendsScree
             style={styles.navButton}
             disabled={selectedPeriod === "custom" || currentEndDate >= new Date()}
           >
-            <Ionicons 
-              name="chevron-forward" 
-              size={20} 
-              color={currentEndDate >= new Date() || selectedPeriod === "custom" ? safeTheme.colors.onPrimary + '60' : safeTheme.colors.onPrimary} 
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={currentEndDate >= new Date() || selectedPeriod === "custom" ? safeTheme.colors.onPrimary + '60' : safeTheme.colors.onPrimary}
             />
           </TouchableOpacity>
         </View>
@@ -425,60 +433,60 @@ export default function SpendingTrendsScreen({ navigation }: SpendingTrendsScree
         showsVerticalScrollIndicator={false}
       >
         {/* Main Chart */}
-        <MotiView from={{ opacity: 0, translateY: 20 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300 }}>
+        <MotiView
+          from={{ opacity: 0, translateY: 20 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'timing', duration: 300 } as any}
+        >
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: safeTheme.colors.onSurface }]}>Daily Spending</Text>
             <ErrorBoundary fallback={<View style={styles.chartError}><Text>Unable to load chart</Text></View>}>
               <Surface style={[styles.chartContainer, { backgroundColor: safeTheme.colors.surface }]} elevation={1}>
                 {lineChartData.datasets[0].data.length > 0 && lineChartData.datasets[0].data.some(d => d > 0) ? (
-                  <View style={styles.chartWrapper}>
-                    {/* Y-axis labels - fixed position */}
-                    <View style={styles.yAxisContainer}>
-                      {(() => {
-                        const maxValue = Math.max(...lineChartData.datasets[0].data);
-                        const steps = 5;
-                        const stepValue = maxValue / steps;
-                        return Array.from({ length: steps + 1 }, (_, i) => {
-                          const value = stepValue * (steps - i);
-                          return (
-                            <Text key={i} style={[styles.yAxisLabel, { color: safeTheme.colors.onSurfaceVariant }]}>
-                              {formatCurrency(value, { compact: true })}
-                            </Text>
-                          );
-                        });
-                      })()}
-                    </View>
-                    {/* Scrollable chart */}
-                    <ScrollView 
-                      horizontal 
-                      showsHorizontalScrollIndicator={true}
-                      contentContainerStyle={styles.chartScrollContent}
-                      style={styles.chartScrollView}
-                    >
-                      <LineChart
-                        data={lineChartData}
-                        width={Math.max(CHART_WIDTH - 60, lineChartData.labels.length * 50)}
-                        height={280}
-                        chartConfig={chartConfig}
-                        bezier
-                        style={styles.chart}
-                        withInnerLines={true}
-                        withOuterLines={true}
-                        withVerticalLabels={false}
-                        withHorizontalLabels={true}
-                        fromZero
-                        onDataPointClick={(data) => {
-                          // Show value on click
-                          const date = lineChartData.labels[data.index];
-                          const value = lineChartData.datasets[0].data[data.index];
-                          Alert.alert(
-                            date,
-                            `Amount: ${formatCurrency(value)}`,
-                            [{ text: 'OK' }]
-                          );
-                        }}
-                      />
-                    </ScrollView>
+                  <View>
+                    <LineChart
+                      data={lineChartData}
+                      width={CHART_WIDTH}
+                      height={220}
+                      chartConfig={chartConfig}
+                      bezier
+                      style={styles.chart}
+                      withInnerLines={true}
+                      withOuterLines={false}
+                      withVerticalLines={false}
+                      withHorizontalLines={true}
+                      withVerticalLabels={true}
+                      withHorizontalLabels={true}
+                      fromZero
+                      onDataPointClick={handleDataPointClick}
+                      decorator={() => {
+                        return tooltipPos?.visible ? (
+                          <View>
+                            <Svg>
+                              <Circle
+                                cx={tooltipPos.x}
+                                cy={tooltipPos.y}
+                                r="6"
+                                fill={safeTheme.colors.primary}
+                                stroke={safeTheme.colors.surface}
+                                strokeWidth="2"
+                              />
+                            </Svg>
+                            <View style={[
+                              styles.tooltip,
+                              {
+                                left: tooltipPos.x - 40,
+                                top: tooltipPos.y - 45,
+                                backgroundColor: safeTheme.colors.onSurface
+                              }
+                            ]}>
+                              <Text style={styles.tooltipText}>{formatCurrency(tooltipPos.value)}</Text>
+                              <Text style={styles.tooltipDate}>{tooltipPos.label}</Text>
+                            </View>
+                          </View>
+                        ) : null;
+                      }}
+                    />
                   </View>
                 ) : (
                   <View style={styles.emptyChart}>
@@ -494,7 +502,9 @@ export default function SpendingTrendsScreen({ navigation }: SpendingTrendsScree
         {/* Insights Cards */}
         <View style={styles.insightsRow}>
           <Surface style={[styles.insightCard, { backgroundColor: safeTheme.colors.surface }]} elevation={1}>
-            <Ionicons name="arrow-up-circle" size={24} color={safeTheme.colors.error} />
+            <View style={[styles.insightIcon, { backgroundColor: safeTheme.colors.error + '20' }]}>
+              <Ionicons name="arrow-up" size={20} color={safeTheme.colors.error} />
+            </View>
             <Text style={[styles.insightLabel, { color: safeTheme.colors.onSurfaceVariant }]}>Highest Day</Text>
             {insights.maxDay ? (
               <>
@@ -511,7 +521,9 @@ export default function SpendingTrendsScreen({ navigation }: SpendingTrendsScree
           </Surface>
 
           <Surface style={[styles.insightCard, { backgroundColor: safeTheme.colors.surface }]} elevation={1}>
-            <Ionicons name="arrow-down-circle" size={24} color={safeTheme.colors.success} />
+            <View style={[styles.insightIcon, { backgroundColor: safeTheme.colors.success + '20' }]}>
+              <Ionicons name="arrow-down" size={20} color={safeTheme.colors.success} />
+            </View>
             <Text style={[styles.insightLabel, { color: safeTheme.colors.onSurfaceVariant }]}>Lowest Day</Text>
             {insights.minDay ? (
               <>
@@ -528,8 +540,10 @@ export default function SpendingTrendsScreen({ navigation }: SpendingTrendsScree
           </Surface>
 
           <Surface style={[styles.insightCard, { backgroundColor: safeTheme.colors.surface }]} elevation={1}>
-            <Ionicons name="calculator-outline" size={24} color={safeTheme.colors.info} />
-            <Text style={[styles.insightLabel, { color: safeTheme.colors.onSurfaceVariant }]}>Average</Text>
+            <View style={[styles.insightIcon, { backgroundColor: safeTheme.colors.info + '20' }]}>
+              <Ionicons name="calculator" size={20} color={safeTheme.colors.info} />
+            </View>
+            <Text style={[styles.insightLabel, { color: safeTheme.colors.onSurfaceVariant }]}>Daily Avg</Text>
             <Text style={[styles.insightValue, { color: safeTheme.colors.onSurface }]}>
               {formatCurrency(insights.avgPerDay)}
             </Text>
@@ -553,42 +567,111 @@ export default function SpendingTrendsScreen({ navigation }: SpendingTrendsScree
                   withVerticalLabels={true}
                   withHorizontalLabels={true}
                   fromZero
+                  yAxisLabel=""
+                  yAxisSuffix=""
+                  showValuesOnTopOfBars
                 />
               </Surface>
             </ErrorBoundary>
           </View>
         )}
 
-        {/* Additional Stats */}
-        <View style={styles.statsSection}>
-          <Surface style={[styles.statCard, { backgroundColor: safeTheme.colors.surface }]} elevation={1}>
-            <Ionicons name="receipt-outline" size={20} color={safeTheme.colors.primary} />
-            <Text style={[styles.statLabel, { color: safeTheme.colors.onSurfaceVariant }]}>Total Transactions</Text>
-            <Text style={[styles.statValue, { color: safeTheme.colors.onSurface }]}>{insights.totalTransactions}</Text>
-          </Surface>
-
-          {insights.mostUsedCategory && (
-            <Surface style={[styles.statCard, { backgroundColor: safeTheme.colors.surface }]} elevation={1}>
-              <Ionicons name="pie-chart-outline" size={20} color={safeTheme.colors.primary} />
-              <Text style={[styles.statLabel, { color: safeTheme.colors.onSurfaceVariant }]}>Top Category</Text>
-              <Text style={[styles.statValue, { color: safeTheme.colors.onSurface }]} numberOfLines={1}>
-                {insights.mostUsedCategory.category}
-              </Text>
-              <Text style={[styles.statSubValue, { color: safeTheme.colors.primary }]}>
-                {insights.mostUsedCategory.percentage.toFixed(1)}%
-              </Text>
+        {/* Category Pie Chart */}
+        {pieChartData.length > 0 && (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: safeTheme.colors.onSurface }]}>Category Distribution</Text>
+            <Surface style={[styles.chartContainer, { backgroundColor: safeTheme.colors.surface }]} elevation={1}>
+              <PieChart
+                data={pieChartData}
+                width={CHART_WIDTH}
+                height={220}
+                chartConfig={chartConfig}
+                accessor={"population"}
+                backgroundColor={"transparent"}
+                paddingLeft={"15"}
+                center={[10, 0]}
+                absolute
+              />
             </Surface>
-          )}
-
-          <Surface style={[styles.statCard, { backgroundColor: safeTheme.colors.surface }]} elevation={1}>
-            <Ionicons name="time-outline" size={20} color={safeTheme.colors.primary} />
-            <Text style={[styles.statLabel, { color: safeTheme.colors.onSurfaceVariant }]}>Peak Hour</Text>
-            <Text style={[styles.statValue, { color: safeTheme.colors.onSurface }]}>{insights.peakHour}</Text>
-          </Surface>
-        </View>
+          </View>
+        )}
 
         <View style={styles.bottomPadding} />
       </ScrollView>
+
+      <Modal
+        visible={showTripSelector}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowTripSelector(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowTripSelector(false)}
+        >
+          <View style={[styles.tripSelectorModal, { backgroundColor: safeTheme.colors.surface }]}>
+            <Text style={[styles.modalTitle, { color: safeTheme.colors.onSurface, marginBottom: 12 }]}>Select Trip</Text>
+            <ScrollView style={{ maxHeight: 300 }}>
+              <TouchableOpacity
+                style={[
+                  styles.tripOption,
+                  selectedTripId === "all" && { backgroundColor: safeTheme.colors.primaryContainer },
+                ]}
+                onPress={() => {
+                  setSelectedTripId("all");
+                  setShowTripSelector(false);
+                }}
+              >
+                <Text
+                  style={[
+                    styles.tripOptionText,
+                    {
+                      color: selectedTripId === "all"
+                        ? safeTheme.colors.onPrimaryContainer
+                        : safeTheme.colors.onSurface
+                    },
+                  ]}
+                >
+                  All Trips
+                </Text>
+                {selectedTripId === "all" && (
+                  <Ionicons name="checkmark" size={20} color={safeTheme.colors.primary} />
+                )}
+              </TouchableOpacity>
+              {trips.map((trip) => (
+                <TouchableOpacity
+                  key={trip.id}
+                  style={[
+                    styles.tripOption,
+                    selectedTripId === trip.id && { backgroundColor: safeTheme.colors.primaryContainer },
+                  ]}
+                  onPress={() => {
+                    setSelectedTripId(trip.id);
+                    setShowTripSelector(false);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.tripOptionText,
+                      {
+                        color: selectedTripId === trip.id
+                          ? safeTheme.colors.onPrimaryContainer
+                          : safeTheme.colors.onSurface
+                      },
+                    ]}
+                  >
+                    {trip.name}
+                  </Text>
+                  {selectedTripId === trip.id && (
+                    <Ionicons name="checkmark" size={20} color={safeTheme.colors.primary} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       {/* Custom Range Modal */}
       <Modal
@@ -605,7 +688,7 @@ export default function SpendingTrendsScreen({ navigation }: SpendingTrendsScree
                 <Ionicons name="close" size={24} color={safeTheme.colors.onSurfaceVariant} />
               </TouchableOpacity>
             </View>
-            
+
             <View style={styles.datePickerContainer}>
               <View style={styles.datePickerItem}>
                 <Text style={[styles.datePickerLabel, { color: safeTheme.colors.onSurface }]}>Start Date</Text>
@@ -614,7 +697,7 @@ export default function SpendingTrendsScreen({ navigation }: SpendingTrendsScree
                   onChange={(value) => setCustomStartDate(value)}
                 />
               </View>
-              
+
               <View style={styles.datePickerItem}>
                 <Text style={[styles.datePickerLabel, { color: safeTheme.colors.onSurface }]}>End Date</Text>
                 <DatePickerInput
@@ -654,6 +737,8 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'ios' ? 0 : 20,
     paddingBottom: 24,
     paddingHorizontal: 24,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
   },
   headerContent: {
     flexDirection: 'row',
@@ -681,73 +766,58 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.9)',
     marginTop: 4,
   },
-  headerMonthYear: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.7)',
-    marginTop: 2,
-    fontWeight: '500',
-  },
-  chartWrapper: {
+  tripSelectorButton: {
     flexDirection: 'row',
-    position: 'relative',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 6,
+    marginVertical: 4,
   },
-  yAxisContainer: {
-    width: 50,
-    height: 280,
-    justifyContent: 'space-between',
-    paddingRight: 8,
-    paddingVertical: 20,
-    alignItems: 'flex-end',
-  },
-  yAxisLabel: {
-    fontSize: 10,
-    textAlign: 'right',
+  tripSelectorText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
   totalContainer: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
   },
   totalLabel: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.9)',
-    marginBottom: 8,
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginBottom: 4,
   },
   totalAmount: {
-    fontSize: 40,
-    fontWeight: '700',
+    fontSize: 36,
+    fontWeight: '800',
     color: '#FFFFFF',
-    letterSpacing: -1,
   },
   periodSelector: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 16,
+    padding: 4,
   },
   navButton: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    padding: 8,
   },
   periodButtons: {
-    flex: 1,
     flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 12,
-    padding: 4,
-    gap: 4,
+    flex: 1,
+    justifyContent: 'space-around',
   },
   periodButton: {
-    flex: 1,
     paddingVertical: 8,
     paddingHorizontal: 12,
-    borderRadius: 8,
-    alignItems: 'center',
+    borderRadius: 12,
   },
   periodButtonActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: '#FFFFFF',
   },
   periodButtonText: {
     fontSize: 12,
@@ -755,164 +825,148 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.8)',
   },
   periodButtonTextActive: {
-    color: '#FFFFFF',
+    color: '#8b5cf6',
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 32,
+    padding: 16,
+    paddingBottom: 40,
   },
   section: {
-    marginTop: 24,
-    paddingHorizontal: 24,
+    marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
     marginBottom: 16,
+    marginLeft: 4,
   },
   chartContainer: {
-    borderRadius: 16,
+    borderRadius: 24,
     padding: 16,
-    overflow: 'hidden',
-  },
-  chartScrollView: {
-    borderRadius: 12,
-    flex: 1,
-  },
-  chartScrollContent: {
-    paddingRight: 16,
+    alignItems: 'center',
   },
   chart: {
-    borderRadius: 12,
+    borderRadius: 16,
+    marginVertical: 8,
   },
-  chartWithOverlay: {
-    position: 'relative',
-  },
-  dataPointTooltip: {
-    position: 'absolute',
-    padding: 8,
-    borderRadius: 8,
-    minWidth: 100,
+  chartError: {
+    height: 220,
+    justifyContent: 'center',
     alignItems: 'center',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
-  },
-  tooltipDate: {
-    fontSize: 11,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  tooltipValue: {
-    fontSize: 14,
-    fontWeight: '700',
   },
   emptyChart: {
-    height: 280,
-    alignItems: 'center',
+    height: 220,
     justifyContent: 'center',
+    alignItems: 'center',
+    gap: 12,
   },
   emptyChartText: {
     fontSize: 14,
-    marginTop: 12,
-  },
-  chartError: {
-    height: 280,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
   },
   insightsRow: {
     flexDirection: 'row',
     gap: 12,
-    paddingHorizontal: 24,
-    marginTop: 24,
+    marginBottom: 24,
   },
   insightCard: {
     flex: 1,
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 20,
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  insightIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
   },
   insightLabel: {
     fontSize: 12,
-    marginTop: 8,
     marginBottom: 4,
   },
   insightValue: {
     fontSize: 16,
     fontWeight: '700',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   insightDate: {
-    fontSize: 11,
+    fontSize: 10,
   },
-  statsSection: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    paddingHorizontal: 24,
-    marginTop: 24,
-  },
-  statCard: {
-    flex: 1,
-    minWidth: '30%',
-    padding: 16,
-    borderRadius: 16,
+  tooltip: {
+    position: 'absolute',
+    padding: 8,
+    borderRadius: 8,
+    zIndex: 100,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  statLabel: {
+  tooltipText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
     fontSize: 12,
-    marginTop: 8,
-    marginBottom: 4,
-    textAlign: 'center',
   },
-  statValue: {
-    fontSize: 16,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  statSubValue: {
-    fontSize: 12,
-    marginTop: 4,
-    fontWeight: '600',
-  },
-  bottomPadding: {
-    height: 32,
+  tooltipDate: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 10,
   },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
   },
-  modalContent: {
+  tripSelectorModal: {
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 24,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+    paddingBottom: 40,
+  },
+  modalContent: {
+    margin: 24,
+    borderRadius: 24,
+    padding: 24,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    width: '100%',
     marginBottom: 24,
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  tripOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  tripOptionText: {
+    fontSize: 16,
+    fontWeight: '500',
   },
   datePickerContainer: {
-    gap: 20,
+    width: '100%',
+    gap: 16,
     marginBottom: 24,
   },
   datePickerItem: {
@@ -920,23 +974,30 @@ const styles = StyleSheet.create({
   },
   datePickerLabel: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '500',
   },
   modalActions: {
     flexDirection: 'row',
     gap: 12,
+    width: '100%',
   },
   modalButton: {
     flex: 1,
-    paddingVertical: 16,
+    paddingVertical: 12,
     borderRadius: 12,
     alignItems: 'center',
   },
-  modalButtonCancel: {},
-  modalButtonApply: {},
+  modalButtonCancel: {
+    borderWidth: 0,
+  },
+  modalButtonApply: {
+    elevation: 0,
+  },
   modalButtonText: {
     fontSize: 16,
     fontWeight: '600',
   },
+  bottomPadding: {
+    height: 20,
+  },
 });
-

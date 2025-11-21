@@ -147,8 +147,30 @@ export const [AppProvider, useApp] = createContextHook(() => {
 
   const addTrip = useCallback(
     async (trip: Omit<Trip, "id" | "createdAt" | "updatedAt">) => {
+      let participants = trip.participants || [];
+
+      // Auto-add current user if they exist and aren't already in the list
+      if (user) {
+        const isUserInList = participants.some((p) => p.id === user.id);
+        if (!isUserInList) {
+          participants = [
+            ...participants,
+            {
+              id: user.id,
+              name: user.name,
+              email: user.email,
+              isCurrentUser: true,
+              isOwner: true,
+              joinedAt: new Date().toISOString(),
+              isActive: true,
+            },
+          ];
+        }
+      }
+
       const newTrip: Trip = {
         ...trip,
+        participants,
         id: `trip_${Date.now()}`,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),

@@ -455,6 +455,21 @@ export default function TripDetailScreen({ navigation, route }: TripDetailScreen
             </View>
             <Text style={[styles.iconActionLabel, { color: safeTheme.colors.onSurfaceVariant }]}>Settle</Text>
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.iconActionButton}
+            onPress={() => {
+              navigation.navigate('TripNotes', { tripId: trip.id });
+              if (Platform.OS !== 'web') {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }
+            }}
+          >
+            <View style={[styles.iconActionCircle, { backgroundColor: safeTheme.colors.surfaceVariant }]}>
+              <Ionicons name="document-text" size={24} color={safeTheme.colors.onSurfaceVariant} />
+            </View>
+            <Text style={[styles.iconActionLabel, { color: safeTheme.colors.onSurfaceVariant }]}>Notes</Text>
+          </TouchableOpacity>
         </View>
 
         <AnimatedButton
