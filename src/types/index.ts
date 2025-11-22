@@ -53,10 +53,12 @@ export interface Trip {
   notificationsEnabled?: boolean;
   notificationPreferences?: {
     budgetAlerts?: boolean;
+    budgetAlertThreshold?: number; // Percentage (e.g., 50, 75, 90)
     dailySummaries?: boolean;
     settlementReminders?: boolean;
     activityReminders?: boolean;
   };
+  lastMoodCheckin?: string; // Date string YYYY-MM-DD
   notes?: Note[];
 }
 
@@ -169,6 +171,7 @@ export interface ActivityItem {
   id: string;
   tripId: string;
   description: string;
+  location?: string;
   date: string; // YYYY-MM-DD
   completed: boolean;
 }

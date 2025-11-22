@@ -131,8 +131,35 @@ export default function NotificationSettingsScreen({ navigation }: NotificationS
                         <View style={styles.preferenceTextContainer}>
                           <Text style={styles.preferenceLabel}>Budget Alerts</Text>
                           <Text style={styles.preferenceDescription}>
-                            Get notified when you reach 80% or exceed your budget
+                            Get notified when you reach a % of your budget
                           </Text>
+                          {trip.notificationPreferences?.budgetAlerts !== false && (
+                            <View style={styles.thresholdContainer}>
+                              {[50, 75, 90].map((threshold) => (
+                                <TouchableOpacity
+                                  key={threshold}
+                                  style={[
+                                    styles.thresholdChip,
+                                    (trip.notificationPreferences?.budgetAlertThreshold || 80) === threshold && styles.thresholdChipActive
+                                  ]}
+                                  onPress={async () => {
+                                    const currentPrefs = trip.notificationPreferences || {};
+                                    await updateTrip(trip.id, {
+                                      notificationPreferences: {
+                                        ...currentPrefs,
+                                        budgetAlertThreshold: threshold
+                                      }
+                                    });
+                                  }}
+                                >
+                                  <Text style={[
+                                    styles.thresholdText,
+                                    (trip.notificationPreferences?.budgetAlertThreshold || 80) === threshold && styles.thresholdTextActive
+                                  ]}>{threshold}%</Text>
+                                </TouchableOpacity>
+                              ))}
+                            </View>
+                          )}
                         </View>
                       </View>
                       <Switch
@@ -345,6 +372,31 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#8E8E93',
     lineHeight: 18,
+  },
+  thresholdContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
+  },
+  thresholdChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  thresholdChipActive: {
+    backgroundColor: '#8b5cf6',
+    borderColor: '#8b5cf6',
+  },
+  thresholdText: {
+    fontSize: 12,
+    color: '#4B5563',
+    fontWeight: '500',
+  },
+  thresholdTextActive: {
+    color: '#FFFFFF',
   },
 });
 

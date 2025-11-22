@@ -238,6 +238,7 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
           id: generateId() + Math.random().toString(36).substr(2, 5),
           tripId: selectedTripId,
           description: activity.description,
+          location: selectedTemplate.destination,
           completed: false,
           date: new Date().toISOString(),
         }));
@@ -329,9 +330,14 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
                   setShowTripSelector(false);
                 }}
               >
-                <Text style={{ color: trip.id === selectedTripId ? safeTheme.colors.onPrimaryContainer : safeTheme.colors.onSurface }}>
-                  {trip.name}
-                </Text>
+                <View>
+                  <Text style={{ color: trip.id === selectedTripId ? safeTheme.colors.onPrimaryContainer : safeTheme.colors.onSurface, fontWeight: '600' }}>
+                    {trip.name}
+                  </Text>
+                  <Text style={{ color: trip.id === selectedTripId ? safeTheme.colors.onPrimaryContainer : safeTheme.colors.onSurfaceVariant, fontSize: 12 }}>
+                    {trip.destination}
+                  </Text>
+                </View>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -484,9 +490,16 @@ export default function PlanningScreen({ navigation }: PlanningScreenProps) {
                         }]}>
                           {item.description}
                         </Text>
-                        <Text style={[styles.itemDate, { color: safeTheme.colors.onSurfaceVariant }]}>
-                          {new Date(item.date).toLocaleDateString()}
-                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
+                          <Ionicons name="location-outline" size={12} color={safeTheme.colors.onSurfaceVariant} />
+                          <Text style={{ color: safeTheme.colors.onSurfaceVariant, fontSize: 12 }}>
+                            {item.location || selectedTrip.destination}
+                          </Text>
+                          <Text style={{ color: safeTheme.colors.onSurfaceVariant, fontSize: 12 }}>•</Text>
+                          <Text style={[styles.itemDate, { color: safeTheme.colors.onSurfaceVariant, marginTop: 0 }]}>
+                            {new Date(item.date).toLocaleDateString()}
+                          </Text>
+                        </View>
                       </View>
                     </TouchableOpacity>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>

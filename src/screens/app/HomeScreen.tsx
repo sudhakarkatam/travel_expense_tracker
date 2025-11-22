@@ -166,6 +166,8 @@ export default function HomeScreen({ navigation, route }: HomeScreenProps) {
     const progressColor = progressPercentage > 100 ? theme.colors.error : progressPercentage > 80 ? "#FF9500" : theme.colors.primary;
     const isGridItem = index >= 3;
 
+    const statusColor = statusInfo.status === "active" ? "#4ADE80" : statusInfo.status === "upcoming" ? "#FACC15" : "#9CA3AF";
+
     return (
       <MotiView
         from={{ opacity: 0, translateY: 20 }}
@@ -199,18 +201,16 @@ export default function HomeScreen({ navigation, route }: HomeScreenProps) {
             <LinearGradient colors={["transparent", "rgba(0,0,0,0.7)"]} style={styles.imageGradient} />
 
             <View style={[styles.statusBadgePill, isGridItem ? { top: 8, right: 8, paddingHorizontal: 8, paddingVertical: 4 } : undefined] as any}>
-              <Text style={[styles.statusBadgeText, isGridItem ? { fontSize: 10 } : undefined]}>{statusInfo.status === "upcoming" ? "Upcoming" : statusInfo.status === "active" ? "Active" : "Completed"}</Text>
+              <Text style={[styles.statusBadgeText, { color: statusColor }, isGridItem ? { fontSize: 10 } : undefined]}>{statusInfo.status === "upcoming" ? "Upcoming" : statusInfo.status === "active" ? "Active" : "Completed"}</Text>
             </View>
 
             <View style={[styles.overlayContent, isGridItem ? { bottom: 8, left: 8, right: 8 } : undefined] as any}>
               <Text style={[styles.tripName, isGridItem ? { fontSize: 16 } : undefined]} numberOfLines={1}>{trip.name}</Text>
-              {!isGridItem && (
-                <View style={styles.locationRow}>
-                  <Ionicons name="location" size={14} color="#FFFFFF" />
-                  <Text style={styles.destination} numberOfLines={1}>{trip.destination || "No destination"}</Text>
-                </View>
-              )}
-              {!isGridItem && <Text style={styles.overlayDate}>{formatDateRange(trip.startDate, trip.endDate)}</Text>}
+              <View style={styles.locationRow}>
+                <Ionicons name="location" size={isGridItem ? 12 : 14} color="#FFFFFF" />
+                <Text style={[styles.destination, isGridItem ? { fontSize: 12 } : undefined]} numberOfLines={1}>{trip.destination || "No destination"}</Text>
+              </View>
+              <Text style={[styles.overlayDate, isGridItem ? { fontSize: 10 } : undefined]}>{formatDateRange(trip.startDate, trip.endDate)}</Text>
             </View>
           </View>
 

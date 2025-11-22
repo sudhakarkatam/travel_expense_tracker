@@ -45,7 +45,7 @@ export default function TripDetailScreen({ navigation, route }: TripDetailScreen
       outlineVariant: theme?.colors?.outlineVariant || '#E5E5E5',
     },
   };
-  const { trips, expenses, deleteExpense, settlements, getTripBalances } = useApp();
+  const { trips, expenses, deleteExpense, settlements, getTripBalances, updateTrip } = useApp();
   const { defaultCurrency } = useCurrency();
   const { tripId } = route.params;
   const trip = trips.find(t => t.id === tripId);
@@ -795,6 +795,8 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 28,
     justifyContent: 'center',
+    fontSize: 18,
+    fontWeight: '600',
   },
   addExpenseLabel: {
     fontSize: 16,
